@@ -1,0 +1,16 @@
+body {
+  margin: 0;
+  background: #f5f7fa;
+  font-family: Arial, sans-serif;
+}
+
+.page {
+  padding: 24px;
+}
+
+.card {
+  background: white;
+  padding: 16px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+}
