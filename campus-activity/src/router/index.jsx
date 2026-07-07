@@ -14,6 +14,8 @@ import MyFavorites from '../pages/MyFavorites'
 import EditActivity from '../pages/EditActivity'
 import CheckIn from '../pages/CheckIn'
 import Feedback from '../pages/Feedback'
+import OrganizerAnalytics from '../pages/OrganizerAnalytics'
+import CommunityClusters from '../pages/CommunityClusters'
 import AdminDashboard from '../pages/AdminDashboard'
 
 export default function Router() {
@@ -33,6 +35,8 @@ export default function Router() {
         <Route path="/edit/:id" element={<EditActivity />} />
         <Route path="/checkin" element={<CheckIn />} />
         <Route path="/feedback" element={<Feedback />} />
+        <Route path="/organizer-analytics" element={<OrganizerAnalytics />} />
+        <Route path="/community" element={<CommunityClusters />} />
         <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </BrowserRouter>

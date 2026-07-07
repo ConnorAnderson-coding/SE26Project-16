@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  Form, Card, Input, Button, Select, DatePicker, message, Row, Col
+  Form, Card, Input, Button, Select, DatePicker, Upload, message, Row, Col
 } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
 import { useApp } from '../context/AppContext'
@@ -33,6 +34,7 @@ export default function EditActivity() {
       location: values.location,
       maxParticipants: values.maxParticipants,
       tags: values.tags || [],
+      poster: values.poster?.[0]?.url || values.poster?.[0]?.thumbUrl || activity.poster,
       ...(values.timeRange ? {
         startTime: values.timeRange[0].toDate().toISOString(),
         endTime: values.timeRange[1].toDate().toISOString()
@@ -56,7 +58,10 @@ export default function EditActivity() {
               description: activity.description,
               location: activity.location,
               maxParticipants: activity.maxParticipants,
-              tags: activity.tags
+              tags: activity.tags,
+              poster: activity.poster
+                ? [{ uid: '-1', name: 'poster.jpg', status: 'done', url: activity.poster }]
+                : []
             }}
           >
             <Form.Item name="title" label="活动名称" rules={[{ required: true }]}>
@@ -90,6 +95,32 @@ export default function EditActivity() {
 
             <Form.Item name="description" label="活动简介" rules={[{ required: true }]}>
               <Input.TextArea rows={5} />
+            </Form.Item>
+
+            <Form.Item
+              name="poster"
+              label="活动海报"
+              valuePropName="fileList"
+              getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
+            >
+              <Upload
+                listType="picture-card"
+                maxCount={1}
+                beforeUpload={() => false}
+                onChange={({ fileList }) => {
+                  fileList.forEach(file => {
+                    if (file.originFileObj && !file.url) {
+                      file.url = URL.createObjectURL(file.originFileObj)
+                      file.thumbUrl = file.url
+                    }
+                  })
+                }}
+              >
+                <div>
+                  <PlusOutlined />
+                  <div style={{ marginTop: 8 }}>上传海报</div>
+                </div>
+              </Upload>
             </Form.Item>
 
             <Button type="primary" htmlType="submit">

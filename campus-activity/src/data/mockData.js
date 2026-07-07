@@ -54,6 +54,17 @@ export const initialUsers = [
     interests: ['AI', '创业'],
     availableTime: ['weekday_morning', 'weekday_afternoon'],
     friends: []
+  },
+  {
+    id: 'admin001',
+    password: '123456',
+    name: '系统管理员',
+    role: 'admin',
+    college: '软件学院',
+    grade: '管理员',
+    interests: [],
+    availableTime: [],
+    friends: []
   }
 ]
 
@@ -76,7 +87,8 @@ export const initialActivities = [
     status: 'published',
     tags: ['AI', '编程'],
     checkInCode: 'AI2026',
-    record: null
+    record: null,
+    shareStats: { wechat: 45, poster: 12, friend: 8, list: 23 }
   },
   {
     id: '2',
@@ -116,7 +128,8 @@ export const initialActivities = [
     status: 'published',
     tags: ['摄影', '艺术'],
     checkInCode: 'PH2026',
-    record: null
+    record: null,
+    shareStats: { wechat: 28, poster: 18, friend: 15, list: 12 }
   },
   {
     id: '4',
@@ -136,7 +149,8 @@ export const initialActivities = [
     status: 'published',
     tags: ['编程', 'AI'],
     checkInCode: 'CP2026',
-    record: null
+    record: null,
+    shareStats: { wechat: 32, poster: 20, friend: 10, list: 18 }
   },
   {
     id: '5',
@@ -164,7 +178,8 @@ export const initialActivities = [
         'https://picsum.photos/seed/vol3/400/300'
       ],
       publishedAt: '2026-07-26T10:00:00'
-    }
+    },
+    shareStats: { wechat: 20, poster: 8, friend: 6, list: 15 }
   },
   {
     id: '6',
@@ -191,7 +206,8 @@ export const initialActivities = [
         'https://picsum.photos/seed/music2/400/300'
       ],
       publishedAt: '2026-06-29T09:00:00'
-    }
+    },
+    shareStats: { wechat: 120, poster: 45, friend: 38, list: 55 }
   }
 ]
 
@@ -199,7 +215,14 @@ export const initialSignups = [
   { id: 's1', activityId: '1', userId: '524030910001', status: 'approved', createdAt: '2026-07-01T10:00:00' },
   { id: 's2', activityId: '2', userId: '524030910001', status: 'pending', createdAt: '2026-07-02T14:00:00' },
   { id: 's3', activityId: '3', userId: '524030910002', status: 'approved', createdAt: '2026-07-03T09:00:00' },
-  { id: 's4', activityId: '1', userId: '524030910002', status: 'pending', createdAt: '2026-07-04T11:00:00' }
+  { id: 's4', activityId: '1', userId: '524030910002', status: 'pending', createdAt: '2026-07-04T11:00:00' },
+  { id: 's5', activityId: '3', userId: '524030910001', status: 'approved', createdAt: '2026-07-05T08:00:00' },
+  { id: 's6', activityId: '3', userId: 'T001', status: 'approved', createdAt: '2026-07-05T09:00:00' },
+  { id: 's7', activityId: '5', userId: '524030910002', status: 'approved', createdAt: '2026-07-10T10:00:00' },
+  { id: 's8', activityId: '5', userId: '524030910001', status: 'approved', createdAt: '2026-07-11T11:00:00' },
+  { id: 's9', activityId: '6', userId: '524030910002', status: 'approved', createdAt: '2026-06-20T10:00:00' },
+  { id: 's10', activityId: '4', userId: '524030910001', status: 'approved', createdAt: '2026-07-12T14:00:00' },
+  { id: 's11', activityId: '4', userId: '524030910002', status: 'pending', createdAt: '2026-07-13T09:00:00' }
 ]
 
 export const initialFavorites = [
@@ -217,11 +240,34 @@ export const initialFeedbacks = [
     rating: 5,
     content: '演出非常精彩，氛围很好，希望每年都能举办！',
     createdAt: '2026-06-29T12:00:00'
+  },
+  {
+    id: 'f2',
+    activityId: '6',
+    userId: '524030910002',
+    userName: '李四',
+    rating: 4,
+    content: '现场音响效果不错，建议明年增加互动环节。',
+    createdAt: '2026-06-29T14:00:00'
+  },
+  {
+    id: 'f3',
+    activityId: '3',
+    userId: '524030910002',
+    userName: '李四',
+    rating: 5,
+    content: '采风活动组织得很好，学到了很多摄影技巧。',
+    createdAt: '2026-07-19T10:00:00'
   }
 ]
 
 export const initialCheckIns = [
-  { id: 'c1', activityId: '6', userId: '524030910001', method: 'qrcode', time: '2026-06-28T18:45:00' }
+  { id: 'c1', activityId: '6', userId: '524030910001', method: 'qrcode', time: '2026-06-28T18:45:00' },
+  { id: 'c2', activityId: '6', userId: '524030910002', method: 'password', time: '2026-06-28T18:50:00' },
+  { id: 'c3', activityId: '3', userId: '524030910001', method: 'location', time: '2026-07-18T08:15:00' },
+  { id: 'c4', activityId: '3', userId: '524030910002', method: 'qrcode', time: '2026-07-18T08:20:00' },
+  { id: 'c5', activityId: '5', userId: '524030910001', method: 'qrcode', time: '2026-07-25T08:45:00' },
+  { id: 'c6', activityId: '5', userId: '524030910002', method: 'location', time: '2026-07-25T09:00:00' }
 ]
 
 export const AVAILABLE_TIME_OPTIONS = [
@@ -229,6 +275,59 @@ export const AVAILABLE_TIME_OPTIONS = [
   { label: '工作日下午', value: 'weekday_afternoon' },
   { label: '工作日晚间', value: 'weekday_evening' },
   { label: '周末', value: 'weekend' }
+]
+
+export const SHARE_CHANNEL_LABELS = {
+  wechat: '微信分享',
+  poster: '海报张贴',
+  friend: '好友推荐',
+  list: '活动列表'
+}
+
+export const initialCommunityClusters = [
+  {
+    id: 'cluster-tech',
+    name: '科创达人',
+    description: '偏好编程、AI、创新创业类活动',
+    color: '#1677ff',
+    topInterests: ['AI', '编程', '创业'],
+    members: [
+      { userId: '524030910001', x: 68, y: 72 },
+      { userId: '524030910002', x: 74, y: 65 },
+      { userId: 'T001', x: 62, y: 58 }
+    ]
+  },
+  {
+    id: 'cluster-sports',
+    name: '运动健将',
+    description: '热衷体育运动与户外竞技',
+    color: '#52c41a',
+    topInterests: ['羽毛球', '篮球', '电竞'],
+    members: [
+      { userId: '524030910002', x: 35, y: 42 }
+    ]
+  },
+  {
+    id: 'cluster-arts',
+    name: '文艺青年',
+    description: '关注摄影、音乐与艺术活动',
+    color: '#eb2f96',
+    topInterests: ['摄影', '音乐', '舞蹈'],
+    members: [
+      { userId: '524030910001', x: 28, y: 78 }
+    ]
+  },
+  {
+    id: 'cluster-volunteer',
+    name: '公益先锋',
+    description: '积极参与志愿服务与社区活动',
+    color: '#fa8c16',
+    topInterests: ['志愿服务', '阅读'],
+    members: [
+      { userId: '524030910001', x: 82, y: 28 },
+      { userId: 'T001', x: 88, y: 35 }
+    ]
+  }
 ]
 
 export function getCategoryLabel(value) {
