@@ -1,6 +1,6 @@
 import { Card, Input, Button, Tabs, Form, Select, message, Typography } from 'antd'
-import { UserOutlined, LockOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
+import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { COLLEGES, INTEREST_TAGS, AVAILABLE_TIME_OPTIONS } from '../data/mockData'
@@ -13,11 +13,9 @@ export default function Login() {
   const [loginForm] = Form.useForm()
   const [registerForm] = Form.useForm()
 
-  useEffect(() => {
-    if (currentUser) {
-      navigate('/home', { replace: true })
-    }
-  }, [currentUser, navigate])
+  if (currentUser) {
+    return <Navigate to="/home" replace/>
+  }
 
   const handleLogin = (values) => {
     const result = login(values.userId, values.password)
@@ -74,8 +72,18 @@ export default function Login() {
                       登录
                     </Button>
                   </Form.Item>
+                  <Form.Item style={{ marginBottom: 8 }}>
+                    <Button
+                      block
+                      icon={<LoginOutlined />}
+                      onClick={() => message.info('jAccount 单点登录功能即将上线')}
+                    >
+                      使用 jAccount 单点登录
+                    </Button>
+                  </Form.Item>
                   <Paragraph type="secondary" style={{ textAlign: 'center', marginBottom: 0 }}>
-                    演示账号：524030910001 / 123456
+                    演示账号：524030910001 / 123456（学生）<br />
+                    管理员：admin001 / 123456
                   </Paragraph>
                 </Form>
               )

@@ -4,6 +4,7 @@ import {
 } from '@ant-design/icons'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
+import AdminGuard from '../components/AdminGuard'
 import { useApp } from '../context/AppContext'
 import { getCategoryLabel } from '../data/mockData'
 
@@ -37,7 +38,8 @@ export default function AdminDashboard() {
 
   return (
     <AuthGuard>
-      <MainLayout title="管理后台">
+      <AdminGuard>
+        <MainLayout title="管理后台">
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={12} sm={6}>
             <Card>
@@ -87,7 +89,8 @@ export default function AdminDashboard() {
             pagination={{ pageSize: 8 }}
           />
         </Card>
-      </MainLayout>
+        </MainLayout>
+      </AdminGuard>
     </AuthGuard>
   )
 }

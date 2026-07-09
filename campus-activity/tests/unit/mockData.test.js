@@ -5,7 +5,9 @@ import {
   formatDateTime,
   formatDateRange,
   initialUsers,
-  initialActivities
+  initialActivities,
+  initialCommunityClusters,
+  SHARE_CHANNEL_LABELS
 } from '../../src/data/mockData'
 
 describe('mockData 工具函数', () => {
@@ -50,6 +52,15 @@ describe('mockData 初始数据', () => {
     const roles = initialUsers.map(u => u.role)
     expect(roles).toContain('student')
     expect(roles).toContain('teacher')
+    expect(roles).toContain('admin')
+  })
+
+  it('应包含管理员演示账号', () => {
+    const admin = initialUsers.find(u => u.id === 'admin001')
+    expect(admin).toMatchObject({
+      role: 'admin',
+      password: '123456'
+    })
   })
 
   it('初始活动应包含已发布与已结束状态', () => {
@@ -63,6 +74,29 @@ describe('mockData 初始数据', () => {
     ACTIVITY_CATEGORIES.forEach(c => {
       expect(c).toHaveProperty('label')
       expect(c).toHaveProperty('value')
+    })
+  })
+
+  it('社区聚类示例数据应完整', () => {
+    expect(initialCommunityClusters.length).toBeGreaterThanOrEqual(3)
+    initialCommunityClusters.forEach(cluster => {
+      expect(cluster).toHaveProperty('name')
+      expect(cluster).toHaveProperty('members')
+      expect(cluster.members.length).toBeGreaterThan(0)
+      cluster.members.forEach(member => {
+        expect(member).toHaveProperty('userId')
+        expect(member).toHaveProperty('x')
+        expect(member).toHaveProperty('y')
+      })
+    })
+  })
+
+  it('传播渠道标签应覆盖主要渠道', () => {
+    expect(SHARE_CHANNEL_LABELS).toMatchObject({
+      wechat: expect.any(String),
+      poster: expect.any(String),
+      friend: expect.any(String),
+      list: expect.any(String)
     })
   })
 })
