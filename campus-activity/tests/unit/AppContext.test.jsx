@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { AppProvider, useApp } from '../../src/context/AppContext'
+import { initialUsers } from '../../src/data/mockData'
 
 function useAppHook() {
   return renderHook(() => useApp(), {
@@ -53,6 +54,55 @@ describe('AppContext 业务逻辑', () => {
       })
 
       expect(result.current.currentUser).toBeNull()
+    })
+
+    it('管理员账号应能登录', () => {
+      const { result } = useAppHook()
+
+      let loginResult
+      act(() => {
+        loginResult = result.current.login('admin001', '123456')
+      })
+
+      expect(loginResult).toEqual({ success: true })
+      expect(result.current.currentUser).toMatchObject({
+        id: 'admin001',
+        role: 'admin'
+      })
+    })
+  })
+
+  describe('mergeSeedUsers', () => {
+    beforeEach(() => {
+      localStorage.clear()
+    })
+
+    it('localStorage 缺少种子用户时应自动合并 admin001', () => {
+      const usersWithoutAdmin = initialUsers.filter(u => u.id !== 'admin001')
+      localStorage.setItem(
+        'campus-activity-state',
+        JSON.stringify({
+          currentUser: null,
+          users: usersWithoutAdmin,
+          activities: [],
+          signups: [],
+          favorites: [],
+          feedbacks: [],
+          checkIns: []
+        })
+      )
+
+      const { result } = useAppHook()
+
+      expect(result.current.users.some(u => u.id === 'admin001')).toBe(true)
+
+      let loginResult
+      act(() => {
+        loginResult = result.current.login('admin001', '123456')
+      })
+
+      expect(loginResult.success).toBe(true)
+      expect(result.current.currentUser?.role).toBe('admin')
     })
   })
 
@@ -124,11 +174,11 @@ describe('AppContext 业务逻辑', () => {
 
       let signupResult
       act(() => {
-        signupResult = result.current.signupActivity('4')
+        signupResult = result.current.signupActivity('2')
       })
 
       expect(signupResult.success).toBe(true)
-      expect(result.current.getSignupStatus('4')).toBe('pending')
+      expect(result.current.getSignupStatus('2')).toBe('pending')
     })
 
     it('重复报名同一活动应失败', () => {
@@ -283,6 +333,70 @@ describe('AppContext 业务逻辑', () => {
 
       const signup = result.current.signups.find(s => s.id === 's2')
       expect(signup?.status).toBe('approved')
+    })
+  })
+
+  describe('createActivity / updateActivity', () => {
+    it('登录用户应能创建活动', () => {
+      const { result } = useAppHook()
+
+      act(() => {
+        result.current.login('admin001', '123456')
+      })
+
+      let activityId
+      act(() => {
+        activityId = result.current.createActivity({
+          title: '管理员测试活动',
+          category: 'club',
+          description: '测试描述',
+          startTime: '2026-08-01T10:00:00',
+          endTime: '2026-08-01T12:00:00',
+          location: '测试地点',
+          maxParticipants: 20,
+          poster: 'https://example.com/poster.jpg',
+          tags: ['测试']
+        })
+      })
+
+      const created = result.current.activities.find(a => a.id === activityId)
+      expect(created).toMatchObject({
+        title: '管理员测试活动',
+        organizerId: 'admin001',
+        status: 'published'
+      })
+    })
+
+    it('应能更新活动海报', () => {
+      const { result } = useAppHook()
+      const newPoster = 'https://example.com/new-poster.jpg'
+
+      act(() => {
+        result.current.updateActivity('3', { poster: newPoster })
+      })
+
+      const updated = result.current.activities.find(a => a.id === '3')
+      expect(updated?.poster).toBe(newPoster)
+    })
+  })
+
+  describe('updateProfile', () => {
+    it('登录用户应能更新个人档案', () => {
+      const { result } = useAppHook()
+
+      act(() => {
+        result.current.login('524030910001', '123456')
+      })
+
+      act(() => {
+        result.current.updateProfile({
+          name: '张三（已更新）',
+          interests: ['AI', '摄影', '阅读']
+        })
+      })
+
+      expect(result.current.currentUser?.name).toBe('张三（已更新）')
+      expect(result.current.currentUser?.interests).toEqual(['AI', '摄影', '阅读'])
     })
   })
 })

@@ -20,6 +20,16 @@ function loadState() {
   return null
 }
 
+function mergeSeedUsers(savedUsers) {
+  const merged = [...savedUsers]
+  for (const seed of initialUsers) {
+    if (!merged.some(u => u.id === seed.id)) {
+      merged.push(seed)
+    }
+  }
+  return merged
+}
+
 function saveState(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
 }
@@ -30,7 +40,9 @@ export function AppProvider({ children }) {
   const saved = loadState()
 
   const [currentUser, setCurrentUser] = useState(saved?.currentUser ?? null)
-  const [users, setUsers] = useState(saved?.users ?? initialUsers)
+  const [users, setUsers] = useState(
+    saved?.users ? mergeSeedUsers(saved.users) : initialUsers
+  )
   const [activities, setActivities] = useState(saved?.activities ?? initialActivities)
   const [signups, setSignups] = useState(saved?.signups ?? initialSignups)
   const [favorites, setFavorites] = useState(saved?.favorites ?? initialFavorites)
