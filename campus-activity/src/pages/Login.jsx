@@ -1,6 +1,7 @@
 import { Card, Input, Button, Tabs, Form, Select, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { COLLEGES, INTEREST_TAGS, AVAILABLE_TIME_OPTIONS } from '../data/mockData'
 
