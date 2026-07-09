@@ -1,13 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Row, Col, Input, Select, Card, Typography, Space, Tag, Empty, Slider,
-  DatePicker, Checkbox, Button
+  DatePicker, Checkbox, Button, Spin, Result
 } from 'antd'
 import { SearchOutlined, FilterOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import MainLayout from '../layouts/MainLayout'
 import ActivityCard from '../components/ActivityCard'
 import AuthGuard from '../components/AuthGuard'
 import { useApp } from '../context/AppContext'
+import { getAllActivities } from '../services/activityApi'
 import {
   ACTIVITY_CATEGORIES,
   INTEREST_TAGS,
@@ -31,7 +32,10 @@ const STATUS_OPTIONS = [
 ]
 
 export default function ActivityList() {
-  const { activities, currentUser } = useApp()
+  const { currentUser } = useApp()
+  const [activities, setActivities] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState(null)
   const [location, setLocation] = useState(null)
@@ -43,6 +47,19 @@ export default function ActivityList() {
   const [status, setStatus] = useState(null)
   const [matchMyInterests, setMatchMyInterests] = useState(false)
   const [matchMyTime, setMatchMyTime] = useState(false)
+
+  const loadActivities = () => {
+    setLoading(true)
+    setError(null)
+    getAllActivities({ keyword: keyword.trim() || undefined, category, status, location })
+      .then(setActivities)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadActivities()
+  }, [category, status, location])
 
   const locations = useMemo(() =>
     [...new Set(activities.map(a => a.location))],
@@ -118,13 +135,15 @@ export default function ActivityList() {
       <MainLayout title="活动检索">
         <Card className="filter-card">
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Input
+            <Input.Search
               size="large"
               prefix={<SearchOutlined />}
               placeholder="语义检索：输入关键词，如 AI、羽毛球、志愿服务..."
               value={keyword}
               onChange={e => setKeyword(e.target.value)}
+              onSearch={loadActivities}
               allowClear
+              enterButton="搜索"
             />
 
             <Row gutter={[16, 16]}>
@@ -298,7 +317,13 @@ export default function ActivityList() {
           </Space>
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
+        ) : error ? (
+          <Result status="error" title="加载失败" subTitle={error} extra={
+            <Button type="primary" onClick={loadActivities}>重试</Button>
+          } />
+        ) : filtered.length === 0 ? (
           <Empty description="没有找到匹配的活动" />
         ) : (
           <Row gutter={[16, 16]}>

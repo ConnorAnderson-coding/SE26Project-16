@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Card, Input, Button, Tabs, Form, Select, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons'
 import { Navigate, useNavigate } from 'react-router-dom'
@@ -8,31 +9,44 @@ const { Title, Paragraph } = Typography
 
 export default function Login() {
   const navigate = useNavigate()
-  const { login, register, currentUser } = useApp()
+  const { login, register, currentUser, initializing } = useApp()
   const [loginForm] = Form.useForm()
   const [registerForm] = Form.useForm()
+  const [loading, setLoading] = useState(false)
+
+  if (initializing) return null
 
   if (currentUser) {
     return <Navigate to="/home" replace/>
   }
 
-  const handleLogin = (values) => {
-    const result = login(values.userId, values.password)
-    if (result.success) {
-      message.success('登录成功')
-      navigate('/home')
-    } else {
-      message.error(result.message)
+  const handleLogin = async (values) => {
+    setLoading(true)
+    try {
+      const result = await login(values.userId, values.password)
+      if (result.success) {
+        message.success('登录成功')
+        navigate('/home')
+      } else {
+        message.error(result.message)
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleRegister = (values) => {
-    const result = register(values)
-    if (result.success) {
-      message.success('注册成功')
-      navigate('/home')
-    } else {
-      message.error(result.message)
+  const handleRegister = async (values) => {
+    setLoading(true)
+    try {
+      const result = await register(values)
+      if (result.success) {
+        message.success('注册成功')
+        navigate('/home')
+      } else {
+        message.error(result.message)
+      }
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -67,7 +81,7 @@ export default function Login() {
                     <Input.Password prefix={<LockOutlined />} placeholder="密码" />
                   </Form.Item>
                   <Form.Item>
-                    <Button type="primary" htmlType="submit" block>
+                    <Button type="primary" htmlType="submit" block loading={loading}>
                       登录
                     </Button>
                   </Form.Item>
@@ -148,7 +162,7 @@ export default function Login() {
                     />
                   </Form.Item>
                   <Form.Item>
-                    <Button type="primary" htmlType="submit" block>
+                    <Button type="primary" htmlType="submit" block loading={loading}>
                       注册
                     </Button>
                   </Form.Item>
