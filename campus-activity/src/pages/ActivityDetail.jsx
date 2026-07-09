@@ -1,7 +1,8 @@
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Card, Button, Tag, Space, Typography, Row, Col, Image, Divider,
-  message, Descriptions, Empty
+  message, Descriptions, Empty, Spin, Result
 } from 'antd'
 import {
   EnvironmentOutlined, ClockCircleOutlined, TeamOutlined,
@@ -10,6 +11,10 @@ import {
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
 import { useApp } from '../context/AppContext'
+import { getActivityById } from '../services/activityApi'
+import { getSignupStatus } from '../services/registrationApi'
+import { getFavoriteStatus } from '../services/favoriteApi'
+import { listFeedbacksByActivity } from '../services/feedbackApi'
 import {
   getCategoryLabel, formatDateRange, formatDateTime
 } from '../data/mockData'
@@ -25,38 +30,98 @@ const STATUS_MAP = {
 export default function ActivityDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const {
-    activities, signupActivity, toggleFavorite,
-    getSignupStatus, isFavorited, feedbacks
-  } = useApp()
+  const { signupActivity, toggleFavorite } = useApp()
 
-  const activity = activities.find(a => a.id === id)
-  if (!activity) {
+  const [activity, setActivity] = useState(null)
+  const [signupStatus, setSignupStatus] = useState(null)
+  const [favorited, setFavorited] = useState(false)
+  const [feedbacks, setFeedbacks] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [actionLoading, setActionLoading] = useState(false)
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [act, status, fav, fb] = await Promise.all([
+        getActivityById(id),
+        getSignupStatus(id).catch(() => null),
+        getFavoriteStatus(id).catch(() => ({ favorited: false })),
+        listFeedbacksByActivity(id).catch(() => [])
+      ])
+      setActivity(act)
+      setSignupStatus(status)
+      setFavorited(fav.favorited)
+      setFeedbacks(fb)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  const handleSignup = async () => {
+    setActionLoading(true)
+    try {
+      const result = await signupActivity(id)
+      result.success ? message.success(result.message) : message.warning(result.message)
+      if (result.success) {
+        const status = await getSignupStatus(id)
+        setSignupStatus(status)
+        const act = await getActivityById(id)
+        setActivity(act)
+      }
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleFavorite = async () => {
+    setActionLoading(true)
+    try {
+      const result = await toggleFavorite(id)
+      if (result.success) {
+        message.success(result.favorited ? '已收藏' : '已取消收藏')
+        setFavorited(result.favorited)
+        const act = await getActivityById(id)
+        setActivity(act)
+      } else {
+        message.warning(result.message)
+      }
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  if (loading) {
     return (
       <AuthGuard>
         <MainLayout title="活动详情">
-          <Empty description="活动不存在" />
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
         </MainLayout>
       </AuthGuard>
     )
   }
 
-  const signupStatus = getSignupStatus(id)
-  const favorited = isFavorited(id)
-  const activityFeedbacks = feedbacks.filter(f => f.activityId === id)
-
-  const handleSignup = () => {
-    const result = signupActivity(id)
-    result.success ? message.success(result.message) : message.warning(result.message)
-  }
-
-  const handleFavorite = () => {
-    const result = toggleFavorite(id)
-    if (result.success) {
-      message.success(result.favorited ? '已收藏' : '已取消收藏')
-    } else {
-      message.warning(result.message)
-    }
+  if (error || !activity) {
+    return (
+      <AuthGuard>
+        <MainLayout title="活动详情">
+          {error ? (
+            <Result status="error" title="加载失败" subTitle={error} extra={
+              <Button type="primary" onClick={loadData}>重试</Button>
+            } />
+          ) : (
+            <Empty description="活动不存在" />
+          )}
+        </MainLayout>
+      </AuthGuard>
+    )
   }
 
   return (
@@ -109,6 +174,7 @@ export default function ActivityDetail() {
                 <Button
                   type="primary"
                   size="large"
+                  loading={actionLoading}
                   onClick={handleSignup}
                   disabled={!!signupStatus || activity.status === 'ended'}
                 >
@@ -118,6 +184,7 @@ export default function ActivityDetail() {
                 </Button>
                 <Button
                   size="large"
+                  loading={actionLoading}
                   icon={favorited ? <HeartFilled style={{ color: '#eb2f96' }} /> : <HeartOutlined />}
                   onClick={handleFavorite}
                 >
@@ -156,11 +223,11 @@ export default function ActivityDetail() {
               </Card>
             )}
 
-            <Card title={`活动评价 (${activityFeedbacks.length})`}>
-              {activityFeedbacks.length === 0 ? (
+            <Card title={`活动评价 (${feedbacks.length})`}>
+              {feedbacks.length === 0 ? (
                 <Empty description="暂无评价" image={Empty.PRESENTED_IMAGE_SIMPLE} />
               ) : (
-                activityFeedbacks.map(fb => (
+                feedbacks.map(fb => (
                   <div key={fb.id} className="feedback-item">
                     <Space>
                       <Text strong>{fb.userName}</Text>

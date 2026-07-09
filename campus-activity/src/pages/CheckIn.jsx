@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Card, Tabs, Button, Input, Select, message, Typography, Tag, Space, QRCode, Alert
+  Card, Tabs, Button, Input, Select, message, Typography, Tag, Space, QRCode, Alert, Spin
 } from 'antd'
 import {
   QrcodeOutlined, EnvironmentOutlined, KeyOutlined, CheckCircleOutlined
@@ -9,6 +9,9 @@ import {
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
 import { useApp } from '../context/AppContext'
+import { getMyRegistrations } from '../services/registrationApi'
+import { getMyActivities, getActivityById } from '../services/activityApi'
+import { getUsers } from '../services/mock/mockApi'
 import { formatDateTime } from '../data/mockData'
 
 const { Title, Text, Paragraph } = Typography
@@ -22,32 +25,57 @@ const CHECKIN_METHODS = {
 export default function CheckIn() {
   const [searchParams] = useSearchParams()
   const preActivityId = searchParams.get('activityId')
-  const { currentUser, activities, signups, checkIns, checkIn: doCheckIn, users } = useApp()
+  const { currentUser, checkIns, checkIn: doCheckIn } = useApp()
 
-  const approvedActivities = signups
-    .filter(s => s.userId === currentUser?.id && s.status === 'approved')
-    .map(s => activities.find(a => a.id === s.activityId))
-    .filter(a => a && a.status !== 'ended')
-
-  const organizerActivities = activities.filter(
-    a => a.organizerId === currentUser?.id && a.status === 'published'
-  )
-
-  const [selectedId, setSelectedId] = useState(
-    preActivityId || approvedActivities[0]?.id || organizerActivities[0]?.id || null
-  )
+  const [loading, setLoading] = useState(true)
+  const [approvedActivities, setApprovedActivities] = useState([])
+  const [organizerActivities, setOrganizerActivities] = useState([])
+  const [users, setUsers] = useState([])
+  const [selectedId, setSelectedId] = useState(preActivityId)
+  const [activity, setActivity] = useState(null)
   const [password, setPassword] = useState('')
   const [locationVerified, setLocationVerified] = useState(false)
 
-  const activity = activities.find(a => a.id === selectedId)
+  useEffect(() => {
+    async function load() {
+      setLoading(true)
+      try {
+        const [regs, orgActs, userList] = await Promise.all([
+          getMyRegistrations(),
+          getMyActivities(),
+          getUsers()
+        ])
+        const approved = regs.filter(s => s.status === 'approved')
+        const actList = await Promise.all(
+          approved.map(s => getActivityById(s.activityId).catch(() => null))
+        )
+        setApprovedActivities(actList.filter(a => a && a.status !== 'ended'))
+        setOrganizerActivities(orgActs.filter(a => a.status === 'published'))
+        setUsers(userList)
+        if (!selectedId) {
+          const first = actList.find(Boolean) || orgActs[0]
+          if (first) setSelectedId(first.id)
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  useEffect(() => {
+    if (selectedId) {
+      getActivityById(selectedId).then(setActivity).catch(() => setActivity(null))
+    }
+  }, [selectedId])
+
   const hasCheckedIn = checkIns.some(
     c => c.activityId === selectedId && c.userId === currentUser?.id
   )
   const isOrganizer = activity?.organizerId === currentUser?.id
-
   const activityCheckIns = checkIns.filter(c => c.activityId === selectedId)
 
-  const handleCheckIn = (method) => {
+  const handleCheckIn = async (method) => {
     if (method === 'password' && password !== activity?.checkInCode) {
       message.error('口令错误，请重新输入')
       return
@@ -56,7 +84,7 @@ export default function CheckIn() {
       message.warning('请先验证定位')
       return
     }
-    const result = doCheckIn(selectedId, method)
+    const result = await doCheckIn(selectedId, method)
     result.success ? message.success(result.message) : message.warning(result.message)
   }
 
@@ -71,6 +99,16 @@ export default function CheckIn() {
       .filter(a => !approvedActivities.find(p => p.id === a.id))
       .map(a => ({ ...a, role: 'organizer' }))
   ]
+
+  if (loading) {
+    return (
+      <AuthGuard>
+        <MainLayout title="活动签到">
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
+        </MainLayout>
+      </AuthGuard>
+    )
+  }
 
   return (
     <AuthGuard>
@@ -104,30 +142,17 @@ export default function CheckIn() {
                     {isOrganizer ? (
                       <>
                         <Title level={5}>活动签到二维码（组织者展示）</Title>
-                        <Paragraph type="secondary">
-                          参与者扫描以下二维码完成签到
-                        </Paragraph>
+                        <Paragraph type="secondary">参与者扫描以下二维码完成签到</Paragraph>
                         <div style={{ textAlign: 'center', padding: 24 }}>
-                          <QRCode
-                            value={`CHECKIN:${activity.id}:${activity.checkInCode}`}
-                            size={200}
-                          />
-                          <Paragraph style={{ marginTop: 12 }}>
-                            口令：{activity.checkInCode}
-                          </Paragraph>
+                          <QRCode value={`CHECKIN:${activity.id}:${activity.checkInCode}`} size={200} />
+                          <Paragraph style={{ marginTop: 12 }}>口令：{activity.checkInCode}</Paragraph>
                         </div>
-                        <Alert
-                          message={`已有 ${activityCheckIns.length} 人完成签到`}
-                          type="success"
-                          showIcon
-                        />
+                        <Alert message={`已有 ${activityCheckIns.length} 人完成签到`} type="success" showIcon />
                       </>
                     ) : (
                       <>
                         <Title level={5}>扫描二维码签到</Title>
-                        <Paragraph type="secondary">
-                          请向组织者出示的二维码扫描区域靠近（以下为模拟扫码）
-                        </Paragraph>
+                        <Paragraph type="secondary">请向组织者出示的二维码扫描区域靠近（以下为模拟扫码）</Paragraph>
                         <div style={{ textAlign: 'center', padding: 24 }}>
                           <div className="qr-scan-area">
                             <QrcodeOutlined style={{ fontSize: 64, color: '#1677ff' }} />
@@ -152,21 +177,11 @@ export default function CheckIn() {
                 children: (
                   <Card>
                     <Title level={5}>定位签到</Title>
-                    <Paragraph type="secondary">
-                      活动地址：{activity.location}
-                    </Paragraph>
-                    <Alert
-                      message="系统将验证您是否在活动地点 500 米范围内"
-                      type="info"
-                      showIcon
-                      style={{ marginBottom: 16 }}
-                    />
+                    <Paragraph type="secondary">活动地址：{activity.location}</Paragraph>
                     {!isOrganizer && (
                       <>
                         {!locationVerified && (
-                          <Button onClick={verifyLocation} style={{ marginBottom: 16 }}>
-                            获取当前位置
-                          </Button>
+                          <Button onClick={verifyLocation} style={{ marginBottom: 16 }}>获取当前位置</Button>
                         )}
                         {locationVerified && (
                           <Alert message="定位已验证" type="success" showIcon style={{ marginBottom: 16 }} />
@@ -174,13 +189,7 @@ export default function CheckIn() {
                         {hasCheckedIn ? (
                           <Alert message="您已完成签到" type="success" showIcon />
                         ) : (
-                          <Button
-                            type="primary"
-                            block
-                            size="large"
-                            disabled={!locationVerified}
-                            onClick={() => handleCheckIn('location')}
-                          >
+                          <Button type="primary" block size="large" disabled={!locationVerified} onClick={() => handleCheckIn('location')}>
                             定位签到
                           </Button>
                         )}
@@ -201,28 +210,16 @@ export default function CheckIn() {
                     {isOrganizer ? (
                       <>
                         <Paragraph>当前活动口令（可告知参与者）：</Paragraph>
-                        <Title level={2} style={{ letterSpacing: 8, color: '#1677ff' }}>
-                          {activity.checkInCode}
-                        </Title>
+                        <Title level={2} style={{ letterSpacing: 8, color: '#1677ff' }}>{activity.checkInCode}</Title>
                       </>
                     ) : (
                       <>
-                        <Paragraph type="secondary">
-                          请输入组织者公布的动态口令
-                        </Paragraph>
-                        <Input
-                          size="large"
-                          placeholder="输入口令"
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
-                          style={{ marginBottom: 16, maxWidth: 300 }}
-                        />
+                        <Paragraph type="secondary">请输入组织者公布的动态口令</Paragraph>
+                        <Input size="large" placeholder="输入口令" value={password} onChange={e => setPassword(e.target.value)} style={{ marginBottom: 16, maxWidth: 300 }} />
                         {hasCheckedIn ? (
                           <Alert message="您已完成签到" type="success" showIcon />
                         ) : (
-                          <Button type="primary" size="large" onClick={() => handleCheckIn('password')}>
-                            口令签到
-                          </Button>
+                          <Button type="primary" size="large" onClick={() => handleCheckIn('password')}>口令签到</Button>
                         )}
                       </>
                     )}

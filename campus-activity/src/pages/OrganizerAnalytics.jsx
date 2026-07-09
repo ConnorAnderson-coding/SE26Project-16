@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
   Card, Row, Col, Statistic, Select, Progress, Alert, Table, Tag, Typography, Space
 } from 'antd'
@@ -8,6 +8,8 @@ import {
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
 import { useApp } from '../context/AppContext'
+import { getMyActivities } from '../services/activityApi'
+import { listRegistrations } from '../services/registrationApi'
 import { SHARE_CHANNEL_LABELS } from '../data/mockData'
 
 const { Text, Paragraph } = Typography
@@ -36,14 +38,23 @@ function buildSuggestions({ signupRate, attendanceRate, avgRating }) {
 }
 
 export default function OrganizerAnalytics() {
-  const { currentUser, activities, signups, checkIns, feedbacks } = useApp()
+  const { checkIns } = useApp()
+  const [myActivities, setMyActivities] = useState([])
+  const [signups, setSignups] = useState([])
+  const [feedbacks] = useState([])
 
-  const myActivities = useMemo(
-    () => activities.filter(a => a.organizerId === currentUser?.id),
-    [activities, currentUser]
-  )
+  useEffect(() => {
+    getMyActivities().then(setMyActivities)
+    listRegistrations().then(setSignups)
+  }, [])
 
-  const [selectedId, setSelectedId] = useState(myActivities[0]?.id || null)
+  const [selectedId, setSelectedId] = useState(null)
+
+  useEffect(() => {
+    if (myActivities.length && !selectedId) {
+      setSelectedId(myActivities[0]?.id || null)
+    }
+  }, [myActivities, selectedId])
 
   const activity = myActivities.find(a => a.id === selectedId)
 

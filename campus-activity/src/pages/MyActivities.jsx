@@ -1,8 +1,9 @@
-import { Table, Tag, Button, Space } from 'antd'
+import { useEffect, useState } from 'react'
+import { Table, Tag, Button, Space, Spin, Result } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
-import { useApp } from '../context/AppContext'
+import { getMyRegistrations } from '../services/registrationApi'
 import { formatDateTime } from '../data/mockData'
 
 const STATUS_MAP = {
@@ -13,22 +14,29 @@ const STATUS_MAP = {
 
 export default function MyActivities() {
   const navigate = useNavigate()
-  const { currentUser, signups, activities } = useApp()
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const data = signups
-    .filter(s => s.userId === currentUser?.id)
-    .map(s => {
-      const activity = activities.find(a => a.id === s.activityId)
-      return {
+  const loadData = () => {
+    setLoading(true)
+    getMyRegistrations()
+      .then(regs => setData(regs.map(s => ({
         key: s.id,
         activityId: s.activityId,
-        title: activity?.title || '未知活动',
-        location: activity?.location || '-',
-        startTime: activity?.startTime,
+        title: s.activityTitle || '未知活动',
+        location: s.location || '-',
+        startTime: s.startTime,
         status: s.status,
         createdAt: s.createdAt
-      }
-    })
+      }))))
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
 
   const columns = [
     { title: '活动名称', dataIndex: 'title' },
@@ -53,16 +61,9 @@ export default function MyActivities() {
     {
       title: '操作',
       render: (_, record) => (
-        <Space>
-          <Button type="link" onClick={() => navigate(`/activity/${record.activityId}`)}>
-            查看详情
-          </Button>
-          {record.status === 'approved' && (
-            <Button type="link" onClick={() => navigate('/checkin')}>
-              签到
-            </Button>
-          )}
-        </Space>
+        <Button type="link" onClick={() => navigate(`/activity/${record.activityId}`)}>
+          查看详情
+        </Button>
       )
     }
   ]
@@ -70,7 +71,15 @@ export default function MyActivities() {
   return (
     <AuthGuard>
       <MainLayout title="我的报名">
-        <Table columns={columns} dataSource={data} pagination={{ pageSize: 10 }} />
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
+        ) : error ? (
+          <Result status="error" title="加载失败" subTitle={error} extra={
+            <Button type="primary" onClick={loadData}>重试</Button>
+          } />
+        ) : (
+          <Table columns={columns} dataSource={data} pagination={{ pageSize: 10 }} />
+        )}
       </MainLayout>
     </AuthGuard>
   )

@@ -13,21 +13,25 @@ export default function CreateActivity() {
   const { createActivity } = useApp()
   const [form] = Form.useForm()
 
-  const handleSubmit = (values) => {
-    const activity = {
-      title: values.title,
-      category: values.category,
-      description: values.description,
-      startTime: values.timeRange[0].toDate().toISOString(),
-      endTime: values.timeRange[1].toDate().toISOString(),
-      location: values.location,
-      maxParticipants: values.maxParticipants,
-      poster: values.poster?.[0]?.url || values.poster?.[0]?.thumbUrl || `https://picsum.photos/seed/${Date.now()}/800/400`,
-      tags: values.tags || []
+  const handleSubmit = async (values) => {
+    try {
+      const activity = {
+        title: values.title,
+        category: values.category,
+        description: values.description,
+        startTime: values.timeRange[0].toDate().toISOString(),
+        endTime: values.timeRange[1].toDate().toISOString(),
+        location: values.location,
+        maxParticipants: Number(values.maxParticipants),
+        poster: values.poster?.[0]?.url || values.poster?.[0]?.thumbUrl || `https://picsum.photos/seed/${Date.now()}/800/400`,
+        tags: values.tags || []
+      }
+      const id = await createActivity(activity)
+      message.success('活动发布成功')
+      navigate(`/activity/${id}`)
+    } catch (err) {
+      message.error(err.message || '发布失败')
     }
-    const id = createActivity(activity)
-    message.success('活动发布成功')
-    navigate(`/activity/${id}`)
   }
 
   return (

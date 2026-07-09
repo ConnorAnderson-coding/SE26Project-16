@@ -1,15 +1,21 @@
+import { useEffect, useState } from 'react'
 import { Card, Table, Tag, Typography, Tooltip, Space } from 'antd'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
-import { useApp } from '../context/AppContext'
-import { initialCommunityClusters } from '../data/mockData'
+import { getCommunityClusters, getUsers } from '../services/mock/mockApi'
 
 const { Paragraph, Text } = Typography
 
 export default function CommunityClusters() {
-  const { users } = useApp()
+  const [clusters, setClusters] = useState([])
+  const [users, setUsers] = useState([])
 
-  const tableData = initialCommunityClusters.map(cluster => ({
+  useEffect(() => {
+    getCommunityClusters().then(setClusters)
+    getUsers().then(setUsers)
+  }, [])
+
+  const tableData = clusters.map(cluster => ({
     key: cluster.id,
     name: cluster.name,
     count: cluster.members.length,
@@ -22,7 +28,7 @@ export default function CommunityClusters() {
       title: '社区名称',
       dataIndex: 'name',
       render: (name, record) => {
-        const cluster = initialCommunityClusters.find(c => c.id === record.key)
+        const cluster = clusters.find(c => c.id === record.key)
         return <Tag color={cluster?.color}>{name}</Tag>
       }
     },
@@ -40,7 +46,7 @@ export default function CommunityClusters() {
 
         <Card title="聚类分布图" style={{ marginBottom: 24 }}>
           <div className="cluster-chart">
-            {initialCommunityClusters.flatMap(cluster =>
+            {clusters.flatMap(cluster =>
               cluster.members.map((member, idx) => {
                 const user = users.find(u => u.id === member.userId)
                 return (
@@ -70,7 +76,7 @@ export default function CommunityClusters() {
           </div>
 
           <Space wrap style={{ marginTop: 16 }}>
-            {initialCommunityClusters.map(cluster => (
+            {clusters.map(cluster => (
               <Tag key={cluster.id} color={cluster.color}>
                 {cluster.name}（{cluster.members.length} 人）
               </Tag>

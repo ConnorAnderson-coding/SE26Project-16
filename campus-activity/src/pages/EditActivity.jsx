@@ -1,47 +1,70 @@
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  Form, Card, Input, Button, Select, DatePicker, Upload, message, Row, Col
+  Form, Card, Input, Button, Select, DatePicker, Upload, message, Row, Col, Spin
 } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
 import { useApp } from '../context/AppContext'
+import { getActivityById } from '../services/activityApi'
 import { ACTIVITY_CATEGORIES } from '../data/mockData'
 
 export default function EditActivity() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { activities, updateActivity, currentUser } = useApp()
+  const { updateActivity, currentUser } = useApp()
   const [form] = Form.useForm()
+  const [activity, setActivity] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const activity = activities.find(a => a.id === id)
+  useEffect(() => {
+    getActivityById(id)
+      .then(setActivity)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [id])
 
-  if (!activity || activity.organizerId !== currentUser?.id) {
+  if (loading) {
     return (
       <AuthGuard>
         <MainLayout title="编辑活动">
-          <Card>活动不存在或无权编辑</Card>
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
         </MainLayout>
       </AuthGuard>
     )
   }
 
-  const handleSave = (values) => {
-    updateActivity(id, {
-      title: values.title,
-      category: values.category,
-      description: values.description,
-      location: values.location,
-      maxParticipants: values.maxParticipants,
-      tags: values.tags || [],
-      poster: values.poster?.[0]?.url || values.poster?.[0]?.thumbUrl || activity.poster,
-      ...(values.timeRange ? {
+  if (error || !activity || activity.organizerId !== currentUser?.id) {
+    return (
+      <AuthGuard>
+        <MainLayout title="编辑活动">
+          <Card>{error || '活动不存在或无权编辑'}</Card>
+        </MainLayout>
+      </AuthGuard>
+    )
+  }
+
+  const handleSave = async (values) => {
+    try {
+      await updateActivity(id, {
+        title: values.title,
+        category: values.category,
+        description: values.description,
+        location: values.location,
+        maxParticipants: Number(values.maxParticipants),
+        tags: values.tags || [],
+        poster: values.poster?.[0]?.url || values.poster?.[0]?.thumbUrl || activity.poster,
         startTime: values.timeRange[0].toDate().toISOString(),
         endTime: values.timeRange[1].toDate().toISOString()
-      } : {})
-    })
-    message.success('活动已更新')
-    navigate('/organizer')
+      })
+      message.success('活动已更新')
+      navigate('/organizer')
+    } catch (err) {
+      message.error(err.message || '更新失败')
+    }
   }
 
   return (
@@ -59,6 +82,7 @@ export default function EditActivity() {
               location: activity.location,
               maxParticipants: activity.maxParticipants,
               tags: activity.tags,
+              timeRange: [dayjs(activity.startTime), dayjs(activity.endTime)],
               poster: activity.poster
                 ? [{ uid: '-1', name: 'poster.jpg', status: 'done', url: activity.poster }]
                 : []
@@ -81,7 +105,7 @@ export default function EditActivity() {
               </Col>
             </Row>
 
-            <Form.Item name="timeRange" label="起止时间">
+            <Form.Item name="timeRange" label="起止时间" rules={[{ required: true }]}>
               <DatePicker.RangePicker showTime style={{ width: '100%' }} />
             </Form.Item>
 

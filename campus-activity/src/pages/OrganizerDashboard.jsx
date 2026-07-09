@@ -1,23 +1,37 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Table, Button, Space, Tag, Modal, Form, Input, Upload, message
+  Table, Button, Space, Tag, Modal, Form, Input, Upload, message, Spin, Result
 } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
 import { useApp } from '../context/AppContext'
+import { getMyActivities } from '../services/activityApi'
 import { formatDateTime } from '../data/mockData'
 
 const { TextArea } = Input
 
 export default function OrganizerDashboard() {
   const navigate = useNavigate()
-  const { currentUser, activities, publishRecord } = useApp()
+  const { publishRecord } = useApp()
+  const [myActivities, setMyActivities] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [recordModal, setRecordModal] = useState(null)
   const [form] = Form.useForm()
 
-  const myActivities = activities.filter(a => a.organizerId === currentUser?.id)
+  const loadData = () => {
+    setLoading(true)
+    getMyActivities()
+      .then(setMyActivities)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadData()
+  }, [])
 
   const openRecordModal = (activity) => {
     setRecordModal(activity)
@@ -26,17 +40,22 @@ export default function OrganizerDashboard() {
     })
   }
 
-  const handlePublishRecord = (values) => {
-    const photos = (values.photos || []).map(
-      f => f.url || f.thumbUrl || `https://picsum.photos/seed/${f.uid}/400/300`
-    )
-    publishRecord(recordModal.id, {
-      summary: values.summary,
-      photos: photos.length ? photos : [`https://picsum.photos/seed/record${Date.now()}/400/300`]
-    })
-    message.success('活动记录已发布')
-    setRecordModal(null)
-    form.resetFields()
+  const handlePublishRecord = async (values) => {
+    try {
+      const photos = (values.photos || []).map(
+        f => f.url || f.thumbUrl || `https://picsum.photos/seed/${f.uid}/400/300`
+      )
+      await publishRecord(recordModal.id, {
+        summary: values.summary,
+        photos: photos.length ? photos : [`https://picsum.photos/seed/record${Date.now()}/400/300`]
+      })
+      message.success('活动记录已发布')
+      setRecordModal(null)
+      form.resetFields()
+      loadData()
+    } catch (err) {
+      message.error(err.message || '发布失败')
+    }
   }
 
   const columns = [
@@ -104,11 +123,19 @@ export default function OrganizerDashboard() {
           创建活动
         </Button>
 
-        <Table
-          columns={columns}
-          dataSource={myActivities.map(a => ({ ...a, key: a.id }))}
-          pagination={{ pageSize: 10 }}
-        />
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
+        ) : error ? (
+          <Result status="error" title="加载失败" subTitle={error} extra={
+            <Button type="primary" onClick={loadData}>重试</Button>
+          } />
+        ) : (
+          <Table
+            columns={columns}
+            dataSource={myActivities.map(a => ({ ...a, key: a.id }))}
+            pagination={{ pageSize: 10 }}
+          />
+        )}
 
         <Modal
           title={`发布活动记录 — ${recordModal?.title}`}
