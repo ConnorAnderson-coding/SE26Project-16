@@ -1,3 +1,5 @@
+SET NAMES utf8mb4;
+
 USE campus_activity;
 
 -- Password for all demo users: 123456

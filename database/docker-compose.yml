@@ -14,7 +14,7 @@ services:
       - mysql_data:/var/lib/mysql
       - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
       - ./seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --skip-character-set-client-handshake
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ucampus", "-pcampus123"]
       interval: 10s
