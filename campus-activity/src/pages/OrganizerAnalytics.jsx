@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import {
   Card, Row, Col, Statistic, Select, Spin, Result, Button,
-  Tag, Typography, List, Progress, Space, Empty
+  Tag, Typography, List, Space, Empty
 } from 'antd'
 import {
   EyeOutlined, RiseOutlined, TeamOutlined, StarOutlined,
-  BulbOutlined, BarChartOutlined, LineChartOutlined
+  BulbOutlined, BarChartOutlined, LineChartOutlined,
+  HeartOutlined, CheckCircleOutlined, FormOutlined, CommentOutlined
 } from '@ant-design/icons'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
@@ -249,62 +250,44 @@ export default function OrganizerAnalytics() {
           <>
             {/* 数据卡片 */}
             <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-              <Col xs={12} sm={6}>
-                <Card>
-                  <Statistic
-                    title="浏览量"
-                    value={metrics.viewCount}
-                    prefix={<EyeOutlined />}
-                    suffix="次"
-                  />
+              <Col xs={12} sm={6} md={3}>
+                <Card hoverable>
+                  <Statistic title="浏览量" value={metrics.viewCount} prefix={<EyeOutlined />} suffix="次" />
                 </Card>
               </Col>
-              <Col xs={12} sm={6}>
-                <Card>
-                  <Statistic
-                    title="报名转化率"
-                    value={metrics.signupRate}
-                    prefix={<RiseOutlined />}
-                    suffix="%"
-                    precision={1}
-                  />
-                  <Progress
-                    percent={metrics.signupRate}
-                    showInfo={false}
-                    size="small"
-                    style={{ marginTop: 8 }}
-                  />
+              <Col xs={12} sm={6} md={3}>
+                <Card hoverable>
+                  <Statistic title="收藏人数" value={metrics.favoriteCount} prefix={<HeartOutlined />} suffix="人" valueStyle={{ color: '#eb2f96' }} />
                 </Card>
               </Col>
-              <Col xs={12} sm={6}>
-                <Card>
-                  <Statistic
-                    title="到场率"
-                    value={metrics.attendanceRate}
-                    prefix={<TeamOutlined />}
-                    suffix="%"
-                    precision={1}
-                    valueStyle={{ color: '#52c41a' }}
-                  />
-                  <Progress
-                    percent={metrics.attendanceRate}
-                    showInfo={false}
-                    size="small"
-                    strokeColor="#52c41a"
-                    style={{ marginTop: 8 }}
-                  />
+              <Col xs={12} sm={6} md={3}>
+                <Card hoverable>
+                  <Statistic title="报名人数" value={metrics.signupCount} prefix={<FormOutlined />} suffix="人" />
                 </Card>
               </Col>
-              <Col xs={12} sm={6}>
-                <Card>
-                  <Statistic
-                    title="平均评分"
-                    value={metrics.avgRating || 0}
-                    prefix={<StarOutlined />}
-                    suffix="/ 5"
-                    precision={2}
-                    valueStyle={{ color: '#fa8c16' }}
-                  />
+              <Col xs={12} sm={6} md={3}>
+                <Card hoverable>
+                  <Statistic title="签到人数" value={metrics.checkInCount} prefix={<CheckCircleOutlined />} suffix="人" valueStyle={{ color: '#52c41a' }} />
+                </Card>
+              </Col>
+              <Col xs={12} sm={6} md={3}>
+                <Card hoverable>
+                  <Statistic title="评价人数" value={metrics.feedbackCount} prefix={<CommentOutlined />} suffix="人" />
+                </Card>
+              </Col>
+              <Col xs={12} sm={6} md={3}>
+                <Card hoverable>
+                  <Statistic title="报名转化率" value={metrics.signupRate} prefix={<RiseOutlined />} suffix="%" precision={1} />
+                </Card>
+              </Col>
+              <Col xs={12} sm={6} md={3}>
+                <Card hoverable>
+                  <Statistic title="到场率" value={metrics.attendanceRate} prefix={<TeamOutlined />} suffix="%" precision={1} valueStyle={{ color: '#52c41a' }} />
+                </Card>
+              </Col>
+              <Col xs={12} sm={6} md={3}>
+                <Card hoverable>
+                  <Statistic title="平均评分" value={metrics.avgRating || 0} prefix={<StarOutlined />} suffix="/ 5" precision={2} valueStyle={{ color: '#fa8c16' }} />
                 </Card>
               </Col>
             </Row>

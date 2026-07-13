@@ -47,24 +47,6 @@ public class LlmClient {
             [{"id":"id-1","category":"venue","priority":"high","content":"多名参与者反馈投影不清、后排体验差，建议下次改用大屏教室，提前完成投影、音响和座位视线检查。"}]
             """;
 
-    private static final String SYSTEM_PROMPT = """
-            你是一个校园活动策划分析助手。根据以下活动数据、指标和用户评价，生成3-5条具体的、
-            可执行的改进建议，覆盖活动宣传、时间安排、场地设施、内容质量等维度。
-
-            要求：
-            1. 每条建议包含 id（id-1到id-5）、category（promotion/schedule/venue/content/other）、
-               priority（high/medium/low），以及具体的 content 内容（中文，40-100字）
-            2. 建议须基于数据，避免空泛的套话
-            3. 请仔细分析用户评价中的具体意见（如场地、时间、内容、组织等反馈），
-               将其融入建议中，使建议更具针对性和可操作性
-            4. 对于用户评价中提到的具体问题（如投影不清、排队太久等），必须在对应建议中提及
-            5. 输出严格的 JSON 数组格式，无任何额外文本，不要用 markdown 代码块包裹
-
-            示例输出：
-            [{"id":"id-1","category":"venue","priority":"high",
-              "content":"多名参与者反馈投影看不清、后排体验差，建议更换大屏幕教室或增设辅屏。"}]
-            """;
-
     public LlmClient(AnalyticsConfig config) {
         this.config = config;
         HttpClient httpClient = HttpClient.newBuilder()
