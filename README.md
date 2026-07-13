@@ -34,4 +34,3 @@
 
 
 
-**为完成Git作业，我创建了一个新的Git分支，当前分支为feature-dengmo。**
