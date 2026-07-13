@@ -68,6 +68,9 @@ public class Activity {
     @Column(name = "signup_count", nullable = false)
     private Integer signupCount = 0;
 
+    @Column(name = "view_count", nullable = false)
+    private Integer viewCount = 0;
+
     @Column(name = "favorite_count", nullable = false)
     private Integer favoriteCount = 0;
 

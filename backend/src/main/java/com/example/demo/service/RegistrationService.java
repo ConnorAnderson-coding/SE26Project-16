@@ -32,7 +32,8 @@ public class RegistrationService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#request.activityId"),
-            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true)
+            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true),
+            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#request.activityId")
     })
     public RegistrationResponse signup(RegistrationRequest request) {
         String userId = SecurityUtils.getCurrentUserId();
@@ -82,6 +83,7 @@ public class RegistrationService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#result.activityId")
     public RegistrationResponse review(Long id, boolean approved) {
         Registration registration = registrationRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("报名记录不存在"));

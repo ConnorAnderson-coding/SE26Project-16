@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -43,4 +44,12 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
             value = CacheNames.ACTIVITY_HOT_LIST,
             key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     List<Activity> findPublishedByHot(Pageable pageable);
+
+    /** 查询指定时间范围内结束的活动（用于定时分析任务） */
+    @Query("SELECT a FROM Activity a WHERE a.status = 'ended' " +
+           "AND a.endTime >= :since AND a.endTime < :until " +
+           "ORDER BY a.endTime ASC")
+    List<Activity> findEndedBetween(
+            @Param("since") LocalDateTime since,
+            @Param("until") LocalDateTime until);
 }
