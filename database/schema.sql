@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS activity (
   poster           VARCHAR(500) NULL,
   max_participants INT          NOT NULL DEFAULT 50,
   signup_count     INT          NOT NULL DEFAULT 0,
+  view_count       INT          NOT NULL DEFAULT 0 COMMENT '活动详情浏览量',
   favorite_count   INT          NOT NULL DEFAULT 0,
   status           VARCHAR(16)  NOT NULL DEFAULT 'published' COMMENT 'draft/published/ended',
   tags             JSON         NULL,
@@ -94,4 +95,49 @@ CREATE TABLE IF NOT EXISTS feedback (
   CONSTRAINT fk_feedback_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
   CONSTRAINT fk_feedback_user FOREIGN KEY (user_id) REFERENCES `user`(id),
   INDEX idx_feedback_activity (activity_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS check_in (
+  id             BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  activity_id    BIGINT      NOT NULL,
+  user_id        VARCHAR(32) NOT NULL,
+  method         VARCHAR(16) NOT NULL COMMENT 'qrcode/location/password',
+  check_in_time  DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  CONSTRAINT fk_checkin_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
+  CONSTRAINT fk_checkin_user FOREIGN KEY (user_id) REFERENCES `user`(id),
+  UNIQUE KEY uk_checkin_activity_user (activity_id, user_id),
+  INDEX idx_checkin_activity (activity_id),
+  INDEX idx_checkin_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS activity_analysis (
+  id                     BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  activity_id            BIGINT      NOT NULL,
+  signup_rate            DECIMAL(5,1) NOT NULL,
+  attendance_rate        DECIMAL(5,1) NOT NULL,
+  avg_rating             DECIMAL(3,2) NULL,
+  favorite_conversion    DECIMAL(5,1) NULL,
+  rating_distribution    JSON NULL,
+  check_in_methods_stats JSON NULL,
+  metrics_json           JSON NULL,
+  suggestions            JSON NULL,
+  suggestion_source      VARCHAR(16) NOT NULL DEFAULT 'llm',
+  suggestion_model       VARCHAR(64) NULL,
+  generated_at           DATETIME(3) NOT NULL,
+  created_at             DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  CONSTRAINT fk_analysis_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
+  UNIQUE KEY uk_analysis_activity (activity_id),
+  INDEX idx_analysis_generated (generated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS analysis_schedule_log (
+  id             BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  job_name       VARCHAR(64)   NOT NULL,
+  activity_id    BIGINT        NULL,
+  status         VARCHAR(16)   NOT NULL,
+  duration_ms    INT           NULL,
+  error_message  VARCHAR(1000) NULL,
+  started_at     DATETIME(3)   NOT NULL,
+  finished_at    DATETIME(3)   NULL,
+  INDEX idx_log_job (job_name, started_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

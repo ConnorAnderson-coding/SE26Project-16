@@ -28,4 +28,6 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
     long countByUserIdAndStatus(String userId, String status);
 
     long countByUserId(String userId);
+
+    long countByActivityIdAndStatus(Long activityId, String status);
 }
