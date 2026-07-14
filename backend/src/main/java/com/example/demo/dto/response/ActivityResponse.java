@@ -28,4 +28,9 @@ public class ActivityResponse {
     private String checkInCode;
     private ActivityRecordResponse record;
     private Integer recommendScore;
+    private Double searchScore;
+    private String searchChannel;
+    private Double keywordScore;
+    private Double semanticScore;
+    private Double compositeScore;
 }

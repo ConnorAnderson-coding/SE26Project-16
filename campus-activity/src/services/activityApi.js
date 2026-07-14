@@ -20,7 +20,15 @@ export async function listActivities(params = {}) {
 }
 
 export async function getAllActivities(params = {}) {
-  const result = await listActivities({ page: 0, size: 200, ...params })
+  const { sort, matchWeight, ...rest } = params
+  const query = { page: 0, size: 200, ...rest }
+  if (sort) {
+    query.sort = sort
+  }
+  if (matchWeight != null && sort === 'composite') {
+    query.matchWeight = matchWeight
+  }
+  const result = await listActivities(query)
   return result.content
 }
 
