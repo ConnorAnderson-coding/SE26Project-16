@@ -508,21 +508,22 @@
 | `clusterCount` | `integer(int32)` | 是 | `2 <= K <= samples.length` |
 | `randomState` | `integer(int32)` | 是 | 必须为 42 |
 | `featureSchemaVersion` | `string` | 是 | MVP 固定 `community-features-v1` |
-| `samples` | `array<object>` | 是 | 有效用户特征行，至少 2 条，`userId` 唯一 |
+| `samples` | `array<object>` | 是 | 有效用户特征行，至少 2 条，`userId` 唯一；数组顺序不影响逻辑结果 |
 | `samples[].userId` | `string` | 是 | 用户关联键；仅用于结果对应，不作为数值特征 |
 | `samples[].interests` | `array<string>` | 是 | 兴趣标签，无值为 `[]` |
 | `samples[].college` | `string` | 否 | 学院，可为 `null` |
 | `samples[].grade` | `string` | 否 | 年级，可为 `null` |
 | `samples[].availableTime` | `array<string>` | 是 | 可参与时间，无值为 `[]` |
-| `samples[].signupCount` | `integer(int32)` | 是 | 非负 |
-| `samples[].approvedSignupCount` | `integer(int32)` | 是 | 非负且不大于报名次数 |
-| `samples[].favoriteCount` | `integer(int32)` | 是 | 非负 |
-| `samples[].checkInCount` | `integer(int32)` | 是 | 非负 |
-| `samples[].feedbackCount` | `integer(int32)` | 是 | 非负 |
+| `samples[].signupCount` | `integer(int32)` | 是 | 严格整数，范围 `0..2147483647` |
+| `samples[].approvedSignupCount` | `integer(int32)` | 是 | 严格整数，范围 `0..2147483647`，且不大于报名次数 |
+| `samples[].favoriteCount` | `integer(int32)` | 是 | 严格整数，范围 `0..2147483647` |
+| `samples[].checkInCount` | `integer(int32)` | 是 | 严格整数，范围 `0..2147483647` |
+| `samples[].feedbackCount` | `integer(int32)` | 是 | 严格整数，范围 `0..2147483647` |
 | `samples[].averageRating` | `number(double)` | 否 | 无评价为 `null`；有值时遵循现有评分范围 |
-| `samples[].categoryParticipationCounts` | `object<string, integer>` | 是 | 活动类别到审核通过报名次数，值非负 |
+| `samples[].categoryParticipationCounts` | `object<string, integer(int32)>` | 是 | 活动类别到审核通过报名次数；值为严格整数，范围 `0..2147483647` |
 
 请求不得包含密码、令牌、浏览数据、Python 地址或与计算无关的个人信息。
+所有计数字段均拒绝布尔值、浮点数、字符串及 int32 范围外整数；此类模型边界错误统一返回 `400 INVALID_SAMPLE_DATA`，不得进入 `500 INTERNAL_ERROR`。Python 服务内部按 `userId` 升序复制并排序样本后执行预处理、K-Means、PCA、兴趣统计和成员结果组装，不要求 Spring Boot 预先排序，也不修改请求对象。
 
 **请求 JSON 示例：**
 
@@ -583,7 +584,7 @@
 | `communities[].clusterNo` | `integer(int32)` | 否 | 唯一，范围 `0..K-1` |
 | `communities[].memberCount` | `integer(int32)` | 否 | 正整数 |
 | `communities[].topInterests` | `array<string>` | 否 | 从输入兴趣按频次降序统计，频次相同时按字符串升序；最多 3 项，不得生成虚构标签 |
-| `members` | `array<object>` | 否 | 每个输入用户恰好一条 |
+| `members` | `array<object>` | 否 | 每个输入用户恰好一条，按 `userId` 字符串升序返回 |
 | `members[].userId` | `string` | 否 | 输入用户 ID |
 | `members[].clusterNo` | `integer(int32)` | 否 | 所属簇 |
 | `members[].coordinateX` | `number(double)` | 否 | `[0, 100]` |
@@ -623,7 +624,7 @@ Python 不生成或返回 `communityId`、`name`、`description`、`color`。Spr
 
 #### PCA 退化规则
 
-- 对两个 PCA 投影维度分别归一化；若某维最大值大于最小值，线性映射到 `[0, 100]`，否则该维所有坐标返回 `50.0`。
+- 对两个 PCA 投影维度分别归一化。固定使用绝对容差 `PCA_AXIS_ABS_TOLERANCE=1e-12` 和相对容差 `PCA_AXIS_REL_TOLERANCE=1e-9`；令 `scale=max(abs(min), abs(max))`，当 `max-min <= 1e-12 + 1e-9 * scale` 时，该轴视为数值上退化，所有坐标返回 `50.0`。超过该容差时线性映射到 `[0, 100]`。
 - 某个主成分解释方差为零时，其解释方差比例返回 `0.0`；总方差为零时指标返回 `[0.0, 0.0]`，不得返回 `NaN` 或无穷大。
 - 如果不同特征行数量少于 K，导致 K-Means 无法产生 K 个非空社区，返回 `422 CLUSTERING_COMPUTATION_FAILED`，`details.reason` 为 `INSUFFICIENT_DISTINCT_FEATURE_ROWS`。
 - 应用上述退化规则后仍无法得到两个有限 PCA 坐标或有限指标时，返回 `422 CLUSTERING_COMPUTATION_FAILED`，`details.reason` 为 `NON_FINITE_PCA_RESULT`。错误详情不得包含原始特征行、矩阵或内部堆栈。
@@ -633,7 +634,7 @@ Python 不生成或返回 `communityId`、`name`、`description`、`color`。Spr
 | HTTP | 错误码 | 场景 |
 | --- | --- | --- |
 | `400` | `INVALID_CLUSTER_COUNT` | K 不满足范围 |
-| `400` | `INVALID_SAMPLE_DATA` | 用户重复、计数为负、字段类型错误或样本不足 |
+| `400` | `INVALID_SAMPLE_DATA` | 用户重复、计数超出严格非负 int32 范围、字段类型错误、缺少 `randomState` 或样本不足 |
 | `409` | `INVALID_FEATURE_SCHEMA` | 不支持请求的特征模式版本 |
 | `422` | `CLUSTERING_COMPUTATION_FAILED` | 输入合法，但不同特征行不足以形成 K 个非空簇，或无法按退化规则产生有限且完整的聚类/PCA 结果 |
 | `500` | `INTERNAL_ERROR` | 未预期内部错误 |
@@ -651,7 +652,7 @@ Python 不生成或返回 `communityId`、`name`、`description`、`color`。Spr
 }
 ```
 
-**空数据与 K 越界行为：** `samples` 为空或少于 2 时返回 `400 INVALID_SAMPLE_DATA`；`clusterCount < 2` 或 `clusterCount > samples.length` 时返回 `400 INVALID_CLUSTER_COUNT`，均不返回空成功结果。空兴趣、空可参与时间和空类别计数是合法字段值；Python 按版本化规则处理，不虚构标签。合法输入发生 PCA 或不同特征行退化时，按上文“PCA 退化规则”处理或返回明确的 422 错误。
+**空数据与 K 越界行为：** `samples` 为空或少于 2 时返回 `400 INVALID_SAMPLE_DATA`；缺少必填的 `randomState` 时返回 `400 INVALID_SAMPLE_DATA`；`clusterCount < 2` 或 `clusterCount > samples.length` 时返回 `400 INVALID_CLUSTER_COUNT`，均不返回空成功结果。空兴趣、空可参与时间和空类别计数是合法字段值；Python 按版本化规则处理，不虚构标签。合法输入发生 PCA 或不同特征行退化时，按上文“PCA 退化规则”处理或返回明确的 422 错误。
 
 ## 4.2 内部健康检查
 
