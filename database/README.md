@@ -1,8 +1,20 @@
-# 数据库启动说明
+# 数据库与基础设施
 
-## 使用 Docker Compose（推荐）
+> **推荐**：在项目根目录执行 `.\start.ps1` 一键完成 Docker 建库、ES 初始化、后端与前端启动。详见根目录 [README.md](../README.md)。
 
-```bash
+## 脚本一览
+
+| 脚本 | 用途 |
+|------|------|
+| [`../start.ps1`](../start.ps1) | **一键启动**（基础设施 + 前后端） |
+| [`deploy.ps1`](deploy.ps1) | 仅部署 Docker + ES 初始化 |
+| [`init-es.ps1`](init-es.ps1) | 创建 ES 索引、部署 GTE、注册 pipeline |
+| [`reload-demo-data.ps1`](reload-demo-data.ps1) | 修改 seed 后重导 MySQL 并清 Redis |
+| [`verify-phase0.ps1`](verify-phase0.ps1) | Phase 0 基础设施验收（开发/CI 用） |
+
+## 使用 Docker Compose
+
+```powershell
 cd database
 docker compose up -d
 ```
@@ -17,10 +29,10 @@ docker compose up -d
 
 ### Elasticsearch（检索已落地 · 推荐待复用）
 
-对应 [`技术选型.md`](../doc/技术选型.md) 与 [`检索与推荐.md`](../doc/检索与推荐.md)：
+对应 [`技术选型.md`](../doc/技术选型.md) 与 [`检索与推荐算法流程.md`](../检索与推荐算法流程.md)：
 
 - **语义检索（可用）**：BM25（IK）+ **GTE** dense kNN（`campus_gte`，512 / cosine）+ 绝对阈值 τ=0.90 + 加权相关度 Hybrid。
-- **智能推荐（可用）**：复用同一索引 / 向量做喜好向量 kNN；硬过滤与多因子加权见 [`检索与推荐.md`](../doc/检索与推荐.md) §6。
+- **智能推荐（可用）**：复用同一索引 / 向量做喜好向量 kNN；硬过滤与多因子加权见 [`检索与推荐算法流程.md`](../检索与推荐算法流程.md) §七。
 
 **内存要求**：建议 Docker Desktop 为 Elasticsearch 分配 **≥ 2GB** 内存（启用 ML / GTE 时）。
 
@@ -43,12 +55,12 @@ cd database
 # 仅建索引、跳过 GTE：.\init-es.ps1 -SkipEmbedding
 ```
 
-一键建库 + 启动 ES + 初始化索引：
+或使用一键部署（含上述步骤）：
 
 ```powershell
 cd database
-.\setup-local.ps1 -InitElasticsearch
-# 跳过 GTE 部署：.\setup-local.ps1 -InitElasticsearch -SkipEmbedding
+.\deploy.ps1
+# 清空重来：.\deploy.ps1 -ForceRecreateDb
 ```
 
 验证：
@@ -58,39 +70,29 @@ curl http://localhost:9200
 curl http://localhost:9200/campus_activities/_count
 ```
 
-### 索引构建（MySQL -> ES）
+### 索引构建（MySQL → ES）
 
-**方式 A：脚本 bulk 导入示例数据（无需后端）**
+**默认方式：后端启动时自动重建**
+
+`app.elasticsearch.auto-rebuild-on-startup=true`（默认开启）。`.\start.ps1` 启动后端后，若 ES 索引为空会自动从 MySQL bulk 同步。
+
+**手动全量重建**（管理员）：
+
+```powershell
+# admin001 / 123456 登录后
+POST http://localhost:8080/api/v1/search/index/rebuild
+```
+
+**无需后端的 bulk 导入**（仅开发调试）：
 
 ```powershell
 cd database
 .\init-es.ps1 -SkipEmbedding -SeedDocuments
-# 或单独执行
-.\index-seed.ps1
 ```
-
-**方式 B：后端全量重建（从 MySQL 同步）**
-
-启动后端（`app.elasticsearch.enabled` 默认为 `true`）：
-
-```powershell
-cd backend
-.\mvnw.cmd spring-boot:run
-```
-
-> 请先保证 Docker 中 Elasticsearch 已就绪（`.\init-es.ps1`）。后端默认启用 ES；暂时不用可设 `$env:ES_ENABLED="false"`。
-
-```powershell
-# 管理员登录获取 token 后
-curl -X POST http://localhost:8080/api/v1/search/index/rebuild `
-  -H "Authorization: Bearer <admin_token>"
-```
-
-演示账号 `admin001 / 123456`。
 
 新建/更新/删除活动时会自动同步到 ES（非 draft 状态）。
 
-> **注意**：`.\init-es.ps1 -ForceRecreateIndex` 会清空索引。重建 mapping 后必须再执行一次后端 `rebuild`，否则关键词搜索会命中空索引（结果为 0），而「无关键词」列表仍走 MySQL 正常显示。
+> **注意**：`.\init-es.ps1 -ForceRecreateIndex` 会清空索引。重建 mapping 后重启后端即可自动 re-bootstrap；或手动 POST rebuild。
 
 ### Kibana 分词演示
 
@@ -173,19 +175,7 @@ cd database
 > **Windows 常见坑**：本机安装了 MySQL 9.x 占着 3306 时，`docker compose` 里写了 `3306:3306` 也可能**发布失败**（`docker port campus-mysql` 为空）。此时 `reload-demo-data.ps1` 若不加 `-Target Host`，以前只更新了容器内数据，后端仍读本机旧库。  
 > 另：不要用 `Get-Content | mysql` 导含中文的 SQL（易变成字面 `?`）；本脚本用 `docker cp` / Python UTF-8 stdin。
 
-然后启动后端，用管理员重建 ES 文档向量：
-
-```powershell
-# admin001 / 123456
-POST http://localhost:8080/api/v1/search/index/rebuild
-```
-
-或在实验脚本里加 `--rebuild`：
-
-```powershell
-cd ..\backend
-python scripts/cosine-threshold-experiment.py --rebuild
-```
+然后重启后端（`.\start.ps1 -SkipDeploy`），或管理员 POST `/api/v1/search/index/rebuild`。
 
 ### 方式 B：彻底清空 Docker 卷后冷启动
 
@@ -193,52 +183,31 @@ python scripts/cosine-threshold-experiment.py --rebuild
 cd database
 # 若要用 Docker 占用 3306：先停掉本机 MySQL 服务
 docker compose down -v          # 删除 mysql_data / redis_data / es_data
-docker compose up -d            # MySQL 会自动执行 schema.sql + seed.sql
-.\init-es.ps1                   # 重新下载/部署 GTE（若卷被清）
-# 后端启动后 POST /api/v1/search/index/rebuild
+docker compose up -d
+.\init-es.ps1
+# 然后 .\start.ps1 -SkipDeploy 启动后端，会自动重建 ES 索引
 ```
 
 | 存储 | 作用 | 更新 seed 后要做的事 |
 |------|------|----------------------|
 | **MySQL** | 业务主数据 | `reload-demo-data.ps1`（注意 Host/Docker）或 `down -v` 后冷启动 |
 | **Redis** | 详情/热门等缓存 | `FLUSHALL`（脚本已做）；否则可能看到旧活动 |
-| **Elasticsearch** | 检索向量索引 | **必须** `POST .../search/index/rebuild`（`-ForceRecreateIndex` 后尤其必要） |
-
-### 余弦阈值实验
-
-```powershell
-cd backend
-python scripts/cosine-threshold-experiment.py --rebuild
-# 输出：report/cosine-threshold-experiment.md / .csv
-```
+| **Elasticsearch** | 检索向量索引 | 重启后端自动 bootstrap；或 POST rebuild |
 
 ---
 
-## 手动建库
+## 手动分步启动
 
-1. 创建数据库并执行 `schema.sql`
-2. 执行 `seed.sql` 导入示例数据
+若不用 `start.ps1`，可按序执行：
 
-## 后端启动
-
-**请先确保 Redis 已运行**（后端使用 Spring Cache + Redis 缓存活动详情、热门列表等）。
-
-```bash
-cd backend
-./mvnw spring-boot:run
+```powershell
+cd database && .\deploy.ps1          # Docker + ES
+cd backend && .\mvnw.cmd spring-boot:run
+cd frontend && npm install && npm run dev
 ```
 
-默认连接 `localhost:3306/campus_activity`，Redis `localhost:6379`。
-
-## 前端启动
-
-```bash
-cd campus-activity
-npm install
-npm run dev
-```
-
-开发环境通过 Vite 代理将 `/api` 转发到 `http://localhost:8080`。
+默认连接 `localhost:3306/campus_activity`，Redis `localhost:6379`，ES `localhost:9200`。  
+开发环境 Vite 将 `/api` 代理到 `http://localhost:8080`。
 
 ## 演示账号
 
