@@ -3,6 +3,7 @@ package com.example.campusactivity.controller;
 import com.example.campusactivity.dto.RecordRequest;
 import com.example.campusactivity.entity.Activity;
 import com.example.campusactivity.repository.ActivityRepository;
+import com.example.campusactivity.service.RedisService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,14 +19,18 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/activities")
 public class ActivityController {
     private final ActivityRepository activityRepository;
+    private final RedisService redisService;
 
-    public ActivityController(ActivityRepository activityRepository) {
+    public ActivityController(ActivityRepository activityRepository, RedisService redisService) {
         this.activityRepository = activityRepository;
+        this.redisService = redisService;
     }
 
     @GetMapping
@@ -47,7 +52,10 @@ public class ActivityController {
 
     @GetMapping("/{id}")
     public ResponseEntity<Activity> get(@PathVariable String id) {
-        return activityRepository.findById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
+        return activityRepository.findById(id).map(activity -> {
+            activity.setViewCount(activity.getViewCount() + 1);
+            return ResponseEntity.ok(activityRepository.save(activity));
+        }).orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
@@ -92,8 +100,25 @@ public class ActivityController {
 
     private static Comparator<Activity> comparator(String sort) {
         if ("hot".equals(sort)) {
-            return Comparator.comparing(Activity::getFavoriteCount, Comparator.nullsLast(Integer::compareTo)).reversed();
+            return Comparator.comparing(Activity::getHotness, Comparator.nullsLast(Double::compareTo)).reversed();
         }
         return Comparator.comparing(Activity::getStartTime, Comparator.nullsLast(LocalDateTime::compareTo));
+    }
+
+    @GetMapping("/hot")
+    public ResponseEntity<List<Activity>> getHotActivities(@RequestParam(defaultValue = "0") int page,
+                                                         @RequestParam(defaultValue = "10") int size) {
+        long start = (long) page * size;
+        long end = start + size - 1;
+        Set<String> hotActivityIds = redisService.getActivitiesByHotnessRange(start, end);
+
+        List<Activity> hotActivities = hotActivityIds.stream()
+                .map(activityRepository::findById)
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .sorted(Comparator.comparing(Activity::getHotness, Comparator.nullsLast(Double::compareTo)).reversed())
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(hotActivities);
     }
 }
