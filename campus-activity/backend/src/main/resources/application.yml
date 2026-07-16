@@ -24,3 +24,10 @@ spring:
 springdoc:
   api-docs:
     enabled: false
+
+community-clustering:
+  python:
+    enabled: ${CLUSTERING_SERVICE_ENABLED:false}
+    base-url: ${CLUSTERING_SERVICE_BASE_URL:}
+    connect-timeout: ${CLUSTERING_SERVICE_CONNECT_TIMEOUT:2s}
+    read-timeout: ${CLUSTERING_SERVICE_READ_TIMEOUT:30s}
