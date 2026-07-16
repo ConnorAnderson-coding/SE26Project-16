@@ -1,13 +1,14 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Row, Col, Input, Select, Card, Typography, Space, Tag, Empty, Slider,
-  DatePicker, Checkbox, Button
+  DatePicker, Checkbox, Button, Spin, Result
 } from 'antd'
 import { SearchOutlined, FilterOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import MainLayout from '../layouts/MainLayout'
 import ActivityCard from '../components/ActivityCard'
 import AuthGuard from '../components/AuthGuard'
 import { useApp } from '../context/AppContext'
+import { getAllActivities } from '../services/activityApi'
 import {
   ACTIVITY_CATEGORIES,
   INTEREST_TAGS,
@@ -30,12 +31,24 @@ const STATUS_OPTIONS = [
   { label: '已结束', value: 'ended' }
 ]
 
+const SORT_OPTIONS = [
+  { label: '相关度', value: 'relevance' },
+  { label: '综合匹配', value: 'composite' },
+  { label: '综合热度', value: 'hot' },
+  { label: '开始时间', value: 'time' },
+  { label: '报名人数', value: 'signup' }
+]
+
 export default function ActivityList() {
-  const { activities, currentUser } = useApp()
+  const { currentUser } = useApp()
+  const [activities, setActivities] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [keyword, setKeyword] = useState('')
   const [category, setCategory] = useState(null)
   const [location, setLocation] = useState(null)
-  const [sortBy, setSortBy] = useState('hot')
+  const [sortBy, setSortBy] = useState('relevance')
+  const [matchWeight, setMatchWeight] = useState(0.7)
   const [minHot, setMinHot] = useState(0)
   const [interestTags, setInterestTags] = useState([])
   const [timeRange, setTimeRange] = useState(null)
@@ -43,6 +56,30 @@ export default function ActivityList() {
   const [status, setStatus] = useState(null)
   const [matchMyInterests, setMatchMyInterests] = useState(false)
   const [matchMyTime, setMatchMyTime] = useState(false)
+
+  const semanticSearchActive = !!keyword.trim()
+
+  const loadActivities = useCallback(() => {
+    setLoading(true)
+    setError(null)
+    const params = { category, status, location }
+    if (semanticSearchActive) {
+      params.keyword = keyword.trim()
+      params.sort = sortBy
+      if (sortBy === 'composite') {
+        params.matchWeight = matchWeight
+      }
+    }
+    getAllActivities(params)
+      .then(setActivities)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [category, status, location, keyword, sortBy, matchWeight, semanticSearchActive])
+
+  // keyword 清空时也要重新拉列表（此前只有有关键词时才刷新，会卡在 0 条）
+  useEffect(() => {
+    loadActivities()
+  }, [loadActivities])
 
   const locations = useMemo(() =>
     [...new Set(activities.map(a => a.location))],
@@ -56,46 +93,44 @@ export default function ActivityList() {
   const filtered = useMemo(() => {
     let result = activities.filter(a => a.status !== 'draft')
 
-    if (keyword.trim()) {
-      const kw = keyword.trim().toLowerCase()
-      result = result.filter(a =>
-        a.title.toLowerCase().includes(kw) ||
-        a.description.toLowerCase().includes(kw) ||
-        (a.tags || []).some(t => t.toLowerCase().includes(kw)) ||
-        a.location.toLowerCase().includes(kw) ||
-        getCategoryLabel(a.category).includes(kw)
-      )
+    if (!semanticSearchActive && category) {
+      result = result.filter(a => a.category === category)
     }
-
-    if (category) result = result.filter(a => a.category === category)
-    if (location) result = result.filter(a => a.location === location)
+    if (!semanticSearchActive && location) {
+      result = result.filter(a => a.location === location)
+    }
     result = result.filter(a => a.signupCount + a.favoriteCount >= minHot)
     result = result.filter(a => matchesInterestTags(a, effectiveInterestTags))
     result = result.filter(a => matchesTimeRange(a, timeRange))
     result = result.filter(a => matchesTimeSlots(a, timeSlots))
-    result = result.filter(a => matchesActivityStatus(a, status))
+    if (!semanticSearchActive) {
+      result = result.filter(a => matchesActivityStatus(a, status))
+    }
     if (matchMyTime) {
       result = result.filter(a => matchesAvailableTime(a, currentUser?.availableTime))
     }
 
-    switch (sortBy) {
-      case 'hot':
-        result.sort((a, b) => (b.signupCount + b.favoriteCount) - (a.signupCount + a.favoriteCount))
-        break
-      case 'time':
-        result.sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
-        break
-      case 'signup':
-        result.sort((a, b) => b.signupCount - a.signupCount)
-        break
-      default:
-        break
+    if (!semanticSearchActive) {
+      switch (sortBy) {
+        case 'hot':
+          result.sort((a, b) => (b.signupCount + b.favoriteCount) - (a.signupCount + a.favoriteCount))
+          break
+        case 'time':
+          result.sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+          break
+        case 'signup':
+          result.sort((a, b) => b.signupCount - a.signupCount)
+          break
+        default:
+          break
+      }
     }
 
     return result
   }, [
     activities, keyword, category, location, sortBy, minHot,
-    effectiveInterestTags, timeRange, timeSlots, status, matchMyTime, currentUser
+    effectiveInterestTags, timeRange, timeSlots, status, matchMyTime, currentUser,
+    semanticSearchActive
   ])
 
   const hasActiveFilters = category || location || minHot > 0 || interestTags.length > 0
@@ -118,13 +153,15 @@ export default function ActivityList() {
       <MainLayout title="活动检索">
         <Card className="filter-card">
           <Space direction="vertical" size={16} style={{ width: '100%' }}>
-            <Input
+            <Input.Search
               size="large"
               prefix={<SearchOutlined />}
               placeholder="语义检索：输入关键词，如 AI、羽毛球、志愿服务..."
               value={keyword}
               onChange={e => setKeyword(e.target.value)}
+              onSearch={loadActivities}
               allowClear
+              enterButton="搜索"
             />
 
             <Row gutter={[16, 16]}>
@@ -200,13 +237,23 @@ export default function ActivityList() {
                   style={{ width: '100%', marginTop: 4 }}
                   value={sortBy}
                   onChange={setSortBy}
-                  options={[
-                    { label: '综合热度', value: 'hot' },
-                    { label: '开始时间', value: 'time' },
-                    { label: '报名人数', value: 'signup' }
-                  ]}
+                  options={SORT_OPTIONS}
                 />
               </Col>
+              {sortBy === 'composite' && semanticSearchActive && (
+                <Col xs={24} sm={12} md={8} lg={6}>
+                  <Text type="secondary">
+                    匹配度权重：{Math.round(matchWeight * 100)}%（热度 {Math.round((1 - matchWeight) * 100)}%）
+                  </Text>
+                  <Slider
+                    min={0}
+                    max={100}
+                    value={Math.round(matchWeight * 100)}
+                    onChange={v => setMatchWeight(v / 100)}
+                    style={{ marginTop: 4 }}
+                  />
+                </Col>
+              )}
               <Col xs={24} sm={12} md={8} lg={6}>
                 <Text type="secondary">最低热度：{minHot}</Text>
                 <Slider
@@ -241,7 +288,14 @@ export default function ActivityList() {
             <FilterOutlined />
             <Text>共找到 <Text strong>{filtered.length}</Text> 个活动</Text>
             {keyword && (
-              <Tag closable onClose={() => setKeyword('')} color="blue">
+              <Tag closable onClose={() => {
+                setKeyword('')
+                setLoading(true)
+                getAllActivities({ category, status, location })
+                  .then(setActivities)
+                  .catch(err => setError(err.message))
+                  .finally(() => setLoading(false))
+              }} color="blue">
                 关键词：{keyword}
               </Tag>
             )}
@@ -298,7 +352,13 @@ export default function ActivityList() {
           </Space>
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
+        ) : error ? (
+          <Result status="error" title="加载失败" subTitle={error} extra={
+            <Button type="primary" onClick={loadActivities}>重试</Button>
+          } />
+        ) : filtered.length === 0 ? (
           <Empty description="没有找到匹配的活动" />
         ) : (
           <Row gutter={[16, 16]}>

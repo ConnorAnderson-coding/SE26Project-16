@@ -14,6 +14,7 @@ const { Title, Text } = Typography
 export default function UserProfile() {
   const { currentUser, updateProfile } = useApp()
   const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
 
   const startEdit = () => {
@@ -27,10 +28,17 @@ export default function UserProfile() {
     setEditing(true)
   }
 
-  const handleSave = (values) => {
-    updateProfile(values)
-    message.success('个人档案已更新')
-    setEditing(false)
+  const handleSave = async (values) => {
+    setSaving(true)
+    try {
+      await updateProfile(values)
+      message.success('个人档案已更新')
+      setEditing(false)
+    } catch (err) {
+      message.error(err.message || '更新失败')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const getTimeLabel = (val) =>
@@ -62,7 +70,7 @@ export default function UserProfile() {
                 <Text type="secondary">身份</Text>
                 <div style={{ marginTop: 4 }}>
                   <Tag color={currentUser.role === 'teacher' ? 'purple' : 'blue'}>
-                    {currentUser.role === 'teacher' ? '教师' : '学生'}
+                    {currentUser.role === 'teacher' ? '教师' : currentUser.role === 'admin' ? '管理员' : '学生'}
                   </Tag>
                 </div>
               </div>
@@ -115,7 +123,7 @@ export default function UserProfile() {
                 <Select mode="multiple" options={AVAILABLE_TIME_OPTIONS} />
               </Form.Item>
               <Space>
-                <Button type="primary" htmlType="submit">保存</Button>
+                <Button type="primary" htmlType="submit" loading={saving}>保存</Button>
                 <Button onClick={() => setEditing(false)}>取消</Button>
               </Space>
             </Form>
