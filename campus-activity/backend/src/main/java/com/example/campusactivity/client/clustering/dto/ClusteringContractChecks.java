@@ -1,8 +1,11 @@
 package com.example.campusactivity.client.clustering.dto;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 
 final class ClusteringContractChecks {
     private ClusteringContractChecks() {
@@ -57,11 +60,11 @@ final class ClusteringContractChecks {
 
     static Map<String, Integer> countMap(Map<String, Integer> values, String field) {
         Objects.requireNonNull(values, field + " 不能为空");
-        Map<String, Integer> copy = Map.copyOf(values);
-        for (Map.Entry<String, Integer> entry : copy.entrySet()) {
+        for (Map.Entry<String, Integer> entry : values.entrySet()) {
             string(entry.getKey(), field + " key");
             nonNegative(entry.getValue(), field + "." + entry.getKey());
         }
-        return copy;
+        Map<String, Integer> sorted = new TreeMap<>(values);
+        return Collections.unmodifiableMap(new LinkedHashMap<>(sorted));
     }
 }
