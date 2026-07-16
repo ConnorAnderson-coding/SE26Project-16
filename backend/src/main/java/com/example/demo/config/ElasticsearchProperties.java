@@ -10,6 +10,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ElasticsearchProperties {
 
     private boolean enabled = true;
+    /** Rebuild ES activity index from MySQL on startup when the index is empty. */
+    private boolean autoRebuildOnStartup = true;
     private String indexActivities = "campus_activities";
     /**
      * Dense text embedding model used for activity_embedding kNN.
