@@ -1,6 +1,7 @@
-package com.example.demo.analytics.service;
+package com.example.demo.service;
 
-import com.example.demo.analytics.dto.ActivityMetrics;
+import com.example.demo.dto.analytics.ActivityMetrics;
+import com.example.demo.dto.analytics.SuggestionItem;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -19,12 +20,12 @@ class SuggestionGeneratorTest {
                 .signupRate(BigDecimal.valueOf(35.0))
                 .attendanceRate(BigDecimal.valueOf(57.1))
                 .avgRating(BigDecimal.valueOf(2.80))
-                .feedbackContents(List.of("2分：后排看不清投影，插座也不够。"))
+                .feedbackContents(List.of("Projector, seats and route need improvement."))
                 .build();
 
         var suggestions = generator.fallbackSafe(metrics);
         var categories = suggestions.stream()
-                .map(item -> item.getCategory())
+                .map(SuggestionItem::getCategory)
                 .toList();
 
         assertEquals(4, suggestions.size());

@@ -54,11 +54,53 @@ public class ActivityService {
                 result.getTotalElements(), result.getTotalPages());
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * 查询活动详情：自增浏览量 + 返回最新 DTO。
+     * <p>
+     * 浏览量自增与缓存详情读取解耦：
+     * <ol>
+     *   <li>先调用一次 {@code findWithDetailsById}（走 {@link CacheNames#ACTIVITY_DETAIL} 缓存，
+     *       仅承担"读取静态详情"职责）；</li>
+     *   <li>如果当前用户是组织者/管理员/未登录，跳过自增；其他用户走原子 {@code UPDATE} 自增 +1。</li>
+     * </ol>
+     * {@link ActivityResponse} 暂未暴露 {@code viewCount} 字段，
+     * 缓存层缓存的 viewCount 与 DB 实时的 viewCount 的差异只在分析侧读取 Activity 实体时可见，
+     * 通过每次访问自增 1 保证 DB 中的值始终单调递增并贴近真实访问次数。
+     */
+    @Transactional
     public ActivityResponse getById(Long id) {
         Activity activity = activityRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new BusinessException("活动不存在"));
+
+        if (shouldIncrementViewCount(activity)) {
+            activityRepository.incrementViewCount(id);
+        }
+
         return DtoMapper.toActivityResponse(activity);
+    }
+
+    /**
+     * 判断本次浏览是否计入 viewCount。
+     * <p>
+     * 仅普通登录用户的"主动查看"计数：组织者本人、管理员和未登录用户均不计。
+     *
+     * @param activity 当前活动实体（来自缓存）
+     * @return true 表示需要自增 viewCount
+     */
+    private boolean shouldIncrementViewCount(Activity activity) {
+        try {
+            var currentUser = SecurityUtils.getCurrentUser();
+            String currentUserId = currentUser.getUserId();
+            if (activity.getOrganizerId() != null
+                    && activity.getOrganizerId().equals(currentUserId)) {
+                return false;
+            }
+            boolean isAdmin = currentUser.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+            return !isAdmin;
+        } catch (BusinessException e) {
+            return false;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -119,7 +161,8 @@ public class ActivityService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#id"),
-            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true)
+            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true),
+            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#id")
     })
     public ActivityResponse update(Long id, ActivityRequest request) {
         Activity activity = getOwnedActivity(id);
@@ -135,7 +178,8 @@ public class ActivityService {
             @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#id"),
             @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true),
             @CacheEvict(value = CacheNames.ACTIVITY_RECORD, key = "#id"),
-            @CacheEvict(value = CacheNames.FEEDBACK_BY_ACTIVITY, key = "#id")
+            @CacheEvict(value = CacheNames.FEEDBACK_BY_ACTIVITY, key = "#id"),
+            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#id")
     })
     public void delete(Long id) {
         Activity activity = getOwnedActivity(id);

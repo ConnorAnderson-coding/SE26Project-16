@@ -123,21 +123,11 @@ CREATE TABLE IF NOT EXISTS activity_analysis (
   suggestions            JSON NULL,
   suggestion_source      VARCHAR(16) NOT NULL DEFAULT 'llm',
   suggestion_model       VARCHAR(64) NULL,
+  analysis_status        VARCHAR(16) NOT NULL DEFAULT 'ready' COMMENT 'pending/ready/failed',
+  failure_reason         VARCHAR(500) NULL,
   generated_at           DATETIME(3) NOT NULL,
   created_at             DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   CONSTRAINT fk_analysis_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
   UNIQUE KEY uk_analysis_activity (activity_id),
   INDEX idx_analysis_generated (generated_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS analysis_schedule_log (
-  id             BIGINT        NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  job_name       VARCHAR(64)   NOT NULL,
-  activity_id    BIGINT        NULL,
-  status         VARCHAR(16)   NOT NULL,
-  duration_ms    INT           NULL,
-  error_message  VARCHAR(1000) NULL,
-  started_at     DATETIME(3)   NOT NULL,
-  finished_at    DATETIME(3)   NULL,
-  INDEX idx_log_job (job_name, started_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

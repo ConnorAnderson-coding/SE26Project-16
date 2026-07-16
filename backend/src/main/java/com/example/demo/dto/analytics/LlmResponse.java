@@ -1,4 +1,4 @@
-package com.example.demo.analytics.dto;
+package com.example.demo.dto.analytics;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -6,9 +6,6 @@ import lombok.Data;
 
 import java.util.List;
 
-/**
- * DeepSeek API 响应体
- */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class LlmResponse {
@@ -35,9 +32,6 @@ public class LlmResponse {
         private String content;
     }
 
-    /**
-     * 从响应中提取第一条消息的文本内容
-     */
     public String getContent() {
         if (choices != null && !choices.isEmpty()
                 && choices.get(0).getMessage() != null) {

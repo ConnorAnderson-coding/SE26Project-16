@@ -1,10 +1,10 @@
-package com.example.demo.analytics.service;
+package com.example.demo.service;
 
-import com.example.demo.analytics.dto.ActivityMetrics;
-import com.example.demo.analytics.repository.CheckInRepository;
 import com.example.demo.common.CacheNames;
+import com.example.demo.dto.analytics.ActivityMetrics;
 import com.example.demo.entity.Activity;
 import com.example.demo.repository.ActivityRepository;
+import com.example.demo.repository.CheckInRepository;
 import com.example.demo.repository.FeedbackRepository;
 import com.example.demo.repository.RegistrationRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,16 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
-/**
- * 指标计算引擎
- * <p>
- * 负责从数据库统计活动的核心指标：
- * 浏览量、报名人数、签到人数、平均评分、评分分布等。
- */
 @Service
 @RequiredArgsConstructor
 public class AnalyticsEngine {
@@ -33,15 +30,6 @@ public class AnalyticsEngine {
     private final CheckInRepository checkInRepository;
     private final FeedbackRepository feedbackRepository;
 
-    /**
-     * 计算单个活动的全部指标
-     * <p>
-     * 结果缓存于 Redis，key 格式: {@code campus:analytics:activity::{activityId}}，TTL 6 小时。
-     * 缓存未命中时才查询数据库进行实时计算。
-     *
-     * @param activityId 活动ID
-     * @return 活动指标对象，包含所有核心维度的统计数据
-     */
     @Transactional(readOnly = true)
     @Cacheable(value = CacheNames.ANALYTICS_ACTIVITY, key = "#activityId",
             unless = "#result == null")
@@ -49,31 +37,25 @@ public class AnalyticsEngine {
         Activity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new RuntimeException("活动不存在: " + activityId));
 
-        // ── 基础数据拉取 ──
-        // 报名相关
         long approvedCount = registrationRepository.countByActivityIdAndStatus(
                 activityId, "approved");
 
-        // 签到相关
         long checkInCount = checkInRepository.countByActivityId(activityId);
         Map<String, Long> checkInMethodsStats = computeCheckInMethodStats(activityId);
 
-        // 评价相关
         var feedbackList = feedbackRepository.findByActivityIdOrderByCreatedAtDesc(activityId);
         long feedbackCount = feedbackList.size();
         BigDecimal avgRating = computeAvgRating(activityId);
         Map<Integer, Long> ratingDistribution = computeRatingDistribution(activityId);
-        // 脱敏：仅保留评分和内容，不关联用户ID/姓名
+
         List<String> feedbackContents = feedbackList.stream()
-                .map(f -> f.getRating() + "分:" + sanitizeFeedback(f.getContent()))
+                .map(f -> f.getRating() + "星：" + sanitizeFeedback(f.getContent()))
                 .toList();
 
-        // ── 比率计算 ──
-        // 报名转化率 = 报名人数 / 浏览量
         long signupCount = activity.getSignupCount() == null ? 0 : activity.getSignupCount();
         BigDecimal signupRate = calcRate(signupCount,
                 activity.getViewCount() == null ? 0 : activity.getViewCount());
-        // 到场率 = 签到人数 / 报名人数
+
         BigDecimal attendanceRate = calcRate(checkInCount, signupCount);
 
         return ActivityMetrics.builder()
@@ -83,7 +65,7 @@ public class AnalyticsEngine {
                 .location(activity.getLocation())
                 .startTime(activity.getStartTime())
                 .endTime(activity.getEndTime())
-                // 核心指标
+
                 .viewCount(activity.getViewCount())
                 .signupCount(activity.getSignupCount())
                 .maxParticipants(activity.getMaxParticipants())
@@ -92,20 +74,17 @@ public class AnalyticsEngine {
                 .checkInCount(checkInCount)
                 .attendanceRate(attendanceRate)
                 .favoriteCount(activity.getFavoriteCount())
-                // 评分指标
+
                 .feedbackCount(feedbackCount)
                 .avgRating(avgRating)
                 .ratingDistribution(ratingDistribution)
-                // 签到方式
+
                 .checkInMethodsStats(checkInMethodsStats)
-                // 评价内容（已脱敏）
                 .feedbackContents(feedbackContents)
+                .signupTrend(computeSignupTrend(activityId, activity))
                 .build();
     }
 
-    /**
-     * 计算平均评分
-     */
     private BigDecimal computeAvgRating(Long activityId) {
         var feedbacks = feedbackRepository.findByActivityIdOrderByCreatedAtDesc(activityId);
         if (feedbacks.isEmpty()) {
@@ -118,13 +97,10 @@ public class AnalyticsEngine {
         return BigDecimal.valueOf(avg).setScale(2, RoundingMode.HALF_UP);
     }
 
-    /**
-     * 计算评分分布 (1-5 星各多少人)
-     */
     private Map<Integer, Long> computeRatingDistribution(Long activityId) {
         var feedbacks = feedbackRepository.findByActivityIdOrderByCreatedAtDesc(activityId);
         Map<Integer, Long> distribution = new LinkedHashMap<>();
-        // 初始化 1-5 星
+
         for (int i = 1; i <= 5; i++) {
             distribution.put(i, 0L);
         }
@@ -136,8 +112,101 @@ public class AnalyticsEngine {
     }
 
     /**
-     * 计算签到方式分布
+     * 计算活动报名趋势，按天聚合。
+     * <p>
+     * 区间口径：
+     * <ul>
+     *   <li>下界 = {@code min(最早报名日, 活动开始日)} —— 报名往往发生在活动开始前</li>
+     *   <li>上界 = {@code 活动开始日} —— 报名截止于活动开始；{@code activity_end} 仅作兜底</li>
+     * </ul>
+     * 用 {@link TreeMap}（{@code LocalDate} key）保证补零区间按日期合并、
+     * 数据库返回行按日期追加时不会乱序；最后再格式化成 {@code MM-dd} 字符串返回。
      */
+    private Map<String, Long> computeSignupTrend(Long activityId, Activity activity) {
+        List<Object[]> rows = registrationRepository.countDailySignupsByActivityId(activityId);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd");
+        TreeMap<LocalDate, Long> series = new TreeMap<>();
+
+        LocalDate activityStart = activity.getStartTime() != null
+                ? activity.getStartTime().toLocalDate() : null;
+        LocalDate activityEnd = activity.getEndTime() != null
+                ? activity.getEndTime().toLocalDate() : null;
+
+        // 先把真实报名数据按 LocalDate 装进 TreeMap，自然按日期排序
+        for (Object[] row : rows) {
+            if (row[0] != null) {
+                LocalDate day = toLocalDate(row[0]);
+                Long count = ((Number) row[1]).longValue();
+                series.merge(day, count, Long::sum);
+            }
+        }
+
+        // 下界：最早报名日 与 活动开始日 中更早的那个
+        // 上界：活动开始日（报名截止日）；若活动已开始则取活动结束日兜底
+        LocalDate earliestSignup = series.isEmpty() ? null : series.firstKey();
+        LocalDate lower = pickEarlier(earliestSignup, activityStart);
+        LocalDate upper;
+        if (activityStart != null) {
+            // 报名截止于活动开始；如果活动已经开始/结束，则补到活动结束日
+            LocalDate today = LocalDate.now();
+            if (activityStart.isAfter(today)) {
+                upper = activityStart;
+            } else {
+                upper = activityEnd != null && activityEnd.isAfter(today) ? today : activityEnd;
+            }
+        } else {
+            upper = activityEnd;
+        }
+
+        if (lower != null && upper != null && !lower.isAfter(upper)) {
+            // 在 [lower, upper] 区间内补零，TreeMap.merge 不会覆盖已有真实数据
+            for (LocalDate d = lower; !d.isAfter(upper); d = d.plusDays(1)) {
+                series.putIfAbsent(d, 0L);
+            }
+        }
+
+        // 转成对外约定的 LinkedHashMap<String, Long>，按日期升序
+        Map<String, Long> trend = new LinkedHashMap<>();
+        for (Map.Entry<LocalDate, Long> e : series.entrySet()) {
+            trend.put(e.getKey().format(formatter), e.getValue());
+        }
+        return trend;
+    }
+
+    private static LocalDate pickEarlier(LocalDate a, LocalDate b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return a.isBefore(b) ? a : b;
+    }
+
+    /**
+     * 把 {@code DATE(created_at)} 的 JDBC 返回值统一转成 {@link LocalDate}。
+     * <p>
+     * 不同驱动 / Hibernate 版本下返回值类型可能不同：
+     * <ul>
+     *   <li>老版 MySQL Connector/J：{@link java.sql.Date}</li>
+     *   <li>新版 Hibernate 6+/7+：{@link LocalDate}</li>
+     * </ul>
+     * 直接强转会在其中一种环境下抛 {@link ClassCastException}，
+     * 这里做一次类型兼容以避免在两种环境下都需要修改业务代码。
+     *
+     * @param raw JDBC 返回的第一个字段
+     * @return 解析出的日期
+     */
+    private static LocalDate toLocalDate(Object raw) {
+        if (raw instanceof LocalDate ld) {
+            return ld;
+        }
+        if (raw instanceof java.sql.Date sqlDate) {
+            return sqlDate.toLocalDate();
+        }
+        if (raw instanceof java.util.Date utilDate) {
+            return new java.sql.Date(utilDate.getTime()).toLocalDate();
+        }
+        throw new IllegalArgumentException(
+                "无法识别的日期类型: " + (raw == null ? "null" : raw.getClass().getName()));
+    }
+
     private Map<String, Long> computeCheckInMethodStats(Long activityId) {
         List<Object[]> rows = checkInRepository.countByMethodGroupByActivityId(activityId);
         Map<String, Long> stats = new LinkedHashMap<>();
@@ -149,9 +218,6 @@ public class AnalyticsEngine {
         return stats;
     }
 
-    /**
-     * 比率计算，分子或分母为 0 时返回 0
-     */
     private BigDecimal calcRate(long numerator, long denominator) {
         if (denominator <= 0) {
             return BigDecimal.ZERO;
@@ -161,10 +227,6 @@ public class AnalyticsEngine {
                 .divide(BigDecimal.valueOf(denominator), 1, RoundingMode.HALF_UP);
     }
 
-    /**
-     * 在评价正文发送给外部 LLM 前屏蔽常见个人标识信息。
-     * 用户ID和姓名本就不会进入指标 DTO；这里进一步处理正文中主动填写的联系方式和编号。
-     */
     static String sanitizeFeedback(String content) {
         if (content == null || content.isBlank()) {
             return "";
@@ -175,23 +237,13 @@ public class AnalyticsEngine {
                 .replaceAll("(?<!\\d)\\d{8,18}(?!\\d)", "[编号已脱敏]");
     }
 
-    /**
-     * 扩充辅助维度：同类活动历史平均到场率
-     */
     @Transactional(readOnly = true)
     public BigDecimal getCategoryAvgAttendanceRate(String category) {
-        // 此方法预留扩展，后续通过 JPA Native Query 实现
-        // 当前返回 null 表示无对比数据
         return null;
     }
 
-    /**
-     * 扩充辅助维度：同类活动历史平均评分
-     */
     @Transactional(readOnly = true)
     public BigDecimal getCategoryAvgRating(String category) {
-        // 此方法预留扩展，后续通过 JPA Native Query 实现
-        // 当前返回 null 表示无对比数据
         return null;
     }
 }

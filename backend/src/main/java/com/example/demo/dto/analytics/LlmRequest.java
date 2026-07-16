@@ -1,13 +1,10 @@
-package com.example.demo.analytics.dto;
+package com.example.demo.dto.analytics;
 
 import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
 
-/**
- * DeepSeek API 请求体
- */
 @Data
 @Builder
 public class LlmRequest {

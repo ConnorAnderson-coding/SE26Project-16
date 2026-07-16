@@ -1,4 +1,4 @@
-package com.example.demo.analytics.entity;
+package com.example.demo.entity;
 
 import com.example.demo.entity.Activity;
 import com.example.demo.entity.User;
@@ -8,12 +8,6 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-/**
- * 签到记录实体
- *
- * @see Activity 关联活动
- * @see User 关联用户
- */
 @Getter
 @Setter
 @Entity
@@ -40,9 +34,6 @@ public class CheckIn {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    /**
-     * 签到方式: qrcode(二维码) / location(定位) / password(口令)
-     */
     @Column(nullable = false, length = 16)
     private String method;
 

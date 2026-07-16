@@ -1,5 +1,5 @@
--- Multi-activity demo data for the analytics dashboard.
--- Safe to run repeatedly: it rebuilds only activities whose check_in_code starts with ANALYTICS-SHOW-.
+
+
 SET NAMES utf8mb4;
 USE campus_activity;
 

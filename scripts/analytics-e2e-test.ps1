@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+
 [CmdletBinding()]
 param(
     [string]$BaseUrl = "http://localhost:8080",

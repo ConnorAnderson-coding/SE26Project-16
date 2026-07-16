@@ -29,5 +29,10 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
 
     long countByUserId(String userId);
 
+    @Query(value = "SELECT DATE(created_at) AS day, COUNT(*) AS cnt FROM registration " +
+           "WHERE activity_id = :activityId " +
+           "GROUP BY DATE(created_at) ORDER BY day", nativeQuery = true)
+    List<Object[]> countDailySignupsByActivityId(@Param("activityId") Long activityId);
+
     long countByActivityIdAndStatus(Long activityId, String status);
 }
