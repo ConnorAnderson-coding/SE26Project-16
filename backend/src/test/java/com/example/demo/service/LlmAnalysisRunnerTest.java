@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -201,6 +202,30 @@ class LlmAnalysisRunnerTest {
         Map<String, Object> pending = snapshots.get(0);
         assertEquals("pending", pending.get("analysisStatus"));
         assertNotNull(pending.get("generatedAt"));
+    }
+
+    @Test
+    void failedRuleUpgradePreservesExistingSuggestion() {
+        ActivityAnalysis existing = new ActivityAnalysis();
+        existing.setActivityId(1L);
+        existing.setSuggestionSource("rule");
+        existing.setAnalysisStatus("ready");
+        existing.setSuggestions(List.of(Map.of(
+                "id", "old-1",
+                "category", "promotion",
+                "priority", "high",
+                "content", "保留原建议")));
+        when(analysisRepository.findByActivityId(1L)).thenReturn(Optional.of(existing));
+        when(suggestionGenerator.generateSuggestions(any()))
+                .thenThrow(new LlmClient.LlmCallException("LLM unavailable", true));
+
+        runner.runAsync(1L, metrics());
+
+        verify(analysisRepository, never()).save(any(ActivityAnalysis.class));
+        verify(suggestionGenerator, never()).fallbackSafe(any());
+        assertEquals("rule", existing.getSuggestionSource());
+        assertEquals("ready", existing.getAnalysisStatus());
+        assertEquals("保留原建议", existing.getSuggestions().getFirst().get("content"));
     }
 
     /* ==================== helpers ==================== */

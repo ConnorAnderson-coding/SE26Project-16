@@ -39,9 +39,6 @@ public class ActivityAnalysis {
     @Column(name = "avg_rating", precision = 3, scale = 2)
     private BigDecimal avgRating;
 
-    @Column(name = "favorite_conversion", precision = 5, scale = 1)
-    private BigDecimal favoriteConversion;
-
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "rating_distribution", columnDefinition = "json")
     private Map<Integer, Long> ratingDistribution;
@@ -85,4 +82,21 @@ public class ActivityAnalysis {
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    // ==================== 一次性快照字段 ====================
+    // 活动首次加入分析列表时一次性读取浏览量/报名量/收藏量并冻结
+    // 之后不再随 activity 行的实时变化而改变
+    // 分析任务首次生成时写入，后续展示直接读取该快照
+
+    @Column(name = "view_count_snapshot")
+    private Integer viewCountSnapshot;
+
+    @Column(name = "signup_count_snapshot")
+    private Integer signupCountSnapshot;
+
+    @Column(name = "favorite_count_snapshot")
+    private Integer favoriteCountSnapshot;
+
+    @Column(name = "snapshot_at")
+    private LocalDateTime snapshotAt;
 }

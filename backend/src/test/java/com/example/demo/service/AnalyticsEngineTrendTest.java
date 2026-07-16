@@ -3,6 +3,7 @@ package com.example.demo.service;
 import com.example.demo.entity.Activity;
 import com.example.demo.entity.Feedback;
 import com.example.demo.repository.ActivityRepository;
+import com.example.demo.repository.ActivityAnalysisRepository;
 import com.example.demo.repository.CheckInRepository;
 import com.example.demo.repository.FeedbackRepository;
 import com.example.demo.repository.RegistrationRepository;
@@ -167,6 +168,9 @@ class AnalyticsEngineTrendTest {
         FeedbackRepository feedbackRepo = mock(FeedbackRepository.class);
         when(feedbackRepo.findByActivityIdOrderByCreatedAtDesc(anyLong())).thenReturn(List.<Feedback>of());
 
-        return new AnalyticsEngine(activityRepo, regRepo, checkInRepo, feedbackRepo);
+        ActivityAnalysisRepository analysisRepo = mock(ActivityAnalysisRepository.class);
+        when(analysisRepo.findByActivityId(anyLong())).thenReturn(java.util.Optional.empty());
+
+        return new AnalyticsEngine(activityRepo, regRepo, checkInRepo, feedbackRepo, analysisRepo);
     }
 }

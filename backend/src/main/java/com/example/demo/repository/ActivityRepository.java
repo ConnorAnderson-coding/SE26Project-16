@@ -78,14 +78,6 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
             @Param("until") LocalDateTime until);
 
     /**
-     * 查询所有已结束的活动，按结束时间升序。
-     * <p>
-     * 由 AnalysisScheduler 使用，每日凌晨扫描并刷新分析数据。
-     */
-    @Query("SELECT a FROM Activity a WHERE a.status = 'ended' ORDER BY a.endTime ASC")
-    List<Activity> findAllEnded();
-
-    /**
      * 自动结束活动：将所有已过结束时间但状态仍为 "published" 的活动标记为 "ended"。
      * <p>
      * 由 ActivityLifecycleScheduler 在每日凌晨调用，避免依赖组织者手动发布活动记录。

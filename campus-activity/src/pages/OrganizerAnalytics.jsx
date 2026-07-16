@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react'
 import {
   Card, Row, Col, Statistic, Select, Spin, Result, Button,
-  Tag, Typography, List, Space, Empty, Alert
+  Tag, Typography, List, Space, Empty
 } from 'antd'
 import {
   EyeOutlined, RiseOutlined, TeamOutlined, StarOutlined,
   BulbOutlined, BarChartOutlined, LineChartOutlined,
   HeartOutlined, CheckCircleOutlined, FormOutlined, CommentOutlined,
-  ReloadOutlined, LoadingOutlined
+  ClockCircleOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
 import { getMyActivities } from '../services/activityApi'
-import { getFullAnalysis, triggerAnalysis, pollAnalysisUntilReady } from '../services/analyticsApi'
+import { getFullAnalysis } from '../services/analyticsApi'
 
 const { Text } = Typography
 
@@ -192,7 +192,8 @@ export default function OrganizerAnalytics() {
   const [suggestions, setSuggestions] = useState(null)
   const [suggestionSource, setSuggestionSource] = useState('none')
   const [generatedAt, setGeneratedAt] = useState(null)
-  const [triggering, setTriggering] = useState(false)
+  // 一次性快照生成时间（前端用于提示数据时效）
+  const [snapshotAt, setSnapshotAt] = useState(null)
 
   useEffect(() => {
     getMyActivities()
@@ -225,51 +226,11 @@ export default function OrganizerAnalytics() {
         setSuggestions(data.suggestions && data.suggestions.length > 0 ? data.suggestions : null)
         setSuggestionSource(data.suggestionSource || 'none')
         setGeneratedAt(data.generatedAt || null)
+        setSnapshotAt(data.metrics?.snapshotAt || null)
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false))
   }, [selectedId])
-
-  const applyAnalysisResult = data => {
-    setMetrics(data.metrics || data)
-    setSuggestions(data.suggestions || null)
-    setSuggestionSource(data.suggestionSource || 'none')
-    setGeneratedAt(data.generatedAt || null)
-  }
-
-  const handleTriggerAnalysis = async () => {
-    if (!selectedId) return
-    setTriggering(true)
-    setError(null)
-    setSuggestions(null)
-    setSuggestionSource('pending')
-    try {
-      const result = await triggerAnalysis(selectedId)
-      if (result.status === 'pending') {
-        // 后端异步执行：立刻拿到 metrics，进入轮询等 suggestions
-        if (result.data?.metrics) {
-          setMetrics(result.data.metrics)
-        }
-        const final = await pollAnalysisUntilReady(selectedId)
-        if (final) {
-          setSuggestions(final.suggestions && final.suggestions.length > 0 ? final.suggestions : null)
-          setSuggestionSource(final.suggestionSource || 'none')
-          setGeneratedAt(final.generatedAt || null)
-          if (final.analysisStatus === 'failed') {
-            setError('LLM 分析失败：' + (final.failureReason || '未知原因'))
-          }
-        } else {
-          setError('分析超时，请稍后刷新页面查看结果')
-        }
-      } else {
-        applyAnalysisResult(result.data)
-      }
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setTriggering(false)
-    }
-  }
 
   const renderSuggestions = () => {
     if (suggestions && suggestions.length > 0) {
@@ -305,31 +266,16 @@ export default function OrganizerAnalytics() {
       )
     }
 
-    // 尚未生成建议时，提示用户点击按钮
+    // 尚未生成建议：由凌晨定时任务统一生成，此处仅展示提示
     return (
-      <Space direction="vertical" style={{ width: '100%' }} size={12}>
-        {triggering && (
-          <Alert
-            type="info"
-            showIcon
-            icon={<LoadingOutlined />}
-            message="AI 正在生成改进建议"
-            description="分析任务已提交，正在专用线程池执行，通常 5-20 秒完成，您可以稍等或先去查看其他活动。"
-          />
-        )}
-        <Empty
-          description={
-            <span>
-              点击「<Text strong>生成改进建议</Text>」按钮，<br />
-              让 AI 分析活动数据并生成针对性改进建议
-            </span>
-          }
-        >
-          <Button type="primary" loading={triggering} onClick={handleTriggerAnalysis}>
-            立即生成
-          </Button>
-        </Empty>
-      </Space>
+      <Empty
+        description={
+          <span>
+            改进建议由系统在每日凌晨自动生成，<br />
+            请于活动结束次日查看
+          </span>
+        }
+      />
     )
   }
 
@@ -340,15 +286,23 @@ export default function OrganizerAnalytics() {
         <Card style={{ marginBottom: 16 }}>
           <Space direction="vertical" style={{ width: '100%' }}>
             <Text type="secondary">选择要分析的活动</Text>
-            <Select
-              style={{ width: '100%', maxWidth: 480 }}
-              placeholder="选择已结束的活动"
-              value={selectedId}
-              onChange={setSelectedId}
-              options={myActivities
-                .filter(isActivityEnded)
-                .map(a => ({ label: a.title, value: a.id }))}
-            />
+            <Space wrap>
+              <Select
+                style={{ width: 360 }}
+                placeholder="选择已结束的活动"
+                value={selectedId}
+                onChange={setSelectedId}
+                options={myActivities
+                  .filter(isActivityEnded)
+                  .map(a => ({ label: a.title, value: a.id }))}
+              />
+              {snapshotAt && (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  <ClockCircleOutlined style={{ marginRight: 4 }} />
+                  数据快照时间：{dayjs(snapshotAt).format('YYYY-MM-DD HH:mm')}
+                </Text>
+              )}
+            </Space>
           </Space>
         </Card>
 
@@ -458,14 +412,6 @@ export default function OrganizerAnalytics() {
                       )}
                     </>
                   )}
-                  <Button
-                    type="primary"
-                    icon={<ReloadOutlined />}
-                    loading={triggering}
-                    onClick={handleTriggerAnalysis}
-                  >
-                    {suggestions && suggestions.length > 0 ? '重新生成' : '生成改进建议'}
-                  </Button>
                 </Space>
               }
             >
