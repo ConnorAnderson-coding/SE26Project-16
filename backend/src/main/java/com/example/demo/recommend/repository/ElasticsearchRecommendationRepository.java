@@ -73,9 +73,21 @@ public class ElasticsearchRecommendationRepository {
             }
         }
         catch (IOException ex) {
+            if (isMissingModelError(ex)) {
+                log.warn("GTE model {} not deployed; run database/init-es.ps1 to import it", modelId);
+                return null;
+            }
             log.error("Infer embedding failed model={}", modelId, ex);
             throw new BusinessException("用户兴趣向量推理失败: " + ex.getMessage());
         }
+    }
+
+    private static boolean isMissingModelError(IOException ex) {
+        String message = ex.getMessage();
+        return message != null
+                && (message.contains("404")
+                || message.contains("resource_not_found_exception")
+                || message.contains("Could not find trained model"));
     }
 
     public Map<Long, float[]> mgetEmbeddings(List<Long> activityIds) {
