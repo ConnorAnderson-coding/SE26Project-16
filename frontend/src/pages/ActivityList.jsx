@@ -99,7 +99,7 @@ export default function ActivityList() {
     if (!semanticSearchActive && location) {
       result = result.filter(a => a.location === location)
     }
-    result = result.filter(a => a.signupCount + a.favoriteCount >= minHot)
+    result = result.filter(a => (a.hotnessScore ?? 0) >= minHot)
     result = result.filter(a => matchesInterestTags(a, effectiveInterestTags))
     result = result.filter(a => matchesTimeRange(a, timeRange))
     result = result.filter(a => matchesTimeSlots(a, timeSlots))
@@ -113,7 +113,7 @@ export default function ActivityList() {
     if (!semanticSearchActive) {
       switch (sortBy) {
         case 'hot':
-          result.sort((a, b) => (b.signupCount + b.favoriteCount) - (a.signupCount + a.favoriteCount))
+          result.sort((a, b) => (b.hotnessScore ?? 0) - (a.hotnessScore ?? 0))
           break
         case 'time':
           result.sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
@@ -255,10 +255,11 @@ export default function ActivityList() {
                 </Col>
               )}
               <Col xs={24} sm={12} md={8} lg={6}>
-                <Text type="secondary">最低热度：{minHot}</Text>
+                <Text type="secondary">最低热度：{minHot.toFixed(1)}</Text>
                 <Slider
                   min={0}
-                  max={200}
+                  max={20}
+                  step={0.5}
                   value={minHot}
                   onChange={setMinHot}
                   style={{ marginTop: 4 }}
@@ -341,7 +342,7 @@ export default function ActivityList() {
             )}
             {minHot > 0 && (
               <Tag closable onClose={() => setMinHot(0)}>
-                热度 ≥ {minHot}
+                热度 ≥ {minHot.toFixed(1)}
               </Tag>
             )}
             {hasActiveFilters && (

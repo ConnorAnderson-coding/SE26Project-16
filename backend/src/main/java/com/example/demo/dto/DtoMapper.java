@@ -58,6 +58,7 @@ public final class DtoMapper {
                 .maxParticipants(activity.getMaxParticipants())
                 .signupCount(activity.getSignupCount())
                 .favoriteCount(activity.getFavoriteCount())
+                .hotnessScore(activity.getHotnessScore())
                 .status(activity.getStatus())
                 .tags(nullToEmpty(activity.getTags()))
                 .checkInCode(activity.getCheckInCode())

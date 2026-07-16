@@ -95,9 +95,7 @@ public class RecommendationScorer {
             if (socials[i] == 0.0 && a.getOrganizer() != null) {
                 socials[i] = socialByOrganizer.getOrDefault(a.getOrganizer().getId(), 0.0);
             }
-            int signup = a.getSignupCount() != null ? a.getSignupCount() : 0;
-            int favorite = a.getFavoriteCount() != null ? a.getFavoriteCount() : 0;
-            hots[i] = Math.log1p(signup + favorite);
+            hots[i] = a.getHotnessScore() != null ? a.getHotnessScore() : 0.0;
             times[i] = ActivityTimeSlot.timeFit(a.getStartTime(), availableTime);
         }
 

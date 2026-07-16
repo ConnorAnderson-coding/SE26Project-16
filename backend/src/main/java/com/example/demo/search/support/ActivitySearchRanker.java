@@ -19,7 +19,7 @@ public final class ActivitySearchRanker {
 
         List<ActivityResponse> sorted = new ArrayList<>(responses);
         switch (sort) {
-            case HOT -> sorted.sort(Comparator.comparingInt(ActivityHotScore::compute).reversed());
+            case HOT -> sorted.sort(Comparator.comparingDouble(ActivitySearchRanker::hotnessOf).reversed());
             case TIME -> sorted.sort(Comparator.comparing(ActivityResponse::getStartTime,
                     Comparator.nullsLast(Comparator.naturalOrder())));
             case SIGNUP -> sorted.sort(Comparator.comparing(
@@ -41,15 +41,15 @@ public final class ActivitySearchRanker {
         double relevanceMax = responses.stream()
                 .mapToDouble(r -> r.getSearchScore() != null ? r.getSearchScore() : 0.0)
                 .max().orElse(0.0);
-        int hotMin = responses.stream().mapToInt(ActivityHotScore::compute).min().orElse(0);
-        int hotMax = responses.stream().mapToInt(ActivityHotScore::compute).max().orElse(0);
+        double hotMin = responses.stream().mapToDouble(ActivitySearchRanker::hotnessOf).min().orElse(0.0);
+        double hotMax = responses.stream().mapToDouble(ActivitySearchRanker::hotnessOf).max().orElse(0.0);
 
         for (ActivityResponse response : responses) {
             double relevanceNorm = normalize(
                     response.getSearchScore() != null ? response.getSearchScore() : 0.0,
                     relevanceMin,
                     relevanceMax);
-            double hotNorm = normalize(ActivityHotScore.compute(response), hotMin, hotMax);
+            double hotNorm = normalize(hotnessOf(response), hotMin, hotMax);
             double composite = w * relevanceNorm + (1.0 - w) * hotNorm;
             response.setCompositeScore(composite);
         }
@@ -57,6 +57,10 @@ public final class ActivitySearchRanker {
         responses.sort(Comparator.comparing(
                 ActivityResponse::getCompositeScore,
                 Comparator.nullsLast(Comparator.reverseOrder())));
+    }
+
+    static double hotnessOf(ActivityResponse response) {
+        return response.getHotnessScore() != null ? response.getHotnessScore() : 0.0;
     }
 
     private static double normalize(double value, double min, double max) {

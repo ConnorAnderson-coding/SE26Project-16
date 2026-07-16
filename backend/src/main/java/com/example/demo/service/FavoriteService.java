@@ -30,6 +30,7 @@ public class FavoriteService {
     private final FavoriteRepository favoriteRepository;
     private final ActivityRepository activityRepository;
     private final UserService userService;
+    private final ActivityHotnessService activityHotnessService;
 
     @Transactional(readOnly = true)
     public List<ActivityResponse> getMine() {
@@ -54,8 +55,9 @@ public class FavoriteService {
             favoriteRepository.deleteById(favoriteId);
             activity.setFavoriteCount(Math.max(0, activity.getFavoriteCount() - 1));
             activity.setUpdatedAt(LocalDateTime.now());
-            activityRepository.save(activity);
-            return FavoriteToggleResponse.builder().favorited(false).build();
+        activityRepository.save(activity);
+        activityHotnessService.recalculate(activity);
+        return FavoriteToggleResponse.builder().favorited(false).build();
         }
         User user = userService.getUserEntity(userId);
         Favorite favorite = new Favorite();
@@ -67,6 +69,7 @@ public class FavoriteService {
         activity.setFavoriteCount(activity.getFavoriteCount() + 1);
         activity.setUpdatedAt(LocalDateTime.now());
         activityRepository.save(activity);
+        activityHotnessService.recalculate(activity);
         return FavoriteToggleResponse.builder().favorited(true).build();
     }
 
