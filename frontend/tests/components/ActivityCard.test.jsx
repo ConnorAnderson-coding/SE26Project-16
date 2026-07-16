@@ -37,6 +37,15 @@ describe('ActivityCard 组件', () => {
     ).toBeInTheDocument()
   })
 
+  it('应展示当前热度值', () => {
+    const activity = { ...sampleActivity, hotnessScore: 12.34 }
+    renderWithRouter(
+      <ActivityCard activity={activity} />
+    )
+
+    expect(screen.getByText(/热度 12\.3/)).toBeInTheDocument()
+  })
+
   it('已结束活动应显示已结束标签', () => {
     const endedActivity = initialActivities.find(a => a.status === 'ended')
 

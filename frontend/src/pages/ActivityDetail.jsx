@@ -8,6 +8,7 @@ import {
   EnvironmentOutlined, ClockCircleOutlined, TeamOutlined,
   HeartOutlined, HeartFilled, UserOutlined, FireOutlined
 } from '@ant-design/icons'
+import { formatHotness, getHotnessValue } from '../utils/hotness'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
 import { useApp } from '../context/AppContext'
@@ -162,8 +163,11 @@ export default function ActivityDetail() {
                 <Descriptions.Item label={<><TeamOutlined /> 报名情况</>}>
                   {activity.signupCount} / {activity.maxParticipants} 人
                 </Descriptions.Item>
-                <Descriptions.Item label={<><FireOutlined /> 收藏</>}>
+                <Descriptions.Item label={<><HeartOutlined /> 收藏</>}>
                   {activity.favoriteCount} 人收藏
+                </Descriptions.Item>
+                <Descriptions.Item label={<><FireOutlined style={{ color: '#fa541c' }} /> 当前热度</>}>
+                  {formatHotness(getHotnessValue(activity))}
                 </Descriptions.Item>
               </Descriptions>
 

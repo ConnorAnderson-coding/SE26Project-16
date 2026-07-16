@@ -3,10 +3,12 @@ import {
   EnvironmentOutlined,
   ClockCircleOutlined,
   FireOutlined,
+  HeartOutlined,
   TeamOutlined
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { getCategoryLabel, formatDateTime } from '../data/mockData'
+import { formatHotness, getHotnessValue } from '../utils/hotness'
 
 const { Text, Paragraph } = Typography
 
@@ -76,12 +78,15 @@ export default function ActivityCard({
           <Text type="secondary">
             <EnvironmentOutlined /> {activity.location}
           </Text>
-          <Space>
+          <Space wrap>
             <Text type="secondary">
               <TeamOutlined /> {activity.signupCount}/{activity.maxParticipants} 人
             </Text>
             <Text type="secondary">
-              <FireOutlined /> {activity.favoriteCount} 收藏
+              <HeartOutlined /> {activity.favoriteCount ?? 0} 收藏
+            </Text>
+            <Text type="secondary">
+              <FireOutlined style={{ color: '#fa541c' }} /> 热度 {formatHotness(getHotnessValue(activity))}
             </Text>
           </Space>
         </Space>
