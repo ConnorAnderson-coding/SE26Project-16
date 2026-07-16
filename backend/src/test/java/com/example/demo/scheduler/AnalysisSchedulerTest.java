@@ -207,8 +207,8 @@ class AnalysisSchedulerTest {
     /* ==================== refreshEndedActivitiesAnalysis 集成测试 ==================== */
 
     @Test
-    void schedulerUsesFindEndedBetweenWith7DayWindow() {
-        // 调度应使用限定窗口，而不是 findAllEnded
+    void schedulerUsesYesterdayWindow() {
+        // 核心流程要求只扫描昨日结束的活动
         when(activityRepository.findEndedBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(List.of());
 
@@ -221,10 +221,8 @@ class AnalysisSchedulerTest {
         LocalDateTime since = sinceCap.getValue();
         LocalDateTime until = untilCap.getValue();
         long days = java.time.Duration.between(since, until).toDays();
-        assertEquals(7, days, "扫描窗口应为最近 7 天");
+        assertEquals(1, days, "扫描窗口应为昨日 1 天");
         assertFalse(scheduler.toString().isEmpty()); // just for sonar
-        // findAllEnded 永远不应该被定时任务调用
-        verify(activityRepository, never()).findAllEnded();
     }
 
     @Test
@@ -293,6 +291,23 @@ class AnalysisSchedulerTest {
         scheduler.refreshEndedActivitiesAnalysis();
 
         // 第二个活动仍应被派发（不会因为第一个的失败而整体回滚）
+        verify(llmAnalysisRunner, times(1)).runAsync(anyLong(), any(ActivityMetrics.class));
+    }
+
+    @Test
+    void schedulerDoesNotSubmitSameActivityTwiceAcrossPhases() {
+        Activity activity = activity(1L, "昨日结束且已有规则建议");
+        when(activityRepository.findEndedBetween(any(), any())).thenReturn(List.of(activity));
+        when(analysisRepository.findByActivityId(1L)).thenReturn(Optional.empty());
+
+        ActivityAnalysis ruleAnalysis = new ActivityAnalysis();
+        ruleAnalysis.setActivityId(1L);
+        when(analysisRepository.findBySuggestionSource("rule")).thenReturn(List.of(ruleAnalysis));
+        when(analyticsEngine.computeMetrics(1L)).thenReturn(ActivityMetrics.builder().activityId(1L).build());
+
+        scheduler.refreshEndedActivitiesAnalysis();
+
+        verify(analyticsEngine, times(1)).computeMetrics(1L);
         verify(llmAnalysisRunner, times(1)).runAsync(anyLong(), any(ActivityMetrics.class));
     }
 

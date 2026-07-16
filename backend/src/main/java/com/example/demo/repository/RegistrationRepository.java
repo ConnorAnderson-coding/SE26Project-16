@@ -27,12 +27,31 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
 
     long countByUserIdAndStatus(String userId, String status);
 
-    long countByUserId(String userId);
-
     @Query(value = "SELECT DATE(created_at) AS day, COUNT(*) AS cnt FROM registration " +
            "WHERE activity_id = :activityId " +
            "GROUP BY DATE(created_at) ORDER BY day", nativeQuery = true)
     List<Object[]> countDailySignupsByActivityId(@Param("activityId") Long activityId);
 
     long countByActivityIdAndStatus(Long activityId, String status);
+
+    long countByUserId(String userId);
+
+    @Query("""
+            SELECT COUNT(DISTINCT r1.activity.id) FROM Registration r1, Registration r2
+            WHERE r1.user.id = :userA AND r2.user.id = :userB
+              AND r1.activity.id = r2.activity.id
+              AND (r1.status IS NULL OR r1.status <> 'rejected')
+              AND (r2.status IS NULL OR r2.status <> 'rejected')
+            """)
+    long countCoParticipation(@Param("userA") String userA, @Param("userB") String userB);
+
+    @Query("""
+            SELECT COUNT(r) FROM Registration r
+            WHERE r.user.id = :userId
+              AND r.activity.organizer.id = :organizerId
+              AND (r.status IS NULL OR r.status <> 'rejected')
+            """)
+    long countUserSignedOrganizer(
+            @Param("userId") String userId,
+            @Param("organizerId") String organizerId);
 }

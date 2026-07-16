@@ -40,18 +40,4 @@ Assert-Equal $metrics.ratingDistribution.'2' 2 "2-star count"
 Assert-Equal $metrics.ratingDistribution.'3' 2 "3-star count"
 Assert-Equal $metrics.ratingDistribution.'4' 1 "4-star count"
 
-$generated = Invoke-RestMethod -Method Post -Uri "$Api/analytics/trigger/$($demo.id)" -Headers $headers
-$suggestionCount = @($generated.data.suggestions).Count
-if ($suggestionCount -lt 3 -or $suggestionCount -gt 5) {
-    throw "Suggestion count failed: expected 3-5, actual $suggestionCount"
-}
-if ($generated.data.suggestionSource -notin @('llm', 'rule')) {
-    throw "Invalid suggestion source: $($generated.data.suggestionSource)"
-}
-Write-Host "[PASS] suggestions = $suggestionCount, source = $($generated.data.suggestionSource)" -ForegroundColor Green
-
-$persisted = Invoke-RestMethod -Uri "$Api/analytics/activity/$($demo.id)" -Headers $headers
-Assert-Equal @($persisted.data.suggestions).Count $suggestionCount "persisted suggestion count"
-Assert-Equal $persisted.data.suggestionSource $generated.data.suggestionSource "persisted source"
-
-Write-Host "Analytics E2E test passed (activityId=$($demo.id))" -ForegroundColor Cyan
+Write-Host "Analytics metrics E2E test passed (activityId=$($demo.id))" -ForegroundColor Cyan

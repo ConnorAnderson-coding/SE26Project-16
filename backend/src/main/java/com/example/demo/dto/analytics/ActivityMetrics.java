@@ -55,4 +55,10 @@ public class ActivityMetrics {
     private List<String> feedbackContents;
 
     private Map<String, Long> signupTrend;
+
+    /**
+     * 一次性快照生成时间。前端可基于此判断数据时效性，
+     * 提示用户 viewCount / signupCount / favoriteCount 是"加入分析列表时"的冻结值。
+     */
+    private LocalDateTime snapshotAt;
 }

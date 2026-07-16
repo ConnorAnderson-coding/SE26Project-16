@@ -55,17 +55,9 @@ public class ActivityService {
     }
 
     /**
-     * 查询活动详情：自增浏览量 + 返回最新 DTO。
+     * 查询活动详情并在事务内原子增加浏览量。
      * <p>
-     * 浏览量自增与缓存详情读取解耦：
-     * <ol>
-     *   <li>先调用一次 {@code findWithDetailsById}（走 {@link CacheNames#ACTIVITY_DETAIL} 缓存，
-     *       仅承担"读取静态详情"职责）；</li>
-     *   <li>如果当前用户是组织者/管理员/未登录，跳过自增；其他用户走原子 {@code UPDATE} 自增 +1。</li>
-     * </ol>
-     * {@link ActivityResponse} 暂未暴露 {@code viewCount} 字段，
-     * 缓存层缓存的 viewCount 与 DB 实时的 viewCount 的差异只在分析侧读取 Activity 实体时可见，
-     * 通过每次访问自增 1 保证 DB 中的值始终单调递增并贴近真实访问次数。
+     * 已结束活动、组织者本人、管理员和未登录用户不会增加浏览量。
      */
     @Transactional
     public ActivityResponse getById(Long id) {
@@ -82,12 +74,17 @@ public class ActivityService {
     /**
      * 判断本次浏览是否计入 viewCount。
      * <p>
-     * 仅普通登录用户的"主动查看"计数：组织者本人、管理员和未登录用户均不计。
+     * 仅普通登录用户的"主动查看"计数：组织者本人、管理员、未登录用户均不计。
+     * 活动一旦结束，浏览量即冻结不再变化。
      *
      * @param activity 当前活动实体（来自缓存）
      * @return true 表示需要自增 viewCount
      */
     private boolean shouldIncrementViewCount(Activity activity) {
+        // 活动已结束：浏览量冻结
+        if ("ended".equals(activity.getStatus())) {
+            return false;
+        }
         try {
             var currentUser = SecurityUtils.getCurrentUser();
             String currentUserId = currentUser.getUserId();

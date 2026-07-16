@@ -10,7 +10,6 @@ public interface ActivityAnalysisRepository extends JpaRepository<ActivityAnalys
 
     Optional<ActivityAnalysis> findByActivityId(Long activityId);
 
-    boolean existsByActivityId(Long activityId);
-
-    List<ActivityAnalysis> findAllByOrderByGeneratedAtDesc();
+    /** 查询所有规则模板来源的分析记录（用于定时任务升级为 LLM 建议） */
+    List<ActivityAnalysis> findBySuggestionSource(String suggestionSource);
 }
