@@ -5,9 +5,11 @@ import json
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, asdict
+from pathlib import Path
 from typing import Any
 
 BASE = "http://localhost:8080/api/v1"
+REPORT_DIR = Path(__file__).resolve().parents[2] / "report"
 
 
 def post_json(path: str, body: dict) -> dict:
@@ -102,9 +104,11 @@ def main() -> None:
     }
 
     out = {"cases": cases}
-    out_path = "search-verify-results.json"  # 相对 backend/ 目录
+    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = REPORT_DIR / "search-verify-results.json"
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, indent=2)
+    print(f"wrote {out_path}")
 
     print(json.dumps(out, ensure_ascii=False, indent=2))
 

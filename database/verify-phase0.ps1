@@ -28,7 +28,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ScriptDir = $PSScriptRoot
 $ProjectRoot = Split-Path $ScriptDir -Parent
-$ReportFile = Join-Path $ProjectRoot "功能实现计划.md"
+$ReportFile = Join-Path $ProjectRoot "doc\功能实现计划.md"
 
 $results = [ordered]@{}
 $failures = New-Object System.Collections.Generic.List[string]
@@ -260,7 +260,7 @@ try {
     }
 
     # Update report
-    Write-Step "更新功能实现计划.md"
+    Write-Step "更新 doc/功能实现计划.md"
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $conclusion = if ($failures.Count -eq 0) { "Phase 0 通过" } else { "Phase 0 未完全通过（$($failures.Count) 项失败）" }
 

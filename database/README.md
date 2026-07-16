@@ -17,10 +17,10 @@ docker compose up -d
 
 ### Elasticsearch（检索已落地 · 推荐待复用）
 
-对应《技术选型.md》与 [`检索与推荐.md`](../检索与推荐.md)：
+对应 [`技术选型.md`](../doc/技术选型.md) 与 [`检索与推荐.md`](../doc/检索与推荐.md)：
 
 - **语义检索（可用）**：BM25（IK）+ **GTE** dense kNN（`campus_gte`，512 / cosine）+ 绝对阈值 τ=0.90 + 加权相关度 Hybrid。
-- **智能推荐（下一阶段）**：将复用同一索引与向量；当前首页推荐仍为 MySQL 规则版，见功能计划 Phase 3–5。
+- **智能推荐（可用）**：复用同一索引 / 向量做喜好向量 kNN；硬过滤与多因子加权见 [`检索与推荐.md`](../doc/检索与推荐.md) §6。
 
 **内存要求**：建议 Docker Desktop 为 Elasticsearch 分配 **≥ 2GB** 内存（启用 ML / GTE 时）。
 
@@ -209,7 +209,7 @@ docker compose up -d            # MySQL 会自动执行 schema.sql + seed.sql
 ```powershell
 cd backend
 python scripts/cosine-threshold-experiment.py --rebuild
-# 输出：cosine-threshold-experiment.md / .csv
+# 输出：report/cosine-threshold-experiment.md / .csv
 ```
 
 ---

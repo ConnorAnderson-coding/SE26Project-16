@@ -4,7 +4,7 @@
   初始化 Elasticsearch：创建活动索引、部署 GTE 稠密向量模型（语义检索）
 
 .DESCRIPTION
-  对应《技术选型.md》第 1/2 部分：
+  对应《doc/技术选型.md》第 1/2 部分：
   - 索引 campus_activities：IK 分词（BM25）+ dense_vector 512 维（kNN cosine）
   - 经 Eland 导入 thenlper/gte-small-zh，注册为 campus_gte（中文专用，本地友好）
   - ingest pipeline 将 search_text 向量化写入 activity_embedding（无需 E5 的 query:/passage: 前缀）

@@ -6,8 +6,8 @@ For each query class (exact / synonym / thematic / unrelated), run ES kNN on
 activity_embedding and collect ES _score (≈ (1+cos)/2) for every activity.
 
 Outputs:
-  - backend/cosine-threshold-experiment.md  (tables)
-  - backend/cosine-threshold-experiment.csv
+  - report/cosine-threshold-experiment.md  (tables)
+  - report/cosine-threshold-experiment.csv
 """
 
 from __future__ import annotations
@@ -146,7 +146,8 @@ def main() -> None:
         print(f"query {label}: {query}")
         matrix[label] = knn_scores(es, query, size=max(n, 20))
 
-    out_dir = Path(__file__).resolve().parents[1]
+    out_dir = Path(__file__).resolve().parents[2] / "report"
+    out_dir.mkdir(parents=True, exist_ok=True)
     md_path = out_dir / "cosine-threshold-experiment.md"
     csv_path = out_dir / "cosine-threshold-experiment.csv"
 

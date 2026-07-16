@@ -98,6 +98,7 @@ export default function Home() {
                         activity={activity}
                         showRecommend
                         recommendScore={activity.recommendScore}
+                        recommendReasons={activity.recommendReasons}
                       />
                     </Col>
                   ))}
