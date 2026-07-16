@@ -1,21 +1,28 @@
 package com.example.campusactivity.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.validation.constraints.NotBlank;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.validation.constraints.NotBlank;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
 @Entity
+@EntityListeners(AuditingEntityListener.class)
 public class Activity {
     @Id
     private String id;
+    private LocalDateTime createdAt; // New field for creation timestamp
+    @LastModifiedDate
+    private LocalDateTime lastModifiedAt;
 
     @NotBlank
     private String title;
@@ -36,8 +43,10 @@ public class Activity {
     private String poster;
 
     private Integer maxParticipants = 50;
+    private Integer viewCount = 0; // New field for view count
     private Integer signupCount = 0;
     private Integer favoriteCount = 0;
+    private Double hotness = 0.0; // New field for hotness calculation
     private String status = "published";
 
     @ElementCollection
@@ -61,6 +70,9 @@ public class Activity {
         if (checkInCode == null || checkInCode.isBlank()) {
             checkInCode = "CK" + id.replace("-", "").substring(0, 6).toUpperCase();
         }
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 
     public String getId() {
@@ -69,6 +81,22 @@ public class Activity {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getLastModifiedAt() {
+        return lastModifiedAt;
+    }
+
+    public void setLastModifiedAt(LocalDateTime lastModifiedAt) {
+        this.lastModifiedAt = lastModifiedAt;
     }
 
     public String getTitle() {
@@ -159,6 +187,14 @@ public class Activity {
         this.maxParticipants = maxParticipants;
     }
 
+    public Integer getViewCount() {
+        return viewCount;
+    }
+
+    public void setViewCount(Integer viewCount) {
+        this.viewCount = viewCount;
+    }
+
     public Integer getSignupCount() {
         return signupCount;
     }
@@ -173,6 +209,14 @@ public class Activity {
 
     public void setFavoriteCount(Integer favoriteCount) {
         this.favoriteCount = favoriteCount;
+    }
+
+    public Double getHotness() {
+        return hotness;
+    }
+
+    public void setHotness(Double hotness) {
+        this.hotness = hotness;
     }
 
     public String getStatus() {
