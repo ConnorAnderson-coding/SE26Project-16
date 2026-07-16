@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
 
 import Login from '../pages/Login'
+import OAuthCallback from '../pages/OAuthCallback'
 import Home from '../pages/Home'
 import ActivityList from '../pages/ActivityList'
 import ActivityDetail from '../pages/ActivityDetail'
@@ -23,6 +24,7 @@ export default function Router() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
+        <Route path="/oauth/callback" element={<OAuthCallback />} />
         <Route path="/home" element={<Home />} />
         <Route path="/activities" element={<ActivityList />} />
         <Route path="/activity/:id" element={<ActivityDetail />} />
