@@ -42,7 +42,7 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
     List<Activity> findAllIndexable();
 
     @EntityGraph(attributePaths = "organizer")
-    @Query("SELECT a FROM Activity a WHERE a.status = 'published' ORDER BY a.signupCount DESC, a.favoriteCount DESC")
+    @Query("SELECT a FROM Activity a WHERE a.status = 'published' ORDER BY a.hotnessScore DESC")
     @Cacheable(
             value = CacheNames.ACTIVITY_HOT_LIST,
             key = "#pageable.pageNumber + '-' + #pageable.pageSize")
