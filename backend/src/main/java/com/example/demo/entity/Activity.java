@@ -81,6 +81,15 @@ public class Activity {
     @Column(name = "check_in_code", length = 32)
     private String checkInCode;
 
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
+
+    @Column(name = "check_in_radius_m", nullable = false)
+    private Integer checkInRadiusMeters = 200;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

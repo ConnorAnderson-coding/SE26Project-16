@@ -36,6 +36,12 @@ public class User {
     @Column(nullable = false, length = 16)
     private String role;
 
+    @Column(length = 64, unique = true)
+    private String jaccount;
+
+    @Column(name = "jaccount_type", length = 32)
+    private String jaccountType;
+
     @Column(nullable = false, length = 64)
     private String college;
 

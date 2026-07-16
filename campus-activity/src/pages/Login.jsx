@@ -3,6 +3,7 @@ import { Card, Input, Button, Tabs, Form, Select, message, Typography } from 'an
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import * as authApi from '../services/authApi'
 import { COLLEGES, INTEREST_TAGS, AVAILABLE_TIME_OPTIONS } from '../data/mockData'
 
 const { Title, Paragraph } = Typography
@@ -89,7 +90,7 @@ export default function Login() {
                     <Button
                       block
                       icon={<LoginOutlined />}
-                      onClick={() => message.info('jAccount 单点登录功能即将上线')}
+                      onClick={authApi.startJAccountLogin}
                     >
                       使用 jAccount 单点登录
                     </Button>
