@@ -6,9 +6,11 @@ import com.example.demo.dto.DtoMapper;
 import com.example.demo.dto.request.UpdateProfileRequest;
 import com.example.demo.dto.response.UserResponse;
 import com.example.demo.entity.User;
+import com.example.demo.recommend.UserPreferenceVectorService;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ import java.util.ArrayList;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final ObjectProvider<UserPreferenceVectorService> userPreferenceVectorService;
 
     @Transactional(readOnly = true)
     public UserResponse getCurrentUser() {
@@ -43,6 +46,7 @@ public class UserService {
         user.setAvailableTime(request.getAvailableTime() != null ? request.getAvailableTime() : new ArrayList<>());
         user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
+        userPreferenceVectorService.ifAvailable(svc -> svc.invalidate(userId));
         return DtoMapper.toUserResponse(user);
     }
 

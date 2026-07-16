@@ -10,6 +10,8 @@ import com.example.demo.entity.Activity;
 import com.example.demo.entity.User;
 import com.example.demo.repository.ActivityRepository;
 import com.example.demo.repository.RegistrationRepository;
+import com.example.demo.recommend.RecommendationScorer;
+import com.example.demo.recommend.RecommendationService;
 import com.example.demo.search.ActivityIndexService;
 import com.example.demo.search.ActivitySearchCriteria;
 import com.example.demo.search.SearchMode;
@@ -46,6 +48,7 @@ public class ActivityService {
     private final RegistrationRepository registrationRepository;
     private final ObjectProvider<ActivityIndexService> activityIndexService;
     private final ObjectProvider<ActivitySearchService> activitySearchService;
+    private final ObjectProvider<RecommendationService> recommendationService;
 
     @Transactional(readOnly = true)
     public PageResult<ActivityResponse> list(
@@ -102,6 +105,21 @@ public class ActivityService {
 
     @Transactional(readOnly = true)
     public List<ActivityResponse> getRecommended(int limit) {
+        RecommendationService smart = recommendationService.getIfAvailable();
+        if (smart != null) {
+            try {
+                return smart.recommend(limit);
+            }
+            catch (RuntimeException ex) {
+                log.warn("智能推荐失败，降级为规则推荐: {}", ex.getMessage());
+            }
+        }
+        return getRecommendedLegacy(limit);
+    }
+
+    /** Rule-based fallback when ES/recommend path unavailable. */
+    @Transactional(readOnly = true)
+    public List<ActivityResponse> getRecommendedLegacy(int limit) {
         String userId = SecurityUtils.getCurrentUserId();
         User user = userService.getUserEntity(userId);
         List<String> interests = user.getInterests() != null ? user.getInterests() : List.of();
@@ -117,6 +135,7 @@ public class ActivityService {
                     ActivityResponse response = DtoMapper.toActivityResponse(a);
                     int score = computeRecommendScore(a, interests);
                     response.setRecommendScore(score);
+                    response.setRecommendReasons(legacyRecommendReasons(a, interests, score));
                     return response;
                 })
                 .sorted(Comparator.comparing(ActivityResponse::getRecommendScore).reversed())
@@ -219,6 +238,23 @@ public class ActivityService {
         score += Math.min(activity.getFavoriteCount(), 50);
         score += Math.min(activity.getSignupCount(), 30);
         return score;
+    }
+
+    private List<String> legacyRecommendReasons(Activity activity, List<String> interests, int score) {
+        List<String> reasons = new ArrayList<>();
+        List<String> tags = activity.getTags() != null ? activity.getTags() : List.of();
+        boolean interestHit = tags.stream().anyMatch(interests::contains)
+                || (activity.getCategory() != null && interests.contains(activity.getCategory()));
+        if (interestHit) {
+            reasons.add(RecommendationScorer.REASON_INTEREST);
+        }
+        if (activity.getSignupCount() + activity.getFavoriteCount() >= 40) {
+            reasons.add(RecommendationScorer.REASON_HOT);
+        }
+        if (reasons.isEmpty()) {
+            reasons.add(score > 0 ? RecommendationScorer.REASON_HOT : RecommendationScorer.REASON_COLD);
+        }
+        return reasons;
     }
 
     private Pageable buildPageable(int page, int size, String sort) {
