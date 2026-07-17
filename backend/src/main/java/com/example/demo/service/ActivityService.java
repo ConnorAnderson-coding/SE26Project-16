@@ -10,8 +10,14 @@ import com.example.demo.entity.Activity;
 import com.example.demo.entity.User;
 import com.example.demo.repository.ActivityRepository;
 import com.example.demo.repository.RegistrationRepository;
-import com.example.demo.util.SecurityUtils;
-import lombok.RequiredArgsConstructor;
+import com.example.demo.recommend.RecommendationScorer;
+import com.example.demo.recommend.RecommendationService;
+import com.example.demo.search.ActivityIndexService;
+import com.example.demo.search.ActivitySearchCriteria;
+import com.example.demo.search.SearchMode;
+import com.example.demo.search.SearchSort;
+import com.example.demo.search.service.ActivitySearchService;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
@@ -22,12 +28,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.example.demo.util.SecurityUtils;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ActivityService {
@@ -35,11 +46,34 @@ public class ActivityService {
     private final ActivityRepository activityRepository;
     private final UserService userService;
     private final RegistrationRepository registrationRepository;
+    private final ObjectProvider<ActivityIndexService> activityIndexService;
+    private final ObjectProvider<ActivitySearchService> activitySearchService;
+    private final ObjectProvider<RecommendationService> recommendationService;
 
     @Transactional(readOnly = true)
     public PageResult<ActivityResponse> list(
             String category, String status, String location, String keyword,
-            int page, int size, String sort) {
+            int page, int size, String sort, double matchWeight) {
+        // keyword 非空且 ES 可用时走 Hybrid（BM25 + dense kNN）；索引为空则降级 MySQL，避免误显示 0 条
+        if (StringUtils.hasText(keyword)) {
+            ActivitySearchService searchService = activitySearchService.getIfAvailable();
+            if (searchService != null && !searchService.isIndexEmpty()) {
+                return searchService.search(new ActivitySearchCriteria(
+                        keyword,
+                        emptyToNull(category),
+                        emptyToNull(status),
+                        emptyToNull(location),
+                        SearchMode.HYBRID,
+                        SearchSort.from(sort),
+                        matchWeight,
+                        page,
+                        size));
+            }
+            if (searchService != null) {
+                log.warn("Elasticsearch 活动索引为空，关键词检索降级为 MySQL LIKE。请管理员执行 POST /api/v1/search/index/rebuild");
+            }
+        }
+
         Pageable pageable = buildPageable(page, size, sort);
         Page<Activity> result = activityRepository.search(
                 emptyToNull(category),
@@ -110,6 +144,21 @@ public class ActivityService {
 
     @Transactional(readOnly = true)
     public List<ActivityResponse> getRecommended(int limit) {
+        RecommendationService smart = recommendationService.getIfAvailable();
+        if (smart != null) {
+            try {
+                return smart.recommend(limit);
+            }
+            catch (RuntimeException ex) {
+                log.warn("智能推荐失败，降级为规则推荐: {}", ex.getMessage());
+            }
+        }
+        return getRecommendedLegacy(limit);
+    }
+
+    /** Rule-based fallback when ES/recommend path unavailable. */
+    @Transactional(readOnly = true)
+    public List<ActivityResponse> getRecommendedLegacy(int limit) {
         String userId = SecurityUtils.getCurrentUserId();
         User user = userService.getUserEntity(userId);
         List<String> interests = user.getInterests() != null ? user.getInterests() : List.of();
@@ -125,6 +174,7 @@ public class ActivityService {
                     ActivityResponse response = DtoMapper.toActivityResponse(a);
                     int score = computeRecommendScore(a, interests);
                     response.setRecommendScore(score);
+                    response.setRecommendReasons(legacyRecommendReasons(a, interests, score));
                     return response;
                 })
                 .sorted(Comparator.comparing(ActivityResponse::getRecommendScore).reversed())
@@ -152,6 +202,7 @@ public class ActivityService {
         activity.setUpdatedAt(now);
         activityRepository.save(activity);
         activity.setOrganizer(organizer);
+        syncSearchIndex(activity);
         return DtoMapper.toActivityResponse(activity);
     }
 
@@ -167,6 +218,7 @@ public class ActivityService {
         applyRequest(activity, request);
         activity.setUpdatedAt(LocalDateTime.now());
         activityRepository.save(activity);
+        syncSearchIndex(activity);
         return DtoMapper.toActivityResponse(activity);
     }
 
@@ -181,6 +233,7 @@ public class ActivityService {
     public void delete(Long id) {
         Activity activity = getOwnedActivity(id);
         activityRepository.delete(activity);
+        activityIndexService.ifAvailable(service -> service.deleteActivity(id));
     }
 
     @Transactional(readOnly = true)
@@ -228,18 +281,51 @@ public class ActivityService {
         return score;
     }
 
-    private Pageable buildPageable(int page, int size, String sort) {
-        if (!StringUtils.hasText(sort)) {
-            return PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "signupCount", "favoriteCount"));
+    private List<String> legacyRecommendReasons(Activity activity, List<String> interests, int score) {
+        List<String> reasons = new ArrayList<>();
+        List<String> tags = activity.getTags() != null ? activity.getTags() : List.of();
+        boolean interestHit = tags.stream().anyMatch(interests::contains)
+                || (activity.getCategory() != null && interests.contains(activity.getCategory()));
+        if (interestHit) {
+            reasons.add(RecommendationScorer.REASON_INTEREST);
         }
-        String[] parts = sort.split(",");
-        String property = parts[0];
-        Sort.Direction direction = parts.length > 1 && "asc".equalsIgnoreCase(parts[1])
-                ? Sort.Direction.ASC : Sort.Direction.DESC;
-        return PageRequest.of(page, size, Sort.by(direction, property));
+        if (activity.getSignupCount() + activity.getFavoriteCount() >= 40) {
+            reasons.add(RecommendationScorer.REASON_HOT);
+        }
+        if (reasons.isEmpty()) {
+            reasons.add(score > 0 ? RecommendationScorer.REASON_HOT : RecommendationScorer.REASON_COLD);
+        }
+        return reasons;
+    }
+
+    private Pageable buildPageable(int page, int size, String sort) {
+        Sort defaultHot = Sort.by(Sort.Direction.DESC, "signupCount", "favoriteCount");
+        if (!StringUtils.hasText(sort)) {
+            return PageRequest.of(page, size, defaultHot);
+        }
+
+        // 前端检索排序（relevance/hot/composite 等）不是 Activity 实体字段；
+        // ES 未启用或无 keyword 时走 MySQL，需映射到合法属性，避免 UnknownPathException。
+        String key = sort.split(",")[0].trim().toLowerCase();
+        return switch (key) {
+            case "relevance", "composite", "hot" -> PageRequest.of(page, size, defaultHot);
+            case "time" -> PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "startTime"));
+            case "signup" -> PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "signupCount"));
+            default -> {
+                String[] parts = sort.split(",");
+                Sort.Direction direction = parts.length > 1 && "asc".equalsIgnoreCase(parts[1].trim())
+                        ? Sort.Direction.ASC : Sort.Direction.DESC;
+                yield PageRequest.of(page, size, Sort.by(direction, parts[0].trim()));
+            }
+        };
     }
 
     private String emptyToNull(String value) {
         return StringUtils.hasText(value) ? value : null;
+    }
+
+    /** Persist/update ES doc (incl. search_text) and re-run embedding ingest pipeline. */
+    private void syncSearchIndex(Activity activity) {
+        activityIndexService.ifAvailable(service -> service.indexActivity(activity));
     }
 }

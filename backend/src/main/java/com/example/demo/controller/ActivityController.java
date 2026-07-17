@@ -34,8 +34,10 @@ public class ActivityController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size,
-            @RequestParam(required = false) String sort) {
-        return ApiResponse.ok(activityService.list(category, status, location, keyword, page, size, sort));
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0.7") double matchWeight) {
+        return ApiResponse.ok(activityService.list(
+                category, status, location, keyword, page, size, sort, matchWeight));
     }
 
     @GetMapping("/recommended")

@@ -28,4 +28,11 @@ public class ActivityResponse {
     private String checkInCode;
     private ActivityRecordResponse record;
     private Integer recommendScore;
+    /** Short Chinese labels explaining why this activity was recommended. */
+    private List<String> recommendReasons;
+    private Double searchScore;
+    private String searchChannel;
+    private Double keywordScore;
+    private Double semanticScore;
+    private Double compositeScore;
 }

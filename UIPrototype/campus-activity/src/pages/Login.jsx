@@ -1,6 +1,7 @@
 import { Card, Input, Button, Tabs, Form, Select, message, Typography } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useApp } from '../context/AppContext'
 import { COLLEGES, INTEREST_TAGS, AVAILABLE_TIME_OPTIONS } from '../data/mockData'
 
@@ -12,10 +13,11 @@ export default function Login() {
   const [loginForm] = Form.useForm()
   const [registerForm] = Form.useForm()
 
-  if (currentUser) {
-    navigate('/home', { replace: true })
-    return null
-  }
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/home', { replace: true })
+    }
+  }, [currentUser, navigate])
 
   const handleLogin = (values) => {
     const result = login(values.userId, values.password)

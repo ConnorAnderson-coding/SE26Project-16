@@ -1,0 +1,37 @@
+﻿{
+    "B3_hybrid_weekend":  {
+                              "total":  null,
+                              "ids":  null
+                          },
+    "A1_keyword_badminton":  {
+                                 "total":  null,
+                                 "ids":  null
+                             },
+    "C1_hybrid_quantum":  {
+                              "total":  null,
+                              "ids":  null
+                          },
+    "A3_hybrid_badminton":  {
+                                "total":  null,
+                                "ids":  null
+                            },
+    "D_sort_ids":  {
+                       "composite_0_0":  null,
+                       "composite_0_7":  null,
+                       "composite_1_0":  null,
+                       "relevance":  null,
+                       "hot":  null
+                   },
+    "A2_semantic_badminton":  {
+                                  "total":  null,
+                                  "ids":  null
+                              },
+    "B1_keyword_weekend":  {
+                               "total":  null,
+                               "ids":  null
+                           },
+    "B2_semantic_weekend":  {
+                                "total":  null,
+                                "ids":  null
+                            }
+}

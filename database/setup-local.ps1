@@ -6,7 +6,7 @@
 .DESCRIPTION
   1. 使用 root 创建 campus 用户与 campus_activity 库
   2. 执行 schema.sql、seed.sql
-  3. 可选检测 Redis，并新开窗口启动 Spring Boot 与 Vite
+  3. 可选检测 Redis / Elasticsearch，并新开窗口启动 Spring Boot 与 Vite
 
 .EXAMPLE
   .\setup-local.ps1
@@ -35,11 +35,16 @@ param(
     [string]$Database = "campus_activity",
     [string]$MySqlExe = "",
     [int]$RedisPort = 6379,
+    [int]$ElasticsearchPort = 9200,
     [switch]$SetupOnly,
     [switch]$SkipSeed,
     [switch]$StartApps,
     [switch]$ForceRecreate,
-    [switch]$SkipRedis
+    [switch]$SkipRedis,
+    [switch]$SkipElasticsearch,
+    [switch]$InitElasticsearch,
+    [Alias("SkipElser")]
+    [switch]$SkipEmbedding
 )
 
 $ErrorActionPreference = "Stop"
@@ -257,6 +262,111 @@ function Start-RedisStandalone {
     return (Test-RedisConnection)
 }
 
+function Test-ElasticsearchConnection {
+    try {
+        $response = Invoke-RestMethod -Uri "http://127.0.0.1:${ElasticsearchPort}/" -Method Get -TimeoutSec 5
+        return ($null -ne $response.version.number)
+    }
+    catch {
+        return $false
+    }
+}
+
+function Start-ElasticsearchViaDocker {
+    $docker = Get-Command docker -ErrorAction SilentlyContinue
+    if (-not $docker) {
+        return $false
+    }
+
+    $composeFile = Join-Path $ScriptDir "docker-compose.yml"
+    if (-not (Test-Path $composeFile)) {
+        return $false
+    }
+
+    Write-Host "  尝试通过 Docker Compose 启动 Elasticsearch..." -ForegroundColor Gray
+    Push-Location $ScriptDir
+    try {
+        & docker compose up -d --build elasticsearch 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            return $false
+        }
+
+        $deadline = (Get-Date).AddSeconds(120)
+        while ((Get-Date) -lt $deadline) {
+            if (Test-ElasticsearchConnection) {
+                return $true
+            }
+            Start-Sleep -Seconds 5
+        }
+        return $false
+    }
+    finally {
+        Pop-Location
+    }
+}
+
+function Ensure-ElasticsearchRunning {
+    param(
+        [switch]$Required
+    )
+
+    if ($SkipElasticsearch) {
+        Write-Warn "已跳过 Elasticsearch 检查（语义检索/推荐功能暂不可用）"
+        return $false
+    }
+
+    if (Test-ElasticsearchConnection) {
+        Write-Ok "Elasticsearch 已运行 (http://127.0.0.1:$ElasticsearchPort)"
+        return $true
+    }
+
+    Write-Step "Elasticsearch 未响应，尝试通过 Docker 启动"
+    if (Start-ElasticsearchViaDocker) {
+        Write-Ok "Elasticsearch 已通过 Docker 启动 (端口 $ElasticsearchPort)"
+        return $true
+    }
+
+    $message = @(
+        "Elasticsearch 未运行且无法自动启动。语义检索与活动推荐依赖 ES，请先执行：",
+        "  1) cd database; docker compose up -d --build elasticsearch",
+        "  2) .\init-es.ps1   # 创建索引并部署 GTE embedding",
+        "  临时跳过: .\setup-local.ps1 -SkipElasticsearch"
+    ) -join "`n"
+
+    if ($Required) {
+        throw $message
+    }
+
+    Write-Warn $message
+    return $false
+}
+
+function Initialize-ElasticsearchIfRequested {
+    param(
+        [bool]$EsRunning
+    )
+
+    if (-not $InitElasticsearch -or -not $EsRunning) {
+        return
+    }
+
+    $initScript = Join-Path $ScriptDir "init-es.ps1"
+    if (-not (Test-Path $initScript)) {
+        Write-Warn "未找到 init-es.ps1，跳过 ES 索引初始化"
+        return
+    }
+
+    Write-Step "初始化 Elasticsearch 索引与 GTE embedding"
+    $initArgs = @("-EsPort", "$ElasticsearchPort")
+    if ($SkipEmbedding) {
+        $initArgs += "-SkipEmbedding"
+    }
+    & $initScript @initArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw "Elasticsearch 初始化失败，请查看 init-es.ps1 输出"
+    }
+}
+
 function Ensure-RedisRunning {
     param(
         [switch]$Required
@@ -316,7 +426,7 @@ function Start-ProjectApps {
     Start-Process powershell -WorkingDirectory $backendDir -ArgumentList @(
         "-NoExit",
         "-Command",
-        "Write-Host 'Starting backend...' -ForegroundColor Cyan; .\mvnw.cmd spring-boot:run"
+        "Write-Host 'Starting backend (ES enabled by default)...' -ForegroundColor Cyan; .\mvnw.cmd spring-boot:run"
     )
 
     Write-Step "启动前端 (Vite :5173)"
@@ -330,6 +440,10 @@ function Start-ProjectApps {
     Write-Host "前端: http://localhost:5173" -ForegroundColor White
     Write-Host "后端: http://localhost:8080/api/v1" -ForegroundColor White
     Write-Host "Redis: 127.0.0.1:$RedisPort (Spring Cache 缓存前缀 campus:)" -ForegroundColor White
+    if (Test-ElasticsearchConnection) {
+        Write-Host "Elasticsearch: http://127.0.0.1:$ElasticsearchPort (索引 campus_activities)" -ForegroundColor White
+        Write-Host "Kibana: http://127.0.0.1:5601" -ForegroundColor White
+    }
     Write-Host "演示账号: 524030910001 / 123456" -ForegroundColor White
 }
 
@@ -430,6 +544,10 @@ SET FOREIGN_KEY_CHECKS = 1;
     Write-Step "检查 Redis（后端 Spring Cache 依赖）"
     Ensure-RedisRunning | Out-Null
 
+    Write-Step "检查 Elasticsearch（语义检索 / 活动推荐）"
+    $esRunning = Ensure-ElasticsearchRunning
+    Initialize-ElasticsearchIfRequested -EsRunning $esRunning
+
     Write-Host "`n后端默认连接配置:" -ForegroundColor White
     Write-Host "  DB_URL=jdbc:mysql://${MySqlHost}:${MySqlPort}/${Database}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai"
     Write-Host "  DB_USERNAME=$AppUser"
@@ -437,6 +555,8 @@ SET FOREIGN_KEY_CHECKS = 1;
     Write-Host "  REDIS_HOST=127.0.0.1"
     Write-Host "  REDIS_PORT=$RedisPort"
     Write-Host "  spring.cache.type=redis"
+    Write-Host "  ELASTICSEARCH_URIS=http://127.0.0.1:$ElasticsearchPort"
+    Write-Host "  ES_ACTIVITIES_INDEX=campus_activities"
 
     if ($SetupOnly) {
         Write-Ok "建库完成（SetupOnly）"
@@ -455,7 +575,8 @@ SET FOREIGN_KEY_CHECKS = 1;
     }
     else {
         Write-Host "`n手动启动命令:" -ForegroundColor White
-        Write-Host "  cd database; docker compose up -d redis   # 或确保本地 Redis 在 $RedisPort 端口运行"
+        Write-Host "  cd database; docker compose up -d redis"
+        Write-Host "  cd database; docker compose up -d --build elasticsearch; .\init-es.ps1"
         Write-Host "  cd backend; .\mvnw.cmd spring-boot:run"
         Write-Host "  cd campus-activity; npm run dev"
     }
