@@ -129,7 +129,6 @@ CREATE TABLE IF NOT EXISTS activity_analysis (
   avg_rating               DECIMAL(3,2) NULL,
   rating_distribution      JSON NULL,
   check_in_methods_stats   JSON NULL,
-  metrics_json             JSON NULL,
   suggestions              JSON NULL,
   suggestion_source        VARCHAR(16)  NOT NULL DEFAULT 'llm',
   suggestion_model         VARCHAR(64)  NULL,
