@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Card, Row, Col, Statistic, Select, Spin, Result, Button,
-  Tag, Typography, List, Space, Empty
+  Tag, Typography, List, Space, Empty, Tooltip
 } from 'antd'
 import {
   EyeOutlined, RiseOutlined, TeamOutlined, StarOutlined,
@@ -100,11 +100,27 @@ function SignupTrendLineChart({ trend }) {
             <stop offset="100%" stopColor="#1677ff" stopOpacity="0" />
           </linearGradient>
         </defs>
-        {/* 数据点 */}
-        {points.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="2" fill="#1677ff" stroke="#fff" strokeWidth="1" />
-        ))}
       </svg>
+      {/* 使用与社区聚类图一致的圆点交互：悬浮放大并展示当日报名人数 */}
+      <div className="signup-trend-dots">
+        {points.map((p, i) => (
+          <Tooltip
+            key={days[i]}
+            title={
+              <div>
+                <div>{days[i]}</div>
+                <div>报名人数：{values[i]} 人</div>
+              </div>
+            }
+          >
+            <div
+              className="signup-trend-dot"
+              style={{ left: `${p.x}%`, top: `${p.y}%` }}
+              aria-label={`${days[i]}报名人数${values[i]}人`}
+            />
+          </Tooltip>
+        ))}
+      </div>
       {/* X 轴标签 */}
       <div style={{ position: 'relative', height: 18, padding: '0 4px' }}>
         {sampledLabels.map(({ index, label }) => (
@@ -359,7 +375,14 @@ export default function OrganizerAnalytics() {
                           </Col>
                           <Col xs={12} sm={12} md={6}>
                             <Card hoverable style={{ height: '100%' }}>
-                              <Statistic title="平均评分" value={metrics.avgRating || 0} prefix={<StarOutlined />} suffix="/ 5" precision={2} valueStyle={{ color: '#fa8c16' }} />
+                              <Statistic
+                                title="平均评分"
+                                value={metrics.avgRating == null ? '暂无评分' : metrics.avgRating}
+                                prefix={<StarOutlined />}
+                                suffix={metrics.avgRating == null ? undefined : '/ 5'}
+                                precision={metrics.avgRating == null ? undefined : 2}
+                                valueStyle={{ color: '#fa8c16' }}
+                              />
                             </Card>
                           </Col>
                         </Row>
