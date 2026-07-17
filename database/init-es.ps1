@@ -79,8 +79,13 @@ function Test-ElasticsearchConnection {
 function Wait-ForElasticsearch {
     Write-Step "等待 Elasticsearch 就绪 (最多 ${HealthWaitSeconds}s)"
     $deadline = (Get-Date).AddSeconds($HealthWaitSeconds)
+    $attempt = 0
     while ((Get-Date) -lt $deadline) {
+        $attempt++
         try {
+            if (-not (Test-ElasticsearchConnection)) {
+                throw "connection refused"
+            }
             $healthUri = "$(Get-EsBaseUrl)/_cluster/health?wait_for_status=yellow" + '&timeout=30s'
             $health = Invoke-RestMethod -Uri $healthUri -Method Get -TimeoutSec 35
             if ($health.status -in @("yellow", "green")) {
@@ -89,11 +94,17 @@ function Wait-ForElasticsearch {
             }
         }
         catch {
-            # 容器尚在启动
+            if (($attempt % 5) -eq 1) {
+                Write-Host "  仍在等待 $(Get-EsBaseUrl) ... ($attempt)" -ForegroundColor Gray
+            }
         }
         Start-Sleep -Seconds 3
     }
-    throw "Elasticsearch 在 ${HealthWaitSeconds}s 内未就绪，请检查 Docker 容器 campus-elasticsearch"
+    throw @(
+        "Elasticsearch 在 ${HealthWaitSeconds}s 内未就绪 ($(Get-EsBaseUrl))",
+        "请检查: docker ps --filter name=campus-elasticsearch",
+        "或: cd database; docker compose up -d elasticsearch"
+    ) -join "`n"
 }
 
 function Test-IndexExists {
@@ -315,14 +326,8 @@ function Show-Summary {
 try {
     Write-Host "校园活动平台 - Elasticsearch 初始化" -ForegroundColor Magenta
 
-    if (-not (Test-ElasticsearchConnection)) {
-        throw @(
-            "无法连接 $(Get-EsBaseUrl)",
-            "请先启动: cd database; docker compose up -d elasticsearch",
-            "或启动全部: docker compose up -d"
-        ) -join "`n"
-    }
-
+    # 不要在等待前做一次性连通性检查：ForceRecreateDb 后容器 health 与宿主机
+    # 端口可达之间常有短暂窗口，一次失败会误杀整个启动流程。
     Wait-ForElasticsearch | Out-Null
     Initialize-ActivityIndex
 
