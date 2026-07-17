@@ -30,7 +30,7 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUserId(), request.getPassword()));
-        User user = userRepository.findById(request.getUserId())
+        User user = userRepository.findByIdIgnoreCase(request.getUserId())
                 .orElseThrow(() -> new BusinessException("用户不存在"));
         String token = jwtTokenProvider.generateToken(user.getId());
         return AuthResponse.builder()

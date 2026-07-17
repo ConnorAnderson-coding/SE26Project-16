@@ -12,6 +12,13 @@ import java.util.Optional;
 public interface UserRepository extends JpaRepository<User, String> {
 
     /**
+     * Returns the persisted ID casing for authentication and JWT subjects.
+     * MySQL accepts case-insensitive lookups, while ownership checks compare IDs exactly.
+     */
+    @Query("SELECT u FROM User u WHERE LOWER(u.id) = LOWER(:id)")
+    Optional<User> findByIdIgnoreCase(@Param("id") String id);
+
+    /**
      * 带 Redis 缓存的用户查询（不含密码，供业务读取使用）。
      */
     @Cacheable(value = CacheNames.USER_PROFILE, key = "#id")
