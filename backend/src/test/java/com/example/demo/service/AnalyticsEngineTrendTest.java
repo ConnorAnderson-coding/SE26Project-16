@@ -1,8 +1,10 @@
 package com.example.demo.service;
 
 import com.example.demo.entity.Activity;
+import com.example.demo.entity.ActivityAnalysis;
 import com.example.demo.entity.Feedback;
 import com.example.demo.repository.ActivityRepository;
+import com.example.demo.repository.ActivityViewRepository;
 import com.example.demo.repository.ActivityAnalysisRepository;
 import com.example.demo.repository.CheckInRepository;
 import com.example.demo.repository.FeedbackRepository;
@@ -22,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -36,6 +39,32 @@ import static org.mockito.Mockito.when;
  * 顺带验证 {@code toLocalDate()} 的类型兼容。
  */
 class AnalyticsEngineTrendTest {
+
+    @Test
+    void signupCountUsesSameRegistrationRowsAsTrendAndRepairsOldSnapshot() {
+        RegistrationRepository regRepo = mock(RegistrationRepository.class);
+        when(regRepo.countByActivityId(1L)).thenReturn(2L);
+        when(regRepo.countByActivityIdAndStatus(1L, "approved")).thenReturn(1L);
+        when(regRepo.countDailySignupsByActivityId(1L)).thenReturn(List.<Object[]>of(
+                new Object[]{Date.valueOf("2026-07-01"), 1L},
+                new Object[]{Date.valueOf("2026-07-04"), 1L}
+        ));
+
+        ActivityAnalysis oldSnapshot = new ActivityAnalysis();
+        oldSnapshot.setSignupCountSnapshot(85);
+        oldSnapshot.setViewCountSnapshot(320);
+        oldSnapshot.setFavoriteCountSnapshot(42);
+        oldSnapshot.setSnapshotAt(LocalDateTime.of(2026, 7, 17, 8, 29));
+        ActivityAnalysisRepository analysisRepo = mock(ActivityAnalysisRepository.class);
+        when(analysisRepo.findByActivityId(1L)).thenReturn(java.util.Optional.of(oldSnapshot));
+
+        var metrics = newEngine(regRepo, analysisRepo).computeMetrics(1L);
+
+        assertEquals(2, metrics.getSignupCount());
+        assertEquals(2L, metrics.getSignupTrend().values().stream().mapToLong(Long::longValue).sum());
+        assertEquals(2, oldSnapshot.getSignupCountSnapshot());
+        verify(analysisRepo).save(oldSnapshot);
+    }
 
     @Test
     void signupTrendRangeIsClippedToActivityStart() {
@@ -156,6 +185,13 @@ class AnalyticsEngineTrendTest {
      * 这样写比 Mockito 的 {@code @InjectMocks} 更直接，依赖更少。
      */
     private static AnalyticsEngine newEngine(RegistrationRepository regRepo) {
+        ActivityAnalysisRepository analysisRepo = mock(ActivityAnalysisRepository.class);
+        when(analysisRepo.findByActivityId(anyLong())).thenReturn(java.util.Optional.empty());
+        return newEngine(regRepo, analysisRepo);
+    }
+
+    private static AnalyticsEngine newEngine(
+            RegistrationRepository regRepo, ActivityAnalysisRepository analysisRepo) {
         ActivityRepository activityRepo = mock(ActivityRepository.class);
         when(activityRepo.findById(anyLong())).thenReturn(java.util.Optional.of(
                 activity(LocalDateTime.of(2026, 7, 10, 19, 0),
@@ -168,9 +204,9 @@ class AnalyticsEngineTrendTest {
         FeedbackRepository feedbackRepo = mock(FeedbackRepository.class);
         when(feedbackRepo.findByActivityIdOrderByCreatedAtDesc(anyLong())).thenReturn(List.<Feedback>of());
 
-        ActivityAnalysisRepository analysisRepo = mock(ActivityAnalysisRepository.class);
-        when(analysisRepo.findByActivityId(anyLong())).thenReturn(java.util.Optional.empty());
+        ActivityViewRepository activityViewRepo = mock(ActivityViewRepository.class);
 
-        return new AnalyticsEngine(activityRepo, regRepo, checkInRepo, feedbackRepo, analysisRepo);
+        return new AnalyticsEngine(
+                activityRepo, activityViewRepo, regRepo, checkInRepo, feedbackRepo, analysisRepo);
     }
 }

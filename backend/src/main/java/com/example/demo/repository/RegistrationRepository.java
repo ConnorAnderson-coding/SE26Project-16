@@ -34,6 +34,8 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
 
     long countByActivityIdAndStatus(Long activityId, String status);
 
+    long countByActivityId(Long activityId);
+
     long countByUserId(String userId);
 
     @Query("""

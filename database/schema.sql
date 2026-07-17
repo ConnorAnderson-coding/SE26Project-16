@@ -68,6 +68,17 @@ CREATE TABLE IF NOT EXISTS registration (
   INDEX idx_reg_activity_status (activity_id, status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS activity_view (
+  id          BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  activity_id BIGINT      NOT NULL,
+  user_id     VARCHAR(32) NOT NULL,
+  viewed_at   DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  CONSTRAINT fk_view_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
+  CONSTRAINT fk_view_user FOREIGN KEY (user_id) REFERENCES `user`(id) ON DELETE CASCADE,
+  UNIQUE KEY uk_activity_view_user (activity_id, user_id),
+  INDEX idx_activity_view_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS favorite (
   user_id     VARCHAR(32) NOT NULL,
   activity_id BIGINT      NOT NULL,

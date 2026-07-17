@@ -1,17 +1,23 @@
 package com.example.demo.controller;
 
 import com.example.demo.support.IntegrationTestSupport;
+import com.example.demo.repository.ActivityViewRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 class ActivityIntegrationTest extends IntegrationTestSupport {
+
+    @Autowired
+    private ActivityViewRepository activityViewRepository;
 
     private TestScenario scenario;
 
@@ -36,6 +42,31 @@ class ActivityIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.id").value(scenario.activity().getId()))
                 .andExpect(jsonPath("$.data.organizerName").value(scenario.organizer().getName()));
+    }
+
+    @Test
+    void viewsShouldCountEveryRoleOnceAcrossTheWholeActivityLifecycle() throws Exception {
+        scenario.activity().setStatus("ended");
+        activityRepository.saveAndFlush(scenario.activity());
+        long activityId = scenario.activity().getId();
+
+        authGet(scenario.studentToken(), "/api/v1/activities/" + activityId)
+                .andExpect(status().isOk());
+        assertEquals(1, activityViewRepository.countByActivityId(activityId));
+        assertEquals(1, activityRepository.findById(activityId).orElseThrow().getViewCount());
+
+        authGet(scenario.studentToken(), "/api/v1/activities/" + activityId)
+                .andExpect(status().isOk());
+        assertEquals(1, activityViewRepository.countByActivityId(activityId));
+        assertEquals(1, activityRepository.findById(activityId).orElseThrow().getViewCount());
+
+        authGet(scenario.organizerToken(), "/api/v1/activities/" + activityId)
+                .andExpect(status().isOk());
+        authGet(scenario.adminToken(), "/api/v1/activities/" + activityId)
+                .andExpect(status().isOk());
+
+        assertEquals(3, activityViewRepository.countByActivityId(activityId));
+        assertEquals(3, activityRepository.findById(activityId).orElseThrow().getViewCount());
     }
 
     @Test
