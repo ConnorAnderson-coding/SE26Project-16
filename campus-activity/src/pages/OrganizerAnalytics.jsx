@@ -201,6 +201,7 @@ export default function OrganizerAnalytics() {
   const [suggestions, setSuggestions] = useState(null)
   const [suggestionSource, setSuggestionSource] = useState('none')
   const [generatedAt, setGeneratedAt] = useState(null)
+  const [failureReason, setFailureReason] = useState(null)
   // 一次性快照生成时间（前端用于提示数据时效）
   const [snapshotAt, setSnapshotAt] = useState(null)
 
@@ -235,6 +236,7 @@ export default function OrganizerAnalytics() {
         setSuggestions(data.suggestions && data.suggestions.length > 0 ? data.suggestions : null)
         setSuggestionSource(data.suggestionSource || 'none')
         setGeneratedAt(data.generatedAt || null)
+        setFailureReason(data.failureReason || null)
         setSnapshotAt(data.metrics?.snapshotAt || null)
       })
       .catch(err => setError(err.message))
@@ -242,6 +244,20 @@ export default function OrganizerAnalytics() {
   }, [selectedId])
 
   const renderSuggestions = () => {
+    // 生成失败：直接展示失败原因，避免被当作"暂无建议"
+    if (suggestionSource === 'failed') {
+      return (
+        <Result
+          status="warning"
+          title="改进建议生成失败"
+          subTitle={
+            failureReason
+              ? `原因：${failureReason}`
+              : '原因未知，请稍后重试或联系管理员'
+          }
+        />
+      )
+    }
     if (suggestions && suggestions.length > 0) {
       return (
         <List
@@ -418,8 +434,14 @@ export default function OrganizerAnalytics() {
                 <Space size={8}>
                   {suggestionSource !== 'none' && (
                     <>
-                      <Tag color={suggestionSource === 'llm' ? 'processing' : 'default'}>
-                        {suggestionSource === 'llm' ? 'LLM 生成' : '规则模板'}
+                      <Tag color={
+                        suggestionSource === 'llm' ? 'processing'
+                        : suggestionSource === 'failed' ? 'error'
+                        : 'default'
+                      }>
+                        {suggestionSource === 'llm' ? 'LLM 生成'
+                          : suggestionSource === 'failed' ? '生成失败'
+                          : '规则模板'}
                       </Tag>
                       {generatedAt && (
                         <Text type="secondary" style={{ fontSize: 12 }}>

@@ -168,7 +168,8 @@ class LlmAnalysisRunnerTest {
         verify(analysisRepository, times(2)).save(any(ActivityAnalysis.class));
         Map<String, Object> finalState = snapshots.get(1);
         assertEquals("failed", finalState.get("analysisStatus"));
-        assertEquals("rule", finalState.get("suggestionSource"));
+        // LLM 与规则模板兜底都失败时，source 必须如实记录为 failed，避免前端按"规则模板"标签渲染但内容为空
+        assertEquals("failed", finalState.get("suggestionSource"));
         String reason = (String) finalState.get("failureReason");
         assertNotNull(reason);
         assertTrue(reason.contains("fallback_failed"));

@@ -102,7 +102,7 @@ public class LlmAnalysisRunner {
                               String source,
                               String model,
                               String failureReason) {
-        // 重新从 DB 加载，避免和 persistPending 共用同一对象引用导致后续测试 / 审计读不到中间状态
+        // 重新从 DB 加载，确保拿到 persistPending 已写入的最新字段值（包括 source/status 变更）
         ActivityAnalysis analysis = analysisRepository.findByActivityId(activityId).orElse(new ActivityAnalysis());
         if (analysis.getCreatedAt() == null) {
             analysis.setCreatedAt(LocalDateTime.now());
@@ -139,7 +139,10 @@ public class LlmAnalysisRunner {
         analysis.setSignupRate(metrics.getSignupRate());
         analysis.setAttendanceRate(metrics.getAttendanceRate());
         analysis.setAvgRating(metrics.getAvgRating());
-        analysis.setSuggestionSource("rule");
+        // LLM 与规则模板兜底均失败时，source 必须如实反映失败状态，
+        // 否则前端会按"规则模板"标签渲染，但 suggestions 为空，造成空标签。
+        analysis.setSuggestionSource("failed");
+        analysis.setSuggestions(List.of());
         analysis.setSuggestionModel(null);
         analysis.setAnalysisStatus("failed");
         analysis.setFailureReason(failureReason);

@@ -101,7 +101,13 @@ public class ActivityService {
 
         String userId = SecurityUtils.getCurrentUserId();
         if (activityViewService.recordUniqueView(id, userId)) {
-            activity.setViewCount(activity.getViewCount() + 1);
+            // 重新从 DB 读取最新 viewCount：recordUniqueView 已 @CacheEvict(ACTIVITY_DETAIL)，
+            // 此次 findById 穿透缓存读到 SQL UPDATE 之后的真实值，避免并发首次访问时
+            // "entity.viewCount + 1" 因缓存旧值产生丢更新。
+            int latestViewCount = activityRepository.findById(id)
+                    .map(Activity::getViewCount)
+                    .orElse(0);
+            activity.setViewCount(latestViewCount);
         }
 
         return DtoMapper.toActivityResponse(activity);

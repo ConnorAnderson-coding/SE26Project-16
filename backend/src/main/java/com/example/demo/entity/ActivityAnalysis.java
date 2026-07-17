@@ -48,10 +48,6 @@ public class ActivityAnalysis {
     private Map<String, Long> checkInMethodsStats;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "metrics_json", columnDefinition = "json")
-    private Map<String, Object> metricsJson;
-
-    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "suggestions", columnDefinition = "json")
     private List<Map<String, String>> suggestions;
 
