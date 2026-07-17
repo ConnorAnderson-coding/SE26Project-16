@@ -1,0 +1,12 @@
+# Maven
+target/
+
+# IDE
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Java
+*.class

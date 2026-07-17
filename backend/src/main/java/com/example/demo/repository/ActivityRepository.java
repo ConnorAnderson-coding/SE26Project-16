@@ -63,6 +63,10 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
     List<Activity> findByOrganizerIdOrderByStartTimeDesc(String organizerId);
 
     @EntityGraph(attributePaths = "organizer")
+    @Query("SELECT a FROM Activity a WHERE a.status <> 'draft' ORDER BY a.id")
+    List<Activity> findAllIndexable();
+
+    @EntityGraph(attributePaths = "organizer")
     @Query("SELECT a FROM Activity a WHERE a.status = 'published' ORDER BY a.signupCount DESC, a.favoriteCount DESC")
     @Cacheable(
             value = CacheNames.ACTIVITY_HOT_LIST,

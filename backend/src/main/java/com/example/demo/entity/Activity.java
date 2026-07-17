@@ -1,6 +1,14 @@
 package com.example.demo.entity;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -13,12 +21,6 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Getter
 @Setter
@@ -83,6 +85,15 @@ public class Activity {
 
     @Column(name = "check_in_code", length = 32)
     private String checkInCode;
+
+    @Column(name = "view_count", nullable = false)
+    private Integer viewCount = 0;
+
+    @Column(name = "check_in_count", nullable = false)
+    private Integer checkInCount = 0;
+
+    @Column(name = "hotness_score", nullable = false)
+    private Double hotnessScore = 0.0;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
