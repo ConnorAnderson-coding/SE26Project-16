@@ -54,10 +54,7 @@ public class LlmClient {
         this(config, defaultBuilder(config));
     }
 
-    /**
-     * 允许注入自定义 {@link RestClient.Builder}，便于单元测试用
-     * {@code MockRestServiceServer.bindTo(builder)} 接管底层 HTTP。
-     */
+    
     LlmClient(AnalyticsConfig config, RestClient.Builder builder) {
         this.config = config;
         this.restClient = builder.build();
@@ -72,9 +69,7 @@ public class LlmClient {
         return RestClient.builder().requestFactory(requestFactory);
     }
 
-    /**
-     * 暴露模型名称供审计使用（例如写入 {@code activity_analysis.suggestion_model}）。
-     */
+    
     public String getModel() {
         return config.getModel();
     }
@@ -241,12 +236,7 @@ public class LlmClient {
         return value == null ? "" : String.valueOf(value).trim();
     }
 
-    /**
-     * LLM 调用异常，{@code retryable} 标识调用方是否应该重试。
-     * <p>
-     * - {@code retryable=false}：4xx（除 429）、JSON 解析失败、字段校验失败、内容为空——继续重试不会改变结果。
-     * - {@code retryable=true}：5xx、网络超时、429——值得退避后再试。
-     */
+    
     public static class LlmCallException extends RuntimeException {
         private final boolean retryable;
 

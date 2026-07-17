@@ -9,16 +9,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
-/**
- * LLM 改进建议生成的专用线程池。
- * <p>
- * 设计要点：
- * <ul>
- *   <li>独立于 Tomcat worker 线程池，避免长任务占用 HTTP 处理线程</li>
- *   <li>有界队列 + 调用方运行策略：满负载时优先让 HTTP 线程执行兜底任务，丢弃新提交</li>
- *   <li>线程名前缀 {@code llm-} 便于日志/线程栈定位</li>
- * </ul>
- */
 @Slf4j
 @Configuration
 @EnableAsync

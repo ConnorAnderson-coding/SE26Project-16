@@ -72,12 +72,7 @@ public class SummaryBuilder {
         return sb.toString();
     }
 
-    /**
-     * 追加"容量使用率"行，仅在设置了容量上限且报名数非空时输出。
-     * <p>
-     * 该比率与 {@code signupRate}（报名/浏览）含义不同：浏览量是拉新漏斗的最上层，
-     * 容量上限则是组织者设定的天花板。此处显式拆开，避免 LLM 误把容量当浏览量。
-     */
+    
     private void appendCapacityUtilization(StringJoiner sb, ActivityMetrics metrics) {
         Integer signupCount = metrics.getSignupCount();
         Integer maxParticipants = metrics.getMaxParticipants();

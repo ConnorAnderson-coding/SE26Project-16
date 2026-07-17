@@ -37,18 +37,7 @@ public class AnalyticsEngine {
     private final FeedbackRepository feedbackRepository;
     private final ActivityAnalysisRepository analysisRepository;
 
-    /**
-     * 计算活动分析指标。
-     * <p>
-     * 取数口径（一次性快照）：
-     * <ul>
-     *   <li>活动首次加入分析列表时，从 {@code activity} 行实时读取 viewCount / signupCount / favoriteCount，</li>
-     *   <li>写入 {@link ActivityAnalysis} 的快照列（{@code view_count_snapshot} 等），</li>
-     *   <li>之后再次调用此方法时优先读快照，activity 行后续变化不再影响。</li>
-     * </ul>
-     * 派生指标（rate、distribution、signupTrend）每次实时计算——这些指标本来就基于子表聚合，
-     * 跟原始计数不同步是合理的。
-     */
+    
     @Transactional
     @Cacheable(value = CacheNames.ANALYTICS_ACTIVITY, key = "#activityId",
             unless = "#result == null")
@@ -108,10 +97,7 @@ public class AnalyticsEngine {
                 .build();
     }
 
-    /**
-     * 读取或初始化快照值。返回的 viewCount / signupCount / favoriteCount
-     * 应作为计算指标时使用的"冻结值"。
-     */
+    
     private SnapshotValues resolveSnapshot(Activity activity) {
         Optional<ActivityAnalysis> existing = analysisRepository.findByActivityId(activity.getId());
         if (existing.isPresent()) {
@@ -156,7 +142,7 @@ public class AnalyticsEngine {
         return v == null ? 0 : v;
     }
 
-    /** 不可变快照值载体，避免在方法间传 4 个独立参数。 */
+    
     private record SnapshotValues(int viewCount, int signupCount, int favoriteCount,
                                    LocalDateTime snapshotAt) {}
 
@@ -186,17 +172,7 @@ public class AnalyticsEngine {
         return distribution;
     }
 
-    /**
-     * 计算活动报名趋势，按天聚合。
-     * <p>
-     * 区间口径：
-     * <ul>
-     *   <li>下界 = {@code min(最早报名日, 活动开始日)} —— 报名往往发生在活动开始前</li>
-     *   <li>上界 = {@code 活动开始日} —— 报名截止于活动开始；{@code activity_end} 仅作兜底</li>
-     * </ul>
-     * 用 {@link TreeMap}（{@code LocalDate} key）保证补零区间按日期合并、
-     * 数据库返回行按日期追加时不会乱序；最后再格式化成 {@code MM-dd} 字符串返回。
-     */
+    
     private Map<String, Long> computeSignupTrend(Long activityId, Activity activity) {
         List<Object[]> rows = registrationRepository.countDailySignupsByActivityId(activityId);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd");
@@ -254,20 +230,7 @@ public class AnalyticsEngine {
         return a.isBefore(b) ? a : b;
     }
 
-    /**
-     * 把 {@code DATE(created_at)} 的 JDBC 返回值统一转成 {@link LocalDate}。
-     * <p>
-     * 不同驱动 / Hibernate 版本下返回值类型可能不同：
-     * <ul>
-     *   <li>老版 MySQL Connector/J：{@link java.sql.Date}</li>
-     *   <li>新版 Hibernate 6+/7+：{@link LocalDate}</li>
-     * </ul>
-     * 直接强转会在其中一种环境下抛 {@link ClassCastException}，
-     * 这里做一次类型兼容以避免在两种环境下都需要修改业务代码。
-     *
-     * @param raw JDBC 返回的第一个字段
-     * @return 解析出的日期
-     */
+    
     private static LocalDate toLocalDate(Object raw) {
         if (raw instanceof LocalDate ld) {
             return ld;

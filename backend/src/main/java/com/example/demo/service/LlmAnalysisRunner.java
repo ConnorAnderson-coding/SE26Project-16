@@ -16,16 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 在专用线程池中异步执行"LLM 改进建议生成 + 落库"。
- * <p>
- * 设计原则：
- * <ul>
- *   <li><b>LLM 建议一旦生成，永久固化</b>：source="llm" 且 status="ready" 的记录不再被覆盖</li>
- *   <li><b>规则模板建议允许升级</b>：source="rule" 的记录在下次调度时重新尝试 LLM</li>
- *   <li>统一凌晨定时任务触发，不再支持手动触发</li>
- * </ul>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -36,12 +26,7 @@ public class LlmAnalysisRunner {
     private final ActivityAnalysisRepository analysisRepository;
     private final ActivityRepository activityRepository;
 
-    /**
-     * 异步执行分析任务。在专用 {@code llmExecutor} 线程池上执行。
-     * <p>
-     * <b>固化规则</b>：若已有 LLM 生成的建议（source="llm" 且 status="ready"），
-     * 直接跳过，不做任何修改。仅对无记录或规则模板（source="rule"）的活动执行分析。
-     */
+    
     @Async("llmExecutor")
     public void runAsync(Long activityId, ActivityMetrics metrics) {
         log.info("[异步分析] 开始 activityId={}", activityId);

@@ -61,19 +61,11 @@ public class ActivityAnalysis {
     @Column(name = "suggestion_model", length = 64)
     private String suggestionModel;
 
-    /**
-     * 异步分析任务状态：pending / ready / failed。
-     * <p>
-     * pending：任务已提交但 LLM 调用尚未完成；
-     * ready：成功落库；
-     * failed：重试后仍失败，已写入规则模板兜底。
-     */
+    
     @Column(name = "analysis_status", nullable = false, length = 16)
     private String analysisStatus = "ready";
 
-    /**
-     * 失败原因（最后一次不可恢复异常），便于审计。
-     */
+    
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
 

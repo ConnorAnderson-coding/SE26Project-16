@@ -21,17 +21,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * 定时刷新已结束活动的分析结果。
- * <p>
- * 设计要点：
- * <ul>
- *   <li><b>昨日结束的活动</b>：每日凌晨扫描前一天结束的活动，首次生成 LLM 建议</li>
- *   <li><b>规则模板升级</b>：同时扫描所有 source="rule" 的历史记录，重新尝试 LLM 生成</li>
- *   <li><b>LLM 固化</b>：source="llm" 的建议不再修改，由 {@link LlmAnalysisRunner} 保证</li>
- *   <li><b>不持数据库事务</b>：整个调度方法不带 {@code @Transactional}</li>
- * </ul>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -99,9 +88,7 @@ public class AnalysisScheduler {
                 newSubmitted, upgradeSubmitted);
     }
 
-    /**
-     * 判断上次分析后是否有活动、评价、签到或报名数据更新。
-     */
+    
     boolean isDataStale(Long activityId, ActivityAnalysis analysis) {
         if (analysis.getGeneratedAt() == null) {
             return true;
