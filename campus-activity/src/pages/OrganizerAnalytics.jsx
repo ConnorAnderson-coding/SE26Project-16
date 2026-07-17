@@ -168,19 +168,12 @@ function sampleLabels(days, maxCount) {
 /* ==================== 主页面 ==================== */
 
 /**
- * 判断活动是否已结束（用于过滤下拉列表）
- * <p>
- * 满足任一条件即视为已结束：
- * <ol>
- *   <li>状态字段为 "ended"（组织者已发布活动记录）</li>
- *   <li>活动的 endTime 已经早于当前时间</li>
- * </ol>
+ * 判断活动是否已结束（用于过滤下拉列表）。
+ * 仅当活动状态为 "ended" 时才视为已结束（由 ActivityLifecycleScheduler 在每日 00:30 自动标记）。
  */
 const isActivityEnded = (activity) => {
   if (!activity) return false
-  if (activity.status === 'ended') return true
-  if (activity.endTime && new Date(activity.endTime) < new Date()) return true
-  return false
+  return activity.status === 'ended'
 }
 
 export default function OrganizerAnalytics() {
