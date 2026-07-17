@@ -9,6 +9,8 @@ import com.example.campusactivity.repository.CommunityRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -86,6 +88,37 @@ class ClusteringRunFailureServiceIntegrationTest {
         assertThat(result.outcome()).isEqualTo(FailureRecordingResult.Outcome.RECORDED);
         assertThat(failed.startedAt()).isEqualTo(running.startedAt());
         assertThat(failed.finishedAt()).isAfterOrEqualTo(failed.startedAt());
+    }
+
+    @ParameterizedTest
+    @EnumSource(ClusteringRunFailureCode.class)
+    void everyFixedFailureCodeCanBeStoredWithoutDynamicContent(
+            ClusteringRunFailureCode failureCode
+    ) {
+        ClusteringRunSnapshot pending = lifecycleService.createPending(
+                new ClusteringRunCreationCommand(2, 2, "admin-fixed-code")
+        );
+
+        FailureRecordingResult result = failureService.markFailed(
+                pending.runId(),
+                failureCode
+        );
+
+        assertThat(result.outcome()).isEqualTo(FailureRecordingResult.Outcome.RECORDED);
+        String storedMessage = result.run().orElseThrow().errorMessage();
+        assertThat(storedMessage)
+                .isEqualTo(failureCode.errorMessage())
+                .startsWith(failureCode.name() + ": ")
+                .hasSizeLessThanOrEqualTo(1000)
+                .doesNotContain(
+                        "http://",
+                        "https://",
+                        "password",
+                        "token",
+                        "userId",
+                        "response body",
+                        "Exception"
+                );
     }
 
     @Test
