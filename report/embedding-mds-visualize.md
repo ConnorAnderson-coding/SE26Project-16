@@ -10,7 +10,7 @@
 - 嵌入模型：`campus_gte`（thenlper/gte-small-zh，512-d，cosine）
 - 降维：**Metric MDS**，预计算距离 $d_{ij}=1-\cos(v_i,v_j)$
 - 联合构图：每张图对其中全部点建同一距离矩阵后一次嵌入，保证同图内点距可比
-- 喜好公式：与线上一致，见 [`doc/检索与推荐.md`](../doc/检索与推荐.md) §6.2
+- 喜好公式：与线上一致，见 [`检索与推荐算法流程.md`](../检索与推荐算法流程.md) §六
   - 历史加权 $w_i=0.5^{d_i/30}$；凸组合 $v_u=\mathrm{normalize}(0.4\,v_{int}+0.6\,v_{hist})$
 - MDS Stress-1（$\sqrt{\sum(d'_{ij}-d_{ij})^2/\sum d_{ij}^2}$，越小越好）：
   - 图1: **0.2083**
