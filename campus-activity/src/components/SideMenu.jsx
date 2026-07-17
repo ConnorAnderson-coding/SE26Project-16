@@ -43,7 +43,6 @@ function resolveSelectedKey(pathname) {
   if (pathname.startsWith('/edit/')) return '/organizer'
   if (pathname.startsWith('/signup-management')) return '/signup-management'
   if (pathname.startsWith('/organizer-analytics')) return '/organizer-analytics'
-  if (pathname.startsWith('/analytics')) return '/analytics'
   if (pathname.startsWith('/activity/')) return null
 
   const allKeys = [

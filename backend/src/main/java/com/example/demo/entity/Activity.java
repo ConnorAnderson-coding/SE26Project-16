@@ -70,9 +70,6 @@ public class Activity {
     @Column(name = "signup_count", nullable = false)
     private Integer signupCount = 0;
 
-    @Column(name = "view_count", nullable = false)
-    private Integer viewCount = 0;
-
     @Column(name = "favorite_count", nullable = false)
     private Integer favoriteCount = 0;
 
@@ -85,6 +82,9 @@ public class Activity {
 
     @Column(name = "check_in_code", length = 32)
     private String checkInCode;
+
+    @Column(name = "view_count", nullable = false)
+    private Integer viewCount = 0;
 
     @Column(name = "check_in_count", nullable = false)
     private Integer checkInCount = 0;
