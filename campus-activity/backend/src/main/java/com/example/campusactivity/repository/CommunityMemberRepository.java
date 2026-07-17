@@ -17,4 +17,10 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
     Optional<CommunityMember> findByRunAndUser(ClusteringRun run, UserAccount user);
 
     boolean existsByRunAndUser(ClusteringRun run, UserAccount user);
+
+    boolean existsByRunId(String runId);
+
+    long countByRunId(String runId);
+
+    long countByCommunityId(String communityId);
 }

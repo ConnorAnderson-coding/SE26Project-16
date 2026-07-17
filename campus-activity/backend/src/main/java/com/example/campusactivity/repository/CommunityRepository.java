@@ -3,6 +3,8 @@ package com.example.campusactivity.repository;
 import com.example.campusactivity.entity.ClusteringRun;
 import com.example.campusactivity.entity.Community;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -11,4 +13,14 @@ public interface CommunityRepository extends JpaRepository<Community, String> {
     List<Community> findByRunOrderByClusterNoAsc(ClusteringRun run);
 
     Optional<Community> findByRunAndClusterNo(ClusteringRun run, Integer clusterNo);
+
+    @Query("""
+            SELECT CASE WHEN COUNT(community) > 0 THEN true ELSE false END
+            FROM Community community
+            WHERE community.run.id = :runId
+            """)
+    boolean existsByRunId(@Param("runId") String runId);
+
+    @Query("SELECT COUNT(community) FROM Community community WHERE community.run.id = :runId")
+    long countByRunId(@Param("runId") String runId);
 }
