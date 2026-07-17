@@ -2,6 +2,7 @@ package com.example.campusactivity.repository;
 
 import com.example.campusactivity.entity.ClusteringRun;
 import com.example.campusactivity.entity.Community;
+import com.example.campusactivity.repository.projection.CommunityQueryProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,4 +24,20 @@ public interface CommunityRepository extends JpaRepository<Community, String> {
 
     @Query("SELECT COUNT(community) FROM Community community WHERE community.run.id = :runId")
     long countByRunId(@Param("runId") String runId);
+
+    @Query("""
+            SELECT community.id AS communityId,
+                   community.clusterNo AS clusterNo,
+                   community.name AS name,
+                   community.description AS description,
+                   community.memberCount AS memberCount,
+                   community.topInterestsJson AS topInterestsJson,
+                   community.color AS color
+            FROM Community community
+            WHERE community.run.id = :runId
+            ORDER BY community.clusterNo ASC, community.id ASC
+            """)
+    List<CommunityQueryProjection> findQueryProjectionsByRunId(
+            @Param("runId") String runId
+    );
 }
