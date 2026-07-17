@@ -2,6 +2,7 @@ package com.example.campusactivity.repository;
 
 import com.example.campusactivity.entity.ClusteringRun;
 import com.example.campusactivity.entity.ClusteringRunStatus;
+import com.example.campusactivity.repository.projection.ClusteringRunQueryProjection;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -66,6 +67,58 @@ public interface ClusteringRunRepository extends JpaRepository<ClusteringRun, St
 
     @Query("SELECT run.status FROM ClusteringRun run WHERE run.id = :runId")
     Optional<ClusteringRunStatus> findStatusById(@Param("runId") String runId);
+
+    @Query("""
+            SELECT run.id AS id,
+                   run.version AS version,
+                   run.algorithm AS algorithm,
+                   run.clusterCount AS clusterCount,
+                   run.randomState AS randomState,
+                   run.status AS status,
+                   run.sampleCount AS sampleCount,
+                   run.featureSchemaVersion AS featureSchemaVersion,
+                   run.metricsJson AS metricsJson,
+                   run.errorMessage AS errorMessage,
+                   run.createdAt AS createdAt,
+                   run.startedAt AS startedAt,
+                   run.finishedAt AS finishedAt,
+                   run.createdBy AS createdBy
+            FROM ClusteringRun run
+            WHERE run.id = :runId
+            """)
+    Optional<ClusteringRunQueryProjection> findQueryProjectionById(
+            @Param("runId") String runId
+    );
+
+    default Optional<ClusteringRunQueryProjection> findLatestSuccessfulProjection() {
+        return findSuccessfulQueryProjectionsForLatest(PageRequest.of(0, 1))
+                .stream()
+                .findFirst();
+    }
+
+    @Query("""
+            SELECT run.id AS id,
+                   run.version AS version,
+                   run.algorithm AS algorithm,
+                   run.clusterCount AS clusterCount,
+                   run.randomState AS randomState,
+                   run.status AS status,
+                   run.sampleCount AS sampleCount,
+                   run.featureSchemaVersion AS featureSchemaVersion,
+                   run.metricsJson AS metricsJson,
+                   run.errorMessage AS errorMessage,
+                   run.createdAt AS createdAt,
+                   run.startedAt AS startedAt,
+                   run.finishedAt AS finishedAt,
+                   run.createdBy AS createdBy
+            FROM ClusteringRun run
+            WHERE run.status = com.example.campusactivity.entity.ClusteringRunStatus.SUCCESS
+              AND run.finishedAt IS NOT NULL
+            ORDER BY run.finishedAt DESC, run.createdAt DESC, run.id DESC
+            """)
+    List<ClusteringRunQueryProjection> findSuccessfulQueryProjectionsForLatest(
+            Pageable pageable
+    );
 
     default Optional<ClusteringRun> findLatestSuccessful() {
         return findSuccessfulRunsForLatest(PageRequest.of(0, 1)).stream().findFirst();
