@@ -26,7 +26,11 @@ import java.util.UUID;
 @Table(
         name = "clustering_runs",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_clustering_runs_version", columnNames = "run_version")
+                @UniqueConstraint(name = "uk_clustering_runs_version", columnNames = "run_version"),
+                @UniqueConstraint(
+                        name = "uk_clustering_runs_active_slot",
+                        columnNames = "active_slot"
+                )
         },
         indexes = {
                 @Index(
@@ -42,7 +46,15 @@ import java.util.UUID;
         name = "ck_clustering_runs_sample_count",
         constraints = "sample_count IS NULL OR sample_count >= 0"
 )
+@Check(
+        name = "ck_clustering_runs_active_slot_state",
+        constraints = "((run_status IN ('PENDING', 'RUNNING') "
+                + "AND active_slot IS NOT NULL AND active_slot = 'GLOBAL') "
+                + "OR (run_status IN ('SUCCESS', 'FAILED') AND active_slot IS NULL))"
+)
 public class ClusteringRun {
+    public static final String GLOBAL_ACTIVE_SLOT = "GLOBAL";
+
     @Id
     @NotBlank
     @Size(max = 64)
@@ -74,6 +86,10 @@ public class ClusteringRun {
     @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "run_status", length = 16, nullable = false)
     private ClusteringRunStatus status;
+
+    @Size(max = 16)
+    @Column(name = "active_slot", length = 16)
+    private String activeSlot;
 
     @PositiveOrZero
     @Column(name = "sample_count", nullable = true)
@@ -168,6 +184,14 @@ public class ClusteringRun {
 
     public void setStatus(ClusteringRunStatus status) {
         this.status = status;
+    }
+
+    public String getActiveSlot() {
+        return activeSlot;
+    }
+
+    public void setActiveSlot(String activeSlot) {
+        this.activeSlot = activeSlot;
     }
 
     public Integer getSampleCount() {

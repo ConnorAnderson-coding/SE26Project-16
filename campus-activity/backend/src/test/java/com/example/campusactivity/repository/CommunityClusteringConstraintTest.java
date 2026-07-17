@@ -58,9 +58,72 @@ class CommunityClusteringConstraintTest {
 
     @Test
     void rejectsDuplicateRunVersionOnFlush() {
-        runRepository.saveAndFlush(run("run-version-1", "duplicate-version"));
+        runRepository.saveAndFlush(terminalRun("run-version-1", "duplicate-version"));
 
-        assertThatThrownBy(() -> runRepository.saveAndFlush(run("run-version-2", "duplicate-version")))
+        assertThatThrownBy(() -> runRepository.saveAndFlush(
+                terminalRun("run-version-2", "duplicate-version")
+        ))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void rejectsSecondActiveSlotOnFlush() {
+        runRepository.saveAndFlush(run("run-active-1", "version-active-1"));
+
+        assertThatThrownBy(() -> runRepository.saveAndFlush(
+                run("run-active-2", "version-active-2")
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void allowsMultipleTerminalRunsWithNullActiveSlot() {
+        runRepository.saveAndFlush(terminalRun("run-terminal-1", "version-terminal-1"));
+        ClusteringRun success = terminalRun("run-terminal-2", "version-terminal-2");
+        success.setStatus(ClusteringRunStatus.SUCCESS);
+        success.setMetricsJson("{}");
+        success.setErrorMessage(null);
+        runRepository.saveAndFlush(success);
+
+        assertThat(runRepository.count()).isEqualTo(2);
+    }
+
+    @Test
+    void rejectsPendingWithoutActiveSlotOnFlush() {
+        ClusteringRun run = run("run-pending-null-slot", "version-pending-null-slot");
+        run.setActiveSlot(null);
+
+        assertThatThrownBy(() -> runRepository.saveAndFlush(run))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void rejectsRunningWithoutActiveSlotOnFlush() {
+        ClusteringRun run = run("run-running-null-slot", "version-running-null-slot");
+        run.setStatus(ClusteringRunStatus.RUNNING);
+        run.setActiveSlot(null);
+
+        assertThatThrownBy(() -> runRepository.saveAndFlush(run))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void rejectsSuccessWithGlobalActiveSlotOnFlush() {
+        ClusteringRun run = terminalRun("run-success-global-slot", "version-success-global-slot");
+        run.setStatus(ClusteringRunStatus.SUCCESS);
+        run.setMetricsJson("{}");
+        run.setErrorMessage(null);
+        run.setActiveSlot(ClusteringRun.GLOBAL_ACTIVE_SLOT);
+
+        assertThatThrownBy(() -> runRepository.saveAndFlush(run))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void rejectsFailedWithGlobalActiveSlotOnFlush() {
+        ClusteringRun run = terminalRun("run-failed-global-slot", "version-failed-global-slot");
+        run.setActiveSlot(ClusteringRun.GLOBAL_ACTIVE_SLOT);
+
+        assertThatThrownBy(() -> runRepository.saveAndFlush(run))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
@@ -137,8 +200,12 @@ class CommunityClusteringConstraintTest {
 
     @Test
     void allowsSameClusterNumberInDifferentRuns() {
-        ClusteringRun firstRun = runRepository.saveAndFlush(run("run-cluster-a", "version-cluster-a"));
-        ClusteringRun secondRun = runRepository.saveAndFlush(run("run-cluster-b", "version-cluster-b"));
+        ClusteringRun firstRun = runRepository.saveAndFlush(
+                terminalRun("run-cluster-a", "version-cluster-a")
+        );
+        ClusteringRun secondRun = runRepository.saveAndFlush(
+                terminalRun("run-cluster-b", "version-cluster-b")
+        );
 
         communityRepository.saveAndFlush(community("community-cluster-a", firstRun, 0));
         communityRepository.saveAndFlush(community("community-cluster-b", secondRun, 0));
@@ -232,8 +299,12 @@ class CommunityClusteringConstraintTest {
     @Test
     void allowsSameUserInDifferentRuns() {
         UserAccount user = userRepository.saveAndFlush(user("user-cross-run"));
-        ClusteringRun firstRun = runRepository.saveAndFlush(run("run-user-a", "version-user-a"));
-        ClusteringRun secondRun = runRepository.saveAndFlush(run("run-user-b", "version-user-b"));
+        ClusteringRun firstRun = runRepository.saveAndFlush(
+                terminalRun("run-user-a", "version-user-a")
+        );
+        ClusteringRun secondRun = runRepository.saveAndFlush(
+                terminalRun("run-user-b", "version-user-b")
+        );
         Community firstCommunity = communityRepository.saveAndFlush(community("community-user-a", firstRun, 0));
         Community secondCommunity = communityRepository.saveAndFlush(community("community-user-b", secondRun, 0));
 
@@ -278,8 +349,12 @@ class CommunityClusteringConstraintTest {
     @Test
     void rejectsCommunityFromDifferentRunOnFlush() {
         UserAccount user = userRepository.saveAndFlush(user("user-mismatched-run"));
-        ClusteringRun memberRun = runRepository.saveAndFlush(run("run-member", "version-member"));
-        ClusteringRun communityRun = runRepository.saveAndFlush(run("run-community", "version-community"));
+        ClusteringRun memberRun = runRepository.saveAndFlush(
+                terminalRun("run-member", "version-member")
+        );
+        ClusteringRun communityRun = runRepository.saveAndFlush(
+                terminalRun("run-community", "version-community")
+        );
         Community community = communityRepository.saveAndFlush(
                 community("community-mismatched-run", communityRun, 0)
         );
@@ -365,10 +440,21 @@ class CommunityClusteringConstraintTest {
         run.setClusterCount(2);
         run.setRandomState(42);
         run.setStatus(ClusteringRunStatus.PENDING);
+        run.setActiveSlot(ClusteringRun.GLOBAL_ACTIVE_SLOT);
         run.setSampleCount(null);
         run.setFeatureSchemaVersion("community-features-v1");
         run.setParametersJson("{}");
         run.setCreatedBy("admin-test");
+        return run;
+    }
+
+    private static ClusteringRun terminalRun(String id, String version) {
+        ClusteringRun run = run(id, version);
+        run.setStatus(ClusteringRunStatus.FAILED);
+        run.setActiveSlot(null);
+        run.setStartedAt(Instant.parse("2026-07-15T02:00:00Z"));
+        run.setFinishedAt(Instant.parse("2026-07-15T03:00:00Z"));
+        run.setErrorMessage("test failure");
         return run;
     }
 

@@ -115,6 +115,17 @@ class CommunityClusteringRepositoryTest {
         ClusteringRun running = run("run-running", "version-running", ClusteringRunStatus.RUNNING);
         running.setSampleCount(2);
         running.setStartedAt(Instant.parse("2026-07-15T00:30:00Z"));
+        running = runRepository.saveAndFlush(running);
+
+        entityManager.clear();
+        assertThat(runRepository.findLatestSuccessful().orElseThrow().getId())
+                .isEqualTo(success.getId());
+
+        running = runRepository.findById(running.getId()).orElseThrow();
+        running.setStatus(ClusteringRunStatus.FAILED);
+        running.setActiveSlot(null);
+        running.setFinishedAt(Instant.parse("2026-07-15T06:30:00Z"));
+        running.setErrorMessage("test failure");
         runRepository.saveAndFlush(running);
 
         runRepository.saveAndFlush(run("run-pending", "version-pending", ClusteringRunStatus.PENDING));
@@ -320,6 +331,11 @@ class CommunityClusteringRepositoryTest {
         run.setClusterCount(2);
         run.setRandomState(42);
         run.setStatus(status);
+        run.setActiveSlot(
+                status == ClusteringRunStatus.PENDING || status == ClusteringRunStatus.RUNNING
+                        ? ClusteringRun.GLOBAL_ACTIVE_SLOT
+                        : null
+        );
         run.setSampleCount(null);
         run.setFeatureSchemaVersion("community-features-v1");
         run.setParametersJson("{}");
