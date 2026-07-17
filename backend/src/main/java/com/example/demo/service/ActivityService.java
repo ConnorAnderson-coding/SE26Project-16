@@ -46,6 +46,7 @@ public class ActivityService {
     private final ActivityRepository activityRepository;
     private final UserService userService;
     private final RegistrationRepository registrationRepository;
+    private final ActivityViewService activityViewService;
     private final ObjectProvider<ActivityIndexService> activityIndexService;
     private final ObjectProvider<ActivitySearchService> activitySearchService;
     private final ObjectProvider<RecommendationService> recommendationService;
@@ -89,49 +90,21 @@ public class ActivityService {
     }
 
     /**
-     * 查询活动详情并在事务内原子增加浏览量。
+     * 查询活动详情，并按登录用户记录全生命周期唯一浏览量。
      * <p>
-     * 已结束活动、组织者本人、管理员和未登录用户不会增加浏览量。
+     * 学生、教师、组织者和管理员均计入；同一用户重复访问同一活动不重复累计。
      */
     @Transactional
     public ActivityResponse getById(Long id) {
         Activity activity = activityRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new BusinessException("活动不存在"));
 
-        if (shouldIncrementViewCount(activity)) {
-            activityRepository.incrementViewCount(id);
+        String userId = SecurityUtils.getCurrentUserId();
+        if (activityViewService.recordUniqueView(id, userId)) {
+            activity.setViewCount(activity.getViewCount() + 1);
         }
 
         return DtoMapper.toActivityResponse(activity);
-    }
-
-    /**
-     * 判断本次浏览是否计入 viewCount。
-     * <p>
-     * 仅普通登录用户的"主动查看"计数：组织者本人、管理员、未登录用户均不计。
-     * 活动一旦结束，浏览量即冻结不再变化。
-     *
-     * @param activity 当前活动实体（来自缓存）
-     * @return true 表示需要自增 viewCount
-     */
-    private boolean shouldIncrementViewCount(Activity activity) {
-        // 活动已结束：浏览量冻结
-        if ("ended".equals(activity.getStatus())) {
-            return false;
-        }
-        try {
-            var currentUser = SecurityUtils.getCurrentUser();
-            String currentUserId = currentUser.getUserId();
-            if (activity.getOrganizerId() != null
-                    && activity.getOrganizerId().equals(currentUserId)) {
-                return false;
-            }
-            boolean isAdmin = currentUser.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-            return !isAdmin;
-        } catch (BusinessException e) {
-            return false;
-        }
     }
 
     @Transactional(readOnly = true)
