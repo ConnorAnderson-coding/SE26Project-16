@@ -14,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface ActivityRepository extends JpaRepository<Activity, Long> {
 
@@ -81,31 +82,18 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
             @Param("since") LocalDateTime since,
             @Param("until") LocalDateTime until);
 
-    /**
-     * 自动结束活动：将所有已过结束时间但状态仍为 "published" 的活动标记为 "ended"。
-     * <p>
-     * 由 ActivityLifecycleScheduler 在每日凌晨调用，避免依赖组织者手动发布活动记录。
-     *
-     * @param now 当前时间
-     * @return 受影响的行数
-     */
     @Modifying
     @Query("UPDATE Activity a SET a.status = 'ended', a.updatedAt = :now " +
            "WHERE a.status = 'published' AND a.endTime < :now")
     int markEndedBefore(@Param("now") LocalDateTime now);
 
-    /**
-     * 拉取单个活动"最新数据时间戳"快照，覆盖所有可能影响分析结果的表：
-     * activity 自身 / feedback / check_in / registration。
-     * <p>
-     * 用于定时任务判断"上次分析之后是否有新数据"，避免每次都重算 LLM。
-     * 返回单行 4 列：[activity_updated_at, max_feedback_at, max_checkin_at, max_registration_at]，
-     * 任意列可能为 NULL（对应表无记录）。
-     */
     @Query(value = "SELECT a.updated_at, " +
            "(SELECT MAX(f.created_at) FROM feedback f WHERE f.activity_id = :id), " +
            "(SELECT MAX(c.check_in_time) FROM check_in c WHERE c.activity_id = :id), " +
            "(SELECT MAX(r.created_at) FROM registration r WHERE r.activity_id = :id) " +
            "FROM activity a WHERE a.id = :id", nativeQuery = true)
     List<Object[]> findDataFreshness(@Param("id") Long id);
+
+    @EntityGraph(attributePaths = "organizer")
+    List<Activity> findByIdIn(Collection<Long> ids);
 }

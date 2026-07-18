@@ -102,51 +102,28 @@ public class AnalyticsEngine {
     
     private SnapshotValues resolveSnapshot(Activity activity) {
         Optional<ActivityAnalysis> existing = analysisRepository.findByActivityId(activity.getId());
+        if (existing.isPresent() && existing.get().getSnapshotAt() != null) {
+            ActivityAnalysis row = existing.get();
+            return new SnapshotValues(
+                    nullToZero(row.getViewCountSnapshot()),
+                    nullToZero(row.getSignupCountSnapshot()),
+                    nullToZero(row.getFavoriteCountSnapshot()),
+                    row.getSnapshotAt());
+        }
+
         int actualViewCount = Math.toIntExact(
                 activityViewRepository.countByActivityId(activity.getId()));
         int actualSignupCount = Math.toIntExact(
                 registrationRepository.countByActivityId(activity.getId()));
-        if (existing.isPresent()) {
-            ActivityAnalysis row = existing.get();
-            // 已存在快照（无论 4 个列是否都为 null，只要该行在就用它）
-            if (row.getSnapshotAt() != null) {
-                boolean snapshotChanged = false;
-                if (nullToZero(row.getViewCountSnapshot()) != actualViewCount) {
-                    log.info("Updating unique view snapshot: activityId={} snapshot={} actual={}",
-                            activity.getId(), row.getViewCountSnapshot(), actualViewCount);
-                    row.setViewCountSnapshot(actualViewCount);
-                    snapshotChanged = true;
-                }
-                if (nullToZero(row.getSignupCountSnapshot()) != actualSignupCount) {
-                    log.warn("Correcting inconsistent signup snapshot: activityId={} snapshot={} actual={}",
-                            activity.getId(), row.getSignupCountSnapshot(), actualSignupCount);
-                    row.setSignupCountSnapshot(actualSignupCount);
-                    snapshotChanged = true;
-                }
-                if (snapshotChanged) {
-                    analysisRepository.save(row);
-                }
-                return new SnapshotValues(
-                        actualViewCount,
-                        actualSignupCount,
-                        nullToZero(row.getFavoriteCountSnapshot()),
-                        row.getSnapshotAt());
-            }
-        }
-
-        // 没有快照行 / 快照未初始化：实时取并落库
-        int view = actualViewCount;
-        int signup = actualSignupCount;
         int favorite = nullToZero(activity.getFavoriteCount());
         LocalDateTime now = LocalDateTime.now();
 
         ActivityAnalysis row = existing.orElseGet(ActivityAnalysis::new);
         row.setActivity(activity);
-        row.setViewCountSnapshot(view);
-        row.setSignupCountSnapshot(signup);
+        row.setViewCountSnapshot(actualViewCount);
+        row.setSignupCountSnapshot(actualSignupCount);
         row.setFavoriteCountSnapshot(favorite);
         row.setSnapshotAt(now);
-        // 初始化其余派生列避免 NOT NULL 失败
         if (row.getSignupRate() == null) row.setSignupRate(BigDecimal.ZERO);
         if (row.getAttendanceRate() == null) row.setAttendanceRate(BigDecimal.ZERO);
         if (row.getSuggestionSource() == null) row.setSuggestionSource("none");
@@ -156,8 +133,8 @@ public class AnalyticsEngine {
         analysisRepository.save(row);
 
         log.info("初始化活动快照 activityId={} view={} signup={} favorite={}",
-                activity.getId(), view, signup, favorite);
-        return new SnapshotValues(view, signup, favorite, now);
+                activity.getId(), actualViewCount, actualSignupCount, favorite);
+        return new SnapshotValues(actualViewCount, actualSignupCount, favorite, now);
     }
 
     private static int nullToZero(Integer v) {

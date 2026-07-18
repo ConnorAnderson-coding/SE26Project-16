@@ -90,25 +90,16 @@ public class ActivityService {
                 result.getTotalElements(), result.getTotalPages());
     }
 
-    /**
-     * 查询活动详情，并按登录用户记录全生命周期唯一浏览量。
-     * <p>
-     * 学生、教师、组织者和管理员均计入；同一用户重复访问同一活动不重复累计。
-     */
-    @Transactional
+    @Transactional(readOnly = true)
     public ActivityResponse getById(Long id) {
         Activity activity = activityRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new BusinessException("活动不存在"));
 
-        String userId = SecurityUtils.getCurrentUserId();
-        if (activityViewService.recordUniqueView(id, userId)) {
-            // 重新从 DB 读取最新 viewCount：recordUniqueView 已 @CacheEvict(ACTIVITY_DETAIL)，
-            // 此次 findById 穿透缓存读到 SQL UPDATE 之后的真实值，避免并发首次访问时
-            // "entity.viewCount + 1" 因缓存旧值产生丢更新。
-            int latestViewCount = activityRepository.findById(id)
-                    .map(Activity::getViewCount)
-                    .orElse(0);
-            activity.setViewCount(latestViewCount);
+        try {
+            String userId = SecurityUtils.getCurrentUserId();
+            activityViewService.recordUniqueView(id, userId);
+        } catch (BusinessException ignored) {
+            // 未登录等场景，静默跳过
         }
 
         return DtoMapper.toActivityResponse(activity);
