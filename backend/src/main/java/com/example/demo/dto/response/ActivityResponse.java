@@ -23,6 +23,8 @@ public class ActivityResponse {
     private Integer maxParticipants;
     private Integer signupCount;
     private Integer favoriteCount;
+    /** 综合热度分（浏览/报名/签到/收藏加权 + 时间衰减 + 状态修正） */
+    private Double hotnessScore;
     private String status;
     private List<String> tags;
     private String checkInCode;

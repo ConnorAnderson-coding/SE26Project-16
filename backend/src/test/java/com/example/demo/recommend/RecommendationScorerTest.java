@@ -64,6 +64,7 @@ class RecommendationScorerTest {
         a.setTags(List.of("羽毛球"));
         a.setSignupCount(10);
         a.setFavoriteCount(1);
+        a.setHotnessScore(2.0);
         a.setOrganizerId("org1");
 
         Activity b = activity(2L, "sports",
@@ -72,6 +73,7 @@ class RecommendationScorerTest {
         b.setTags(List.of("羽毛球"));
         b.setSignupCount(10);
         b.setFavoriteCount(1);
+        b.setHotnessScore(2.0);
         b.setOrganizerId("org1");
 
         List<RecommendationScorer.ScoredActivity> ranked = scorer.scoreAndRank(
@@ -103,6 +105,7 @@ class RecommendationScorerTest {
         highSocial.setOrganizerId("lisi");
         highSocial.setSignupCount(10);
         highSocial.setFavoriteCount(0);
+        highSocial.setHotnessScore(3.0);
 
         Activity lowSocial = activity(10L, "academic",
                 LocalDateTime.of(2026, 7, 21, 20, 0),
@@ -110,6 +113,7 @@ class RecommendationScorerTest {
         lowSocial.setOrganizerId("other");
         lowSocial.setSignupCount(10);
         lowSocial.setFavoriteCount(0);
+        lowSocial.setHotnessScore(3.0);
 
         List<RecommendationScorer.ScoredActivity> ranked = scorer.scoreAndRank(
                 List.of(highSocial, lowSocial),
@@ -195,6 +199,7 @@ class RecommendationScorerTest {
         a.setOrganizerId("org1");
         a.setSignupCount(80);
         a.setFavoriteCount(20);
+        a.setHotnessScore(6.0);
 
         List<RecommendationScorer.ScoredActivity> ranked = scorer.scoreAndRank(
                 List.of(a),
@@ -216,6 +221,7 @@ class RecommendationScorerTest {
         a.setStatus("published");
         a.setSignupCount(0);
         a.setFavoriteCount(0);
+        a.setHotnessScore(0.0);
         return a;
     }
 }

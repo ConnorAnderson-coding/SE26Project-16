@@ -14,7 +14,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -39,7 +38,6 @@ public class UserPreferenceVectorService {
     private final ObjectProvider<StringRedisTemplate> stringRedisTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Transactional(readOnly = true)
     public float[] getOrBuild(User user) {
         if (user == null || user.getId() == null) {
             return null;
@@ -48,11 +46,17 @@ public class UserPreferenceVectorService {
         if (cached != null) {
             return cached;
         }
-        float[] built = build(user);
-        if (built != null) {
-            writeCache(user.getId(), built);
+        try {
+            float[] built = build(user);
+            if (built != null) {
+                writeCache(user.getId(), built);
+            }
+            return built;
         }
-        return built;
+        catch (RuntimeException ex) {
+            log.warn("Preference vector build failed for user {}: {}", user.getId(), ex.getMessage());
+            return null;
+        }
     }
 
     public void invalidate(String userId) {

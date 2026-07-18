@@ -31,6 +31,7 @@ public class RegistrationService {
     private final ActivityRepository activityRepository;
     private final UserService userService;
     private final ObjectProvider<UserPreferenceVectorService> userPreferenceVectorService;
+    private final ActivityHotnessService activityHotnessService;
 
     @Transactional
     @Caching(evict = {
@@ -63,6 +64,7 @@ public class RegistrationService {
         activity.setSignupCount(activity.getSignupCount() + 1);
         activity.setUpdatedAt(LocalDateTime.now());
         activityRepository.save(activity);
+        activityHotnessService.recalculate(activity);
 
         registration.setActivity(activity);
         registration.setUser(user);

@@ -50,6 +50,7 @@ public class ActivityService {
     private final ObjectProvider<ActivityIndexService> activityIndexService;
     private final ObjectProvider<ActivitySearchService> activitySearchService;
     private final ObjectProvider<RecommendationService> recommendationService;
+    private final ActivityHotnessService activityHotnessService;
 
     @Transactional(readOnly = true)
     public PageResult<ActivityResponse> list(
@@ -175,12 +176,16 @@ public class ActivityService {
         activity.setCollege(organizer.getCollege());
         activity.setSignupCount(0);
         activity.setFavoriteCount(0);
+        activity.setViewCount(0);
+        activity.setCheckInCount(0);
+        activity.setHotnessScore(0.0);
         activity.setStatus("published");
         activity.setCheckInCode("CK" + Long.toString(System.currentTimeMillis(), 36).toUpperCase().substring(Math.max(0, Long.toString(System.currentTimeMillis(), 36).length() - 4)));
         activity.setCreatedAt(now);
         activity.setUpdatedAt(now);
         activityRepository.save(activity);
         activity.setOrganizer(organizer);
+        activityHotnessService.recalculate(activity);
         syncSearchIndex(activity);
         return DtoMapper.toActivityResponse(activity);
     }
@@ -255,8 +260,8 @@ public class ActivityService {
         List<String> tags = activity.getTags() != null ? activity.getTags() : List.of();
         long tagMatch = tags.stream().filter(interests::contains).count();
         score += (int) tagMatch * 30;
-        score += Math.min(activity.getFavoriteCount(), 50);
-        score += Math.min(activity.getSignupCount(), 30);
+        double hotness = activity.getHotnessScore() != null ? activity.getHotnessScore() : 0.0;
+        score += (int) Math.round(Math.min(hotness * 20.0, 80.0));
         return score;
     }
 
@@ -268,7 +273,8 @@ public class ActivityService {
         if (interestHit) {
             reasons.add(RecommendationScorer.REASON_INTEREST);
         }
-        if (activity.getSignupCount() + activity.getFavoriteCount() >= 40) {
+        double hotness = activity.getHotnessScore() != null ? activity.getHotnessScore() : 0.0;
+        if (hotness >= 1.0) {
             reasons.add(RecommendationScorer.REASON_HOT);
         }
         if (reasons.isEmpty()) {
@@ -278,7 +284,7 @@ public class ActivityService {
     }
 
     private Pageable buildPageable(int page, int size, String sort) {
-        Sort defaultHot = Sort.by(Sort.Direction.DESC, "signupCount", "favoriteCount");
+        Sort defaultHot = Sort.by(Sort.Direction.DESC, "hotnessScore");
         if (!StringUtils.hasText(sort)) {
             return PageRequest.of(page, size, defaultHot);
         }

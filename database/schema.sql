@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS activity (
   signup_count     INT          NOT NULL DEFAULT 0,
   view_count       INT          NOT NULL DEFAULT 0 COMMENT '活动详情浏览量',
   favorite_count   INT          NOT NULL DEFAULT 0,
+  view_count       INT          NOT NULL DEFAULT 0,
+  check_in_count   INT          NOT NULL DEFAULT 0,
+  hotness_score    DOUBLE       NOT NULL DEFAULT 0,
   status           VARCHAR(16)  NOT NULL DEFAULT 'published' COMMENT 'draft/published/ended',
   tags             JSON         NULL,
   check_in_code    VARCHAR(32)  NULL,
@@ -52,7 +55,7 @@ CREATE TABLE IF NOT EXISTS activity (
   INDEX idx_activity_category (category),
   INDEX idx_activity_start_time (start_time),
   INDEX idx_activity_organizer (organizer_id),
-  INDEX idx_activity_hot (signup_count, favorite_count)
+  INDEX idx_activity_hotness (hotness_score)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS registration (

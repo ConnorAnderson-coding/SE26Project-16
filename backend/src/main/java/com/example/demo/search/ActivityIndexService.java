@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -72,7 +73,37 @@ public class ActivityIndexService {
     @Transactional(readOnly = true)
     public IndexRebuildResult rebuildAll() {
         requireAdmin();
+        return rebuildAllInternal();
+    }
 
+    /**
+     * Startup bootstrap: rebuild when the activities index is empty but MySQL has data.
+     * Does not require admin authentication.
+     */
+    @Transactional(readOnly = true)
+    public Optional<IndexRebuildResult> rebuildAllIfEmpty() {
+        try {
+            if (countIndexedDocuments() > 0) {
+                log.debug("Elasticsearch index already populated, skip bootstrap rebuild");
+                return Optional.empty();
+            }
+        }
+        catch (IOException ex) {
+            log.warn("Cannot inspect Elasticsearch index, skip bootstrap rebuild: {}", ex.getMessage());
+            return Optional.empty();
+        }
+
+        List<Activity> activities = activityRepository.findAllIndexable();
+        if (activities.isEmpty()) {
+            log.info("No indexable activities in MySQL, skip bootstrap rebuild");
+            return Optional.empty();
+        }
+
+        log.info("Elasticsearch index is empty; bootstrapping {} activities from MySQL", activities.size());
+        return Optional.of(rebuildAllInternal());
+    }
+
+    private IndexRebuildResult rebuildAllInternal() {
         List<Activity> activities = activityRepository.findAllIndexable();
         String indexName = elasticsearchProperties.getIndexActivities();
 
