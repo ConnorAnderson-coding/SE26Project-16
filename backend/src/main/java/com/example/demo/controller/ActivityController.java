@@ -1,10 +1,14 @@
 package com.example.demo.controller;
 
 import com.example.demo.common.ApiResponse;
+import com.example.demo.common.BusinessException;
 import com.example.demo.common.PageResult;
 import com.example.demo.dto.request.ActivityRequest;
 import com.example.demo.dto.response.ActivityResponse;
+import com.example.demo.dto.response.SemanticSearchResponse;
+import com.example.demo.service.ActivitySearchService;
 import com.example.demo.service.ActivityService;
+import com.example.demo.util.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -25,6 +29,7 @@ import java.util.List;
 public class ActivityController {
 
     private final ActivityService activityService;
+    private final ActivitySearchService activitySearchService;
 
     @GetMapping
     public ApiResponse<PageResult<ActivityResponse>> list(
@@ -44,6 +49,21 @@ public class ActivityController {
     public ApiResponse<List<ActivityResponse>> recommended(
             @RequestParam(defaultValue = "6") int limit) {
         return ApiResponse.ok(activityService.getRecommended(limit));
+    }
+
+    @GetMapping("/semantic-search")
+    public ApiResponse<SemanticSearchResponse> semanticSearch(
+            @RequestParam("q") String query,
+            @RequestParam(defaultValue = "10") int size) {
+        return ApiResponse.ok(activitySearchService.search(query, size));
+    }
+
+    @PostMapping("/semantic-search/reindex")
+    public ApiResponse<Integer> rebuildSemanticIndex() {
+        if (!"admin".equals(SecurityUtils.getCurrentUser().getUser().getRole())) {
+            throw new BusinessException(403, "Only admins can rebuild the semantic search index");
+        }
+        return ApiResponse.ok(activitySearchService.rebuildIndex());
     }
 
     @GetMapping("/mine")
