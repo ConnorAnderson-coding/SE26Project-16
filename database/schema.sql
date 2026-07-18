@@ -42,7 +42,6 @@ CREATE TABLE IF NOT EXISTS activity (
   signup_count     INT          NOT NULL DEFAULT 0,
   view_count       INT          NOT NULL DEFAULT 0 COMMENT '活动详情浏览量',
   favorite_count   INT          NOT NULL DEFAULT 0,
-  view_count       INT          NOT NULL DEFAULT 0,
   check_in_count   INT          NOT NULL DEFAULT 0,
   hotness_score    DOUBLE       NOT NULL DEFAULT 0,
   status           VARCHAR(16)  NOT NULL DEFAULT 'published' COMMENT 'draft/published/ended',
