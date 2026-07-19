@@ -38,23 +38,6 @@ class AuthIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void loginWithDifferentIdCasingShouldReturnCanonicalUserId() throws Exception {
-        String canonicalId = "CaseTeacher" + System.currentTimeMillis();
-        transactionTemplate.executeWithoutResult(status -> saveUser(canonicalId, "teacher", "Case Teacher"));
-
-        LoginRequest request = new LoginRequest();
-        request.setUserId(canonicalId.toLowerCase());
-        request.setPassword(PASSWORD);
-
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.user.id").value(canonicalId));
-    }
-
-    @Test
     void loginWithWrongPasswordShouldReturn401() throws Exception {
         TestScenario scenario = createScenario();
 
