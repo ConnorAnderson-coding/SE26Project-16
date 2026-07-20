@@ -54,6 +54,8 @@ public class RedisConfig {
         perCache.put(CacheNames.ACTIVITY_HOT_LIST, defaults.entryTtl(Duration.ofMinutes(10)));
         perCache.put(CacheNames.FEEDBACK_BY_ACTIVITY, defaults.entryTtl(Duration.ofMinutes(20)));
         perCache.put(CacheNames.ACTIVITY_RECORD, defaults.entryTtl(Duration.ofHours(2)));
+        // 分析结果短时缓存；报名、签到、收藏、浏览等写操作会主动失效对应活动缓存。
+        perCache.put(CacheNames.ANALYTICS_ACTIVITY, defaults.entryTtl(Duration.ofMinutes(30)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaults)

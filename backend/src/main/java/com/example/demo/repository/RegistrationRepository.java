@@ -27,10 +27,19 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
 
     long countByUserIdAndStatus(String userId, String status);
 
-    long countByUserId(String userId);
+    // 别名 signup_date 避开 H2 'DAY' 保留字（MySQL 默认宽松，但 H2 即使在 MODE=MySQL 下也保留）。
+    // 消费方 AnalyticsEngine#computeSignupTrend 按列下标 row[0]/row[1] 读取，别名仅用于 ORDER BY。
+    @Query(value = "SELECT DATE(created_at) AS signup_date, COUNT(*) AS cnt FROM registration " +
+           "WHERE activity_id = :activityId " +
+           "GROUP BY DATE(created_at) ORDER BY signup_date", nativeQuery = true)
+    List<Object[]> countDailySignupsByActivityId(@Param("activityId") Long activityId);
 
     long countByActivityIdAndStatus(Long activityId, String status);
-  
+
+    long countByActivityId(Long activityId);
+
+    long countByUserId(String userId);
+
     @Query("""
             SELECT COUNT(DISTINCT r1.activity.id) FROM Registration r1, Registration r2
             WHERE r1.user.id = :userA AND r2.user.id = :userB

@@ -12,6 +12,7 @@ import com.example.demo.repository.FeedbackRepository;
 import com.example.demo.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +29,10 @@ public class FeedbackService {
     private final UserService userService;
 
     @Transactional
-    @CacheEvict(value = CacheNames.FEEDBACK_BY_ACTIVITY, key = "#request.activityId")
+    @Caching(evict = {
+            @CacheEvict(value = CacheNames.FEEDBACK_BY_ACTIVITY, key = "#request.activityId"),
+            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#request.activityId")
+    })
     public FeedbackResponse submit(FeedbackRequest request) {
         String userId = SecurityUtils.getCurrentUserId();
         Activity activity = activityService.getActivityEntity(request.getActivityId());

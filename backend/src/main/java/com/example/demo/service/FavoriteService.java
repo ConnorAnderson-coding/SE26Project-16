@@ -43,12 +43,17 @@ public class FavoriteService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#activityId"),
-            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true)
+            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true),
+            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#activityId")
     })
     public FavoriteToggleResponse toggle(Long activityId) {
         String userId = SecurityUtils.getCurrentUserId();
         Activity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new BusinessException("活动不存在"));
+        // 数据冻结：活动已结束后不允许再切换收藏，避免收藏数继续变化。
+        if ("ended".equals(activity.getStatus())) {
+            throw new BusinessException("活动已结束，无法修改收藏状态");
+        }
         FavoriteId favoriteId = new FavoriteId(userId, activityId);
         boolean exists = favoriteRepository.existsById(favoriteId);
         if (exists) {
