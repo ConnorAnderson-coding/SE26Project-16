@@ -8,10 +8,12 @@ import com.example.demo.dto.response.RegistrationResponse;
 import com.example.demo.entity.Activity;
 import com.example.demo.entity.Registration;
 import com.example.demo.entity.User;
+import com.example.demo.recommend.UserPreferenceVectorService;
 import com.example.demo.repository.ActivityRepository;
 import com.example.demo.repository.RegistrationRepository;
 import com.example.demo.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,8 @@ public class RegistrationService {
     private final RegistrationRepository registrationRepository;
     private final ActivityRepository activityRepository;
     private final UserService userService;
+    private final ObjectProvider<UserPreferenceVectorService> userPreferenceVectorService;
+    private final ActivityHotnessService activityHotnessService;
 
     @Transactional
     @Caching(evict = {
@@ -59,9 +63,11 @@ public class RegistrationService {
         activity.setSignupCount(activity.getSignupCount() + 1);
         activity.setUpdatedAt(LocalDateTime.now());
         activityRepository.save(activity);
+        activityHotnessService.recalculate(activity);
 
         registration.setActivity(activity);
         registration.setUser(user);
+        userPreferenceVectorService.ifAvailable(svc -> svc.invalidate(userId));
         return DtoMapper.toRegistrationResponse(registration);
     }
 
@@ -93,6 +99,10 @@ public class RegistrationService {
         registration.setStatus(approved ? "approved" : "rejected");
         registration.setActivity(activity);
         registration.setUser(registration.getUser());
+        String registrantId = registration.getUser() != null ? registration.getUser().getId() : null;
+        if (registrantId != null) {
+            userPreferenceVectorService.ifAvailable(svc -> svc.invalidate(registrantId));
+        }
         return DtoMapper.toRegistrationResponse(registration);
     }
 

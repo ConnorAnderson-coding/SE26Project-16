@@ -26,6 +26,7 @@ public class ActivityRecordService {
     private final ActivityRecordRepository activityRecordRepository;
     private final ActivityRepository activityRepository;
     private final ActivityService activityService;
+    private final ActivityHotnessService activityHotnessService;
 
     @Transactional(readOnly = true)
     public ActivityRecordResponse getByActivityId(Long activityId) {
@@ -60,6 +61,7 @@ public class ActivityRecordService {
         activity.setStatus("ended");
         activity.setUpdatedAt(LocalDateTime.now());
         activityRepository.save(activity);
+        activityHotnessService.recalculate(activity);
         return DtoMapper.toRecordResponse(record);
     }
 }
