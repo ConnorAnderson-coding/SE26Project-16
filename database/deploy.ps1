@@ -66,16 +66,28 @@ try {
     }
     Write-Ok "Docker 服务已就绪"
 
+    # ForceRecreateDb 后 seed 较大时，healthcheck 可能早于业务表可查；重试读数
     Write-Step "验证 MySQL 示例数据"
-    $userCount = docker exec campus-mysql mysql -ucampus -pcampus123 -N -e `
-        "SELECT COUNT(*) FROM campus_activity.user;" 2>$null
-    $activityCount = docker exec campus-mysql mysql -ucampus -pcampus123 -N -e `
-        "SELECT COUNT(*) FROM campus_activity.activity;" 2>$null
+    $userCount = $null
+    $activityCount = $null
+    for ($i = 1; $i -le 30; $i++) {
+        $userCount = docker exec campus-mysql mysql -ucampus -pcampus123 -N -e `
+            "SELECT COUNT(*) FROM campus_activity.user;" 2>$null
+        $activityCount = docker exec campus-mysql mysql -ucampus -pcampus123 -N -e `
+            "SELECT COUNT(*) FROM campus_activity.activity;" 2>$null
+        if ($userCount -and $activityCount -and ([int]$activityCount -gt 0)) {
+            break
+        }
+        Start-Sleep -Seconds 2
+    }
     if ($userCount -and $activityCount) {
-        Write-Ok "MySQL: users=$userCount, activities=$activityCount"
+        Write-Ok "MySQL: users=$($userCount.Trim()), activities=$($activityCount.Trim())"
+        if ($ForceRecreateDb -and [int]$activityCount -lt 100) {
+            Write-Warn "活动数偏少 ($($activityCount.Trim()))，seed 可能未完整导入；可运行 .\reload-demo-data.ps1"
+        }
     }
     else {
-        Write-Warn "无法读取 MySQL 行数（容器可能仍在初始化），稍后可手动验证"
+        Write-Warn "无法读取 MySQL 行数（容器可能仍在初始化），稍后可手动验证或运行 .\reload-demo-data.ps1"
     }
 
     if (-not $SkipElasticsearch) {
