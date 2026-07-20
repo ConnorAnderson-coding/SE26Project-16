@@ -125,10 +125,12 @@ public class AnalyticsEngine {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM-dd");
         TreeMap<LocalDate, Long> series = new TreeMap<>();
 
-        LocalDate activityStart = activity.getStartTime() != null
+        // 报名期下界：活动创建日（活动发布即开放报名）
+        LocalDate signupStart = activity.getCreatedAt() != null
+                ? activity.getCreatedAt().toLocalDate() : null;
+        // 报名期上界：活动开始日（活动开始即视为报名截止；此后再报名由控制器拦截）
+        LocalDate signupEnd = activity.getStartTime() != null
                 ? activity.getStartTime().toLocalDate() : null;
-        LocalDate activityEnd = activity.getEndTime() != null
-                ? activity.getEndTime().toLocalDate() : null;
 
         for (Object[] row : rows) {
             if (row[0] != null) {
@@ -138,22 +140,14 @@ public class AnalyticsEngine {
             }
         }
 
-        LocalDate earliestSignup = series.isEmpty() ? null : series.firstKey();
-        LocalDate lower = pickEarlier(earliestSignup, activityStart);
-        LocalDate upper;
-        if (activityStart != null) {
-            LocalDate today = LocalDate.now();
-            if (activityStart.isAfter(today)) {
-                upper = activityStart;
-            } else {
-                upper = activityEnd != null && activityEnd.isAfter(today) ? today : activityEnd;
-            }
-        } else {
-            upper = activityEnd;
+        // 区间外的历史数据（如脏数据或迁移遗留）应剔除，仅保留报名期内的有效趋势
+        if (signupStart != null || signupEnd != null) {
+            series.keySet().removeIf(day -> isOutside(day, signupStart, signupEnd));
         }
 
-        if (lower != null && upper != null && !lower.isAfter(upper)) {
-            for (LocalDate d = lower; !d.isAfter(upper); d = d.plusDays(1)) {
+        // 在 [signupStart, signupEnd] 范围内补零，确保折线图连续
+        if (signupStart != null && signupEnd != null && !signupStart.isAfter(signupEnd)) {
+            for (LocalDate d = signupStart; !d.isAfter(signupEnd); d = d.plusDays(1)) {
                 series.putIfAbsent(d, 0L);
             }
         }
@@ -165,10 +159,18 @@ public class AnalyticsEngine {
         return trend;
     }
 
-    private static LocalDate pickEarlier(LocalDate a, LocalDate b) {
-        if (a == null) return b;
-        if (b == null) return a;
-        return a.isBefore(b) ? a : b;
+    /**
+     * 判断日期 day 是否落在 [signupStart, signupEnd] 区间外。
+     * null 端表示该侧无界——例如 signupStart 为 null 时不做下界检查。
+     */
+    private static boolean isOutside(LocalDate day, LocalDate signupStart, LocalDate signupEnd) {
+        if (signupStart != null && day.isBefore(signupStart)) {
+            return true;
+        }
+        if (signupEnd != null && day.isAfter(signupEnd)) {
+            return true;
+        }
+        return false;
     }
 
     private static LocalDate toLocalDate(Object raw) {

@@ -14,6 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.sql.Date;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +45,7 @@ class AnalyticsEngineTest {
         activity.setSignupCount(40);
         activity.setFavoriteCount(10);
         activity.setMaxParticipants(50);
+        activity.setCreatedAt(LocalDateTime.of(2026, 7, 1, 9, 0));
         activity.setStartTime(LocalDateTime.of(2026, 7, 10, 9, 0));
         activity.setEndTime(LocalDateTime.of(2026, 7, 10, 12, 0));
     }
@@ -204,6 +206,54 @@ class AnalyticsEngineTest {
         assertThat(out).contains("请联系");
         assertThat(out).doesNotContain("13900001111");
         assertThat(out).doesNotContain("admin@example.com");
+    }
+
+    // ---------------- 报名趋势边界 ----------------
+
+    /** 报名期：createdAt(07-01) ~ startTime(07-10)，签到数据落在 [07-02, 07-05] 应保留 */
+    @Test
+    void signupTrendBoundsToRegistrationWindow() {
+        when(activityRepository.findById(7L)).thenReturn(Optional.of(activity));
+        when(registrationRepository.countByActivityIdAndStatus(7L, "approved")).thenReturn(0L);
+        when(registrationRepository.countDailySignupsByActivityId(7L)).thenReturn(List.of(
+                new Object[]{Date.valueOf("2026-07-02"), 3L},
+                new Object[]{Date.valueOf("2026-07-05"), 5L}
+        ));
+        when(checkInRepository.countByActivityId(7L)).thenReturn(0L);
+        when(checkInRepository.countByMethodGroupByActivityId(7L)).thenReturn(List.of());
+        when(feedbackRepository.findByActivityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
+
+        ActivityMetrics metrics = analyticsEngine.computeMetrics(7L);
+
+        assertThat(metrics.getSignupTrend())
+                .containsKeys("07-01", "07-02", "07-03", "07-04", "07-05",
+                        "07-06", "07-07", "07-08", "07-09", "07-10")
+                .containsEntry("07-02", 3L)
+                .containsEntry("07-05", 5L)
+                .containsEntry("07-03", 0L); // 中间无数据补零
+    }
+
+    /** 报名期外的脏数据应被剔除（不应出现在趋势中） */
+    @Test
+    void signupTrendDropsDataOutsideRegistrationWindow() {
+        when(activityRepository.findById(7L)).thenReturn(Optional.of(activity));
+        when(registrationRepository.countByActivityIdAndStatus(7L, "approved")).thenReturn(0L);
+        // 06-25 在 createdAt(07-01) 之前；07-15 在 startTime(07-10) 之后
+        when(registrationRepository.countDailySignupsByActivityId(7L)).thenReturn(List.of(
+                new Object[]{Date.valueOf("2026-06-25"), 99L},
+                new Object[]{Date.valueOf("2026-07-03"), 4L},
+                new Object[]{Date.valueOf("2026-07-15"), 88L}
+        ));
+        when(checkInRepository.countByActivityId(7L)).thenReturn(0L);
+        when(checkInRepository.countByMethodGroupByActivityId(7L)).thenReturn(List.of());
+        when(feedbackRepository.findByActivityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
+
+        ActivityMetrics metrics = analyticsEngine.computeMetrics(7L);
+
+        assertThat(metrics.getSignupTrend())
+                .doesNotContainKey("06-25")
+                .doesNotContainKey("07-15")
+                .containsEntry("07-03", 4L);
     }
 
     private static Feedback feedback(int rating, String content) {
