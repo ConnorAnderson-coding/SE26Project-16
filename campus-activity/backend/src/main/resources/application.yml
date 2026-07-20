@@ -1,5 +1,12 @@
 server:
   port: 8080
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:false}
 
 spring:
   application:
@@ -11,7 +18,7 @@ spring:
     driver-class-name: org.h2.Driver
   h2:
     console:
-      enabled: true
+      enabled: false
       path: /h2-console
   jpa:
     hibernate:
@@ -20,6 +27,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+campus:
+  demo-password: ${CAMPUS_DEMO_PASSWORD:}
 
 springdoc:
   api-docs:

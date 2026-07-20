@@ -13,11 +13,14 @@ import com.example.campusactivity.repository.FeedbackRepository;
 import com.example.campusactivity.repository.SignupRepository;
 import com.example.campusactivity.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Configuration
 public class DataInitializer {
@@ -27,18 +30,25 @@ public class DataInitializer {
                                SignupRepository signups,
                                FavoriteRepository favorites,
                                FeedbackRepository feedbacks,
-                               CheckInRepository checkIns) {
+                               CheckInRepository checkIns,
+                               PasswordEncoder passwordEncoder,
+                               @Value("${campus.demo-password:}") String configuredDemoPassword) {
         return args -> {
             if (users.count() > 0) {
                 return;
             }
 
-            users.save(user("524030910001", "123456", "张三", "student", "软件学院", "2024级",
+            String demoPassword = configuredDemoPassword == null || configuredDemoPassword.isBlank()
+                    ? UUID.randomUUID().toString()
+                    : configuredDemoPassword;
+            String encodedDemoPassword = passwordEncoder.encode(demoPassword);
+
+            users.save(user("524030910001", encodedDemoPassword, "张三", "student", "软件学院", "2024级",
                     List.of("AI", "摄影", "羽毛球"), List.of("weekday_evening", "weekend"),
                     List.of("524030910002", "524030910003")));
-            users.save(user("524030910002", "123456", "李四", "student", "计算机学院", "2023级",
+            users.save(user("524030910002", encodedDemoPassword, "李四", "student", "计算机学院", "2023级",
                     List.of("编程", "电竞", "篮球"), List.of("weekend"), List.of("524030910001")));
-            users.save(user("T001", "123456", "王老师", "teacher", "软件学院", "教师",
+            users.save(user("T001", encodedDemoPassword, "王老师", "teacher", "软件学院", "教师",
                     List.of("AI", "创业"), List.of("weekday_morning", "weekday_afternoon"), List.of()));
 
             activities.save(activity("1", "AI 与大模型技术前沿讲座", "academic",

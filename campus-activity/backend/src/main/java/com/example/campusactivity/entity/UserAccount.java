@@ -1,5 +1,6 @@
 package com.example.campusactivity.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -17,6 +18,7 @@ public class UserAccount {
     private String id;
 
     @NotBlank
+    @JsonIgnore
     private String password;
 
     @NotBlank
@@ -88,7 +90,9 @@ public class UserAccount {
     }
 
     public void setInterests(List<String> interests) {
-        this.interests = interests == null ? new ArrayList<>() : interests;
+        this.interests = interests == null
+                ? new ArrayList<>()
+                : new ArrayList<>(interests);
     }
 
     public List<String> getAvailableTime() {
@@ -96,7 +100,9 @@ public class UserAccount {
     }
 
     public void setAvailableTime(List<String> availableTime) {
-        this.availableTime = availableTime == null ? new ArrayList<>() : availableTime;
+        this.availableTime = availableTime == null
+                ? new ArrayList<>()
+                : new ArrayList<>(availableTime);
     }
 
     public List<String> getFriends() {
@@ -104,6 +110,8 @@ public class UserAccount {
     }
 
     public void setFriends(List<String> friends) {
-        this.friends = friends == null ? new ArrayList<>() : friends;
+        this.friends = friends == null
+                ? new ArrayList<>()
+                : new ArrayList<>(friends);
     }
 }
