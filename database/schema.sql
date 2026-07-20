@@ -147,11 +147,11 @@ CREATE TABLE IF NOT EXISTS activity_analysis (
   failure_reason           VARCHAR(500) NULL,
   generated_at             DATETIME(3)  NOT NULL,
   created_at               DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  -- 一次性快照字段：加入分析列表时一次性读取，之后冻结不随 activity 行变化
-  view_count_snapshot      INT          NULL COMMENT '冻结时的浏览量',
-  signup_count_snapshot    INT          NULL COMMENT '冻结时的报名量',
-  favorite_count_snapshot  INT          NULL COMMENT '冻结时的收藏量',
-  snapshot_at              DATETIME(3)  NULL COMMENT '快照生成时间',
+  -- 可选历史快照（页面展示以 activity 实时计数为准）
+  view_count_snapshot      INT          NULL COMMENT '历史浏览量快照',
+  signup_count_snapshot    INT          NULL COMMENT '历史报名量快照',
+  favorite_count_snapshot  INT          NULL COMMENT '历史收藏量快照',
+  snapshot_at              DATETIME(3)  NULL COMMENT '快照时间',
   CONSTRAINT fk_analysis_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
   UNIQUE KEY uk_analysis_activity (activity_id),
   INDEX idx_analysis_generated (generated_at)

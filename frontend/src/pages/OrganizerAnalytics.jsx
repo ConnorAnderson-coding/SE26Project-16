@@ -185,11 +185,13 @@ function sampleLabels(days, maxCount) {
 
 /**
  * 判断活动是否已结束（用于过滤下拉列表）。
- * 仅当活动状态为 "ended" 时才视为已结束（由 ActivityLifecycleScheduler 在每日 00:30 自动标记）。
+ * 优先看 endTime；兼容 status === 'ended'。不依赖后端改写活动状态。
  */
 const isActivityEnded = (activity) => {
   if (!activity) return false
-  return activity.status === 'ended'
+  if (activity.status === 'ended') return true
+  if (!activity.endTime) return false
+  return dayjs(activity.endTime).isBefore(dayjs())
 }
 
 export default function OrganizerAnalytics() {
@@ -202,7 +204,7 @@ export default function OrganizerAnalytics() {
   const [suggestionSource, setSuggestionSource] = useState('none')
   const [generatedAt, setGeneratedAt] = useState(null)
   const [failureReason, setFailureReason] = useState(null)
-  // 一次性快照生成时间（前端用于提示数据时效）
+  // 指标计算时间（用于提示数据时效）
   const [snapshotAt, setSnapshotAt] = useState(null)
 
   useEffect(() => {
@@ -324,7 +326,7 @@ export default function OrganizerAnalytics() {
               {snapshotAt && (
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   <ClockCircleOutlined style={{ marginRight: 4 }} />
-                  数据快照时间：{dayjs(snapshotAt).format('YYYY-MM-DD HH:mm')}
+                  数据更新时间：{dayjs(snapshotAt).format('YYYY-MM-DD HH:mm')}
                 </Text>
               )}
             </Space>

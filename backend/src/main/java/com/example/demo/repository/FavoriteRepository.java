@@ -15,6 +15,4 @@ public interface FavoriteRepository extends JpaRepository<Favorite, FavoriteId> 
     List<Favorite> findByIdUserIdOrderByCreatedAtDesc(String userId);
 
     long countByIdUserId(String userId);
-
-    long countByIdActivityId(Long activityId);
 }
