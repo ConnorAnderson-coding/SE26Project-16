@@ -12,6 +12,7 @@ import com.example.demo.service.ActivityService;
 import com.example.demo.util.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,7 +31,9 @@ import java.util.List;
 public class ActivityController {
 
     private final ActivityService activityService;
-    private final ActivitySearchService activitySearchService;
+
+    @Autowired(required = false)
+    private ActivitySearchService activitySearchService;
 
     @GetMapping
     public ApiResponse<PageResult<ActivityResponse>> list(
@@ -56,6 +59,9 @@ public class ActivityController {
     public ApiResponse<PageResult<ActivityResponse>> semanticSearch(
             @RequestParam("q") String query,
             @RequestParam(defaultValue = "10") int size) {
+        if (activitySearchService == null) {
+            return ApiResponse.fail(503, "搜索服务未启用");
+        }
         ActivitySearchCriteria criteria = new ActivitySearchCriteria(
                 query, null, null, null,
                 SearchMode.SEMANTIC, null, 0.5, 0, size);
@@ -64,6 +70,9 @@ public class ActivityController {
 
     @PostMapping("/semantic-search/reindex")
     public ApiResponse<Boolean> rebuildSemanticIndex() {
+        if (activitySearchService == null) {
+            return ApiResponse.fail(503, "搜索服务未启用");
+        }
         if (!"admin".equals(SecurityUtils.getCurrentUser().getUser().getRole())) {
             throw new BusinessException(403, "Only admins can rebuild the semantic search index");
         }
