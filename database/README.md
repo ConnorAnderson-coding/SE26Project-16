@@ -217,18 +217,3 @@ cd frontend && npm install && npm run dev
 | 524030910002 | 123456 | 学生 |
 | T001 | 123456 | 教师 |
 | admin001 | 123456 | 管理员 |
-
-## 智能分析演示数据
-
-数据库和后端启动后，可导入一组独立且可重复执行的分析样例。脚本只会重建
-`check_in_code = 'AI-DEMO'` 的演示活动，不会清理其他活动。
-
-```powershell
-docker cp .\database\seed-analytics-demo.sql campus-mysql:/tmp/seed-analytics-demo.sql
-docker exec campus-mysql sh -c "mysql -ucampus -pcampus123 --default-character-set=utf8mb4 campus_activity < /tmp/seed-analytics-demo.sql"
-docker exec campus-redis redis-cli FLUSHDB
-.\scripts\analytics-e2e-test.ps1
-```
-
-未设置 `DEEPSEEK_API_KEY` 时，建议生成会立即降级为规则模板；设置环境变量并重启后端后，
-会调用配置的 LLM API。API Key 不应写入项目配置文件或提交到版本库。

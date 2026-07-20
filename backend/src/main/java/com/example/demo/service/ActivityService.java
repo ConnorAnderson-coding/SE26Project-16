@@ -101,7 +101,6 @@ public class ActivityService {
         } catch (BusinessException ignored) {
             // 未登录等场景，静默跳过
         }
-
         return DtoMapper.toActivityResponse(activity);
     }
 

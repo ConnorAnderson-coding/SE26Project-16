@@ -9,6 +9,7 @@ import com.example.demo.repository.ActivityRepository;
 import com.example.demo.repository.ActivityViewRepository;
 import com.example.demo.repository.CheckInRepository;
 import com.example.demo.repository.FeedbackRepository;
+import com.example.demo.repository.FavoriteRepository;
 import com.example.demo.repository.RegistrationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,7 @@ public class AnalyticsEngine {
     private final RegistrationRepository registrationRepository;
     private final CheckInRepository checkInRepository;
     private final FeedbackRepository feedbackRepository;
+    private final FavoriteRepository favoriteRepository;
     private final ActivityAnalysisRepository analysisRepository;
 
     
@@ -115,7 +117,8 @@ public class AnalyticsEngine {
                 activityViewRepository.countByActivityId(activity.getId()));
         int actualSignupCount = Math.toIntExact(
                 registrationRepository.countByActivityId(activity.getId()));
-        int favorite = nullToZero(activity.getFavoriteCount());
+        int favorite = Math.toIntExact(
+                favoriteRepository.countByIdActivityId(activity.getId()));
         LocalDateTime now = LocalDateTime.now();
 
         ActivityAnalysis row = existing.orElseGet(ActivityAnalysis::new);

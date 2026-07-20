@@ -102,7 +102,6 @@ CREATE TABLE IF NOT EXISTS check_in (
   INDEX idx_check_in_activity_time (activity_id, checked_at),
   INDEX idx_check_in_user_time (user_id, checked_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS favorite (
   user_id     VARCHAR(32) NOT NULL,
@@ -131,19 +130,6 @@ CREATE TABLE IF NOT EXISTS feedback (
   CONSTRAINT fk_feedback_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
   CONSTRAINT fk_feedback_user FOREIGN KEY (user_id) REFERENCES `user`(id),
   INDEX idx_feedback_activity (activity_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS check_in (
-  id             BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
-  activity_id    BIGINT      NOT NULL,
-  user_id        VARCHAR(32) NOT NULL,
-  method         VARCHAR(16) NOT NULL COMMENT 'qrcode/location/password',
-  check_in_time  DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  CONSTRAINT fk_checkin_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
-  CONSTRAINT fk_checkin_user FOREIGN KEY (user_id) REFERENCES `user`(id),
-  UNIQUE KEY uk_checkin_activity_user (activity_id, user_id),
-  INDEX idx_checkin_activity (activity_id),
-  INDEX idx_checkin_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS activity_analysis (
