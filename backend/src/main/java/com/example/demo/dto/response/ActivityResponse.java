@@ -28,6 +28,9 @@ public class ActivityResponse {
     private String status;
     private List<String> tags;
     private String checkInCode;
+    private Double latitude;
+    private Double longitude;
+    private Integer checkInRadiusMeters;
     private ActivityRecordResponse record;
     private Integer recommendScore;
     /** Short Chinese labels explaining why this activity was recommended. */

@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import {
-  Card, Form, Input, Select, DatePicker, Button, Upload, message, Row, Col
+  Card, Form, Input, Select, DatePicker, Button, Upload, message, Row, Col, InputNumber
 } from 'antd'
 import { PlusOutlined, UploadOutlined } from '@ant-design/icons'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
+import MapLocationPicker from '../components/MapLocationPicker'
 import { useApp } from '../context/AppContext'
 import { ACTIVITY_CATEGORIES } from '../data/mockData'
 
@@ -12,6 +13,8 @@ export default function CreateActivity() {
   const navigate = useNavigate()
   const { createActivity } = useApp()
   const [form] = Form.useForm()
+  const latitude = Form.useWatch('latitude', form)
+  const longitude = Form.useWatch('longitude', form)
 
   const handleSubmit = async (values) => {
     try {
@@ -23,6 +26,9 @@ export default function CreateActivity() {
         endTime: values.timeRange[1].toDate().toISOString(),
         location: values.location,
         maxParticipants: Number(values.maxParticipants),
+        latitude: values.latitude ?? null,
+        longitude: values.longitude ?? null,
+        checkInRadiusMeters: values.checkInRadiusMeters ? Number(values.checkInRadiusMeters) : 200,
         poster: values.poster?.[0]?.url || values.poster?.[0]?.thumbUrl || `https://picsum.photos/seed/${Date.now()}/800/400`,
         tags: values.tags || []
       }
@@ -42,7 +48,7 @@ export default function CreateActivity() {
             form={form}
             layout="vertical"
             onFinish={handleSubmit}
-            initialValues={{ maxParticipants: 50 }}
+            initialValues={{ maxParticipants: 50, checkInRadiusMeters: 200 }}
           >
             <Form.Item
               name="title"
@@ -92,6 +98,36 @@ export default function CreateActivity() {
             >
               <Input placeholder="如：软件大楼 A101" />
             </Form.Item>
+
+            <Form.Item label="地图选点">
+              <MapLocationPicker
+                value={{ latitude, longitude }}
+                onChange={({ latitude: nextLatitude, longitude: nextLongitude }) => {
+                  form.setFieldsValue({
+                    latitude: nextLatitude,
+                    longitude: nextLongitude
+                  })
+                }}
+              />
+            </Form.Item>
+
+            <Row gutter={16}>
+              <Col xs={24} md={8}>
+                <Form.Item name="latitude" label="签到纬度">
+                  <InputNumber min={-90} max={90} precision={6} style={{ width: '100%' }} placeholder="31.025200" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item name="longitude" label="签到经度">
+                  <InputNumber min={-180} max={180} precision={6} style={{ width: '100%' }} placeholder="121.433700" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item name="checkInRadiusMeters" label="签到半径（米）">
+                  <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+            </Row>
 
             <Form.Item name="tags" label="活动标签">
               <Select mode="tags" placeholder="输入标签，回车添加" />

@@ -17,12 +17,15 @@ CREATE TABLE IF NOT EXISTS `user` (
   password_hash   VARCHAR(255) NOT NULL,
   name            VARCHAR(64)  NOT NULL,
   role            VARCHAR(16)  NOT NULL DEFAULT 'student' COMMENT 'student/teacher/admin',
+  jaccount        VARCHAR(64)  NULL COMMENT 'jAccount 唯一标识 sub',
+  jaccount_type   VARCHAR(32)  NULL COMMENT 'jAccount 身份类别',
   college         VARCHAR(64)  NOT NULL,
   grade           VARCHAR(32)  NOT NULL,
   interests       JSON         NULL COMMENT '兴趣标签数组',
   available_time  JSON         NULL COMMENT '可参与时间数组',
   created_at      DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at      DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  UNIQUE KEY uk_user_jaccount (jaccount),
   INDEX idx_user_role (role),
   INDEX idx_user_college (college)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -47,6 +50,9 @@ CREATE TABLE IF NOT EXISTS activity (
   status           VARCHAR(16)  NOT NULL DEFAULT 'published' COMMENT 'draft/published/ended',
   tags             JSON         NULL,
   check_in_code    VARCHAR(32)  NULL,
+  latitude         DOUBLE       NULL,
+  longitude        DOUBLE       NULL,
+  check_in_radius_m INT         NOT NULL DEFAULT 200,
   created_at       DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at       DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   CONSTRAINT fk_activity_organizer FOREIGN KEY (organizer_id) REFERENCES `user`(id),
@@ -79,6 +85,23 @@ CREATE TABLE IF NOT EXISTS activity_view (
   CONSTRAINT fk_view_user FOREIGN KEY (user_id) REFERENCES `user`(id) ON DELETE CASCADE,
   UNIQUE KEY uk_activity_view_user (activity_id, user_id),
   INDEX idx_activity_view_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS check_in (
+  id          BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  activity_id BIGINT       NOT NULL,
+  user_id     VARCHAR(32)  NOT NULL,
+  method      VARCHAR(16)  NOT NULL COMMENT 'qrcode/location/password',
+  checked_at  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  latitude    DOUBLE       NULL,
+  longitude   DOUBLE       NULL,
+  distance_m  DOUBLE       NULL,
+  CONSTRAINT fk_check_in_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
+  CONSTRAINT fk_check_in_user FOREIGN KEY (user_id) REFERENCES `user`(id),
+  UNIQUE KEY uk_check_in_activity_user (activity_id, user_id),
+  INDEX idx_check_in_activity_time (activity_id, checked_at),
+  INDEX idx_check_in_user_time (user_id, checked_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS favorite (

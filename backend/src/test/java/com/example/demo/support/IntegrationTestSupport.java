@@ -116,6 +116,9 @@ public abstract class IntegrationTestSupport {
         activity.setStartTime(now.plusDays(1));
         activity.setEndTime(now.plusDays(1).plusHours(2));
         activity.setLocation("教学楼 A101");
+        activity.setLatitude(31.0252);
+        activity.setLongitude(121.4337);
+        activity.setCheckInRadiusMeters(200);
         activity.setOrganizer(organizer);
         activity.setCollege(organizer.getCollege());
         activity.setMaxParticipants(50);
@@ -137,6 +140,9 @@ public abstract class IntegrationTestSupport {
         request.setStartTime(LocalDateTime.now().plusDays(2));
         request.setEndTime(LocalDateTime.now().plusDays(2).plusHours(2));
         request.setLocation("图书馆");
+        request.setLatitude(31.0252);
+        request.setLongitude(121.4337);
+        request.setCheckInRadiusMeters(200);
         request.setMaxParticipants(30);
         request.setTags(List.of("编程"));
         return request;

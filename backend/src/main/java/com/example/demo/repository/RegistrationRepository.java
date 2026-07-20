@@ -38,6 +38,8 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
 
     long countByUserId(String userId);
 
+    long countByActivityIdAndStatus(Long activityId, String status);
+  
     @Query("""
             SELECT COUNT(DISTINCT r1.activity.id) FROM Registration r1, Registration r2
             WHERE r1.user.id = :userA AND r2.user.id = :userB
