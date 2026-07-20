@@ -71,11 +71,7 @@ public class ActivityAnalysis {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    // ==================== 一次性快照字段 ====================
-    // 活动首次加入分析列表时一次性读取浏览量/报名量/收藏量并冻结
-    // 之后不再随 activity 行的实时变化而改变
-    // 分析任务首次生成时写入，后续展示直接读取该快照
-
+    // 可选历史快照字段（表结构保留兼容）；页面展示以 activity 实时计数为准
     @Column(name = "view_count_snapshot")
     private Integer viewCountSnapshot;
 

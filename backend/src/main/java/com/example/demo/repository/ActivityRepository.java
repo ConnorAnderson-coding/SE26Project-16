@@ -56,17 +56,15 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
             key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     List<Activity> findPublishedByHot(Pageable pageable);
 
-    /** 查询指定时间范围内结束的活动（用于定时分析任务） */
-    @Query("SELECT a FROM Activity a WHERE a.status = 'ended' " +
-           "AND a.endTime >= :since AND a.endTime < :until " +
-           "ORDER BY a.endTime ASC")
+    /**
+     * 查询指定时间窗口内结束的活动（按 endTime，不依赖 status，避免改动主流程活动状态机）。
+     * 用于定时分析任务。
+     */
+    @Query("SELECT a FROM Activity a WHERE a.endTime >= :since AND a.endTime < :until " +
+           "AND a.status <> 'draft' ORDER BY a.endTime ASC")
     List<Activity> findEndedBetween(
             @Param("since") LocalDateTime since,
             @Param("until") LocalDateTime until);
-
-    @EntityGraph(attributePaths = "organizer")
-    @Query("SELECT a FROM Activity a WHERE a.status = 'published' AND a.endTime < :now")
-    List<Activity> findPublishedEndedBefore(@Param("now") LocalDateTime now);
 
     @Query(value = "SELECT a.updated_at, " +
            "(SELECT MAX(f.created_at) FROM feedback f WHERE f.activity_id = :id), " +

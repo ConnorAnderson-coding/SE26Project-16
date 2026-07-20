@@ -2,11 +2,8 @@ package com.example.demo.service;
 
 import com.example.demo.dto.analytics.ActivityMetrics;
 import com.example.demo.entity.Activity;
-import com.example.demo.repository.ActivityAnalysisRepository;
 import com.example.demo.repository.ActivityRepository;
-import com.example.demo.repository.ActivityViewRepository;
 import com.example.demo.repository.CheckInRepository;
-import com.example.demo.repository.FavoriteRepository;
 import com.example.demo.repository.FeedbackRepository;
 import com.example.demo.repository.RegistrationRepository;
 import org.junit.jupiter.api.Test;
@@ -26,38 +23,41 @@ import static org.mockito.Mockito.when;
 class AnalyticsEngineTest {
 
     @Mock ActivityRepository activityRepository;
-    @Mock ActivityViewRepository activityViewRepository;
     @Mock RegistrationRepository registrationRepository;
     @Mock CheckInRepository checkInRepository;
     @Mock FeedbackRepository feedbackRepository;
-    @Mock FavoriteRepository favoriteRepository;
-    @Mock ActivityAnalysisRepository analysisRepository;
     @InjectMocks AnalyticsEngine analyticsEngine;
 
     @Test
-    void snapshotUsesFavoriteDetailsInsteadOfAggregateColumn() {
+    void metricsUseActivityAggregateColumnsLikeDetailPage() {
         Activity activity = new Activity();
         activity.setId(7L);
         activity.setTitle("test");
-        activity.setFavoriteCount(99);
+        activity.setViewCount(120);
+        activity.setSignupCount(31);
+        activity.setFavoriteCount(19);
+        activity.setMaxParticipants(40);
         activity.setStartTime(LocalDateTime.now().minusDays(1));
         activity.setEndTime(LocalDateTime.now());
 
         when(activityRepository.findById(7L)).thenReturn(Optional.of(activity));
-        when(analysisRepository.findByActivityId(7L)).thenReturn(Optional.empty());
-        when(activityViewRepository.countByActivityId(7L)).thenReturn(10L);
-        when(registrationRepository.countByActivityId(7L)).thenReturn(4L);
         when(registrationRepository.countByActivityIdAndStatus(7L, "approved")).thenReturn(3L);
         when(registrationRepository.countDailySignupsByActivityId(7L)).thenReturn(List.of());
-        when(favoriteRepository.countByIdActivityId(7L)).thenReturn(2L);
         when(checkInRepository.countByActivityId(7L)).thenReturn(1L);
         when(checkInRepository.countByMethodGroupByActivityId(7L)).thenReturn(List.of());
         when(feedbackRepository.findByActivityIdOrderByCreatedAtDesc(7L)).thenReturn(List.of());
 
         ActivityMetrics metrics = analyticsEngine.computeMetrics(7L);
 
-        assertThat(metrics.getFavoriteCount()).isEqualTo(2);
-        assertThat(metrics.getViewCount()).isEqualTo(10);
-        assertThat(metrics.getSignupCount()).isEqualTo(4);
+        // 与详情页同源：activity 表冗余字段，而非 registration/favorite 明细行数
+        assertThat(metrics.getSignupCount()).isEqualTo(31);
+        assertThat(metrics.getViewCount()).isEqualTo(120);
+        assertThat(metrics.getFavoriteCount()).isEqualTo(19);
+        assertThat(metrics.getApprovedCount()).isEqualTo(3L);
+        assertThat(metrics.getCheckInCount()).isEqualTo(1L);
+        // 报名转化率 = 31/120 * 100
+        assertThat(metrics.getSignupRate()).isEqualByComparingTo("25.8");
+        // 到场率 = 1/31 * 100
+        assertThat(metrics.getAttendanceRate()).isEqualByComparingTo("3.2");
     }
 }
