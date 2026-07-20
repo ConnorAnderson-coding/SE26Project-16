@@ -10,9 +10,18 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ElasticsearchProperties {
 
     private boolean enabled = true;
-    /** Rebuild ES activity index from MySQL on startup when the index is empty. */
+    /** Rebuild ES activity index from MySQL on startup when the index is incomplete. */
     private boolean autoRebuildOnStartup = true;
     private String indexActivities = "campus_activities";
+    /**
+     * Max docs per bulk request during full rebuild. Keep small so GTE ingest
+     * ({@code inference process queue}) is not saturated on ~1k+ activities.
+     */
+    private int bulkBatchSize = 15;
+    /** Pause between bulk batches during rebuild (milliseconds). */
+    private long bulkBatchDelayMs = 400L;
+    /** Retries per batch when ES returns transient ML queue / timeout errors. */
+    private int bulkMaxRetries = 6;
     /**
      * Dense text embedding model used for activity_embedding kNN.
      * Default: thenlper/gte-small-zh imported via Eland as {@code campus_gte} (512-d).

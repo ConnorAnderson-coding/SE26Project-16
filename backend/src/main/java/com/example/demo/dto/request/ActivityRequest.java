@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -40,6 +42,17 @@ public class ActivityRequest {
 
     @Size(max = 500)
     private String poster;
+
+    @DecimalMin(value = "-90.0", message = "纬度不合法")
+    @DecimalMax(value = "90.0", message = "纬度不合法")
+    private Double latitude;
+
+    @DecimalMin(value = "-180.0", message = "经度不合法")
+    @DecimalMax(value = "180.0", message = "经度不合法")
+    private Double longitude;
+
+    @Min(value = 1, message = "签到半径至少为1米")
+    private Integer checkInRadiusMeters;
 
     private List<String> tags;
 }

@@ -11,6 +11,8 @@ public class UserResponse {
     private String id;
     private String name;
     private String role;
+    private String jaccount;
+    private String jaccountType;
     private String college;
     private String grade;
     private List<String> interests;

@@ -23,7 +23,8 @@ import org.springframework.stereotype.Component;
 public class ActivitySearchIndexBootstrap implements ApplicationRunner {
 
     private static final int MAX_ATTEMPTS = 6;
-    private static final long RETRY_DELAY_MS = 5_000L;
+    /** Longer delay: a full GTE rebuild of ~1.5k docs can take several minutes. */
+    private static final long RETRY_DELAY_MS = 15_000L;
 
     private final ElasticsearchProperties elasticsearchProperties;
     private final ActivityIndexService activityIndexService;
