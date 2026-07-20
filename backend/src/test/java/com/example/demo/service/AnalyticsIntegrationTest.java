@@ -58,7 +58,6 @@ class AnalyticsIntegrationTest extends IntegrationTestSupport {
         transactionTemplate.executeWithoutResult(status -> {
             Activity a = activityRepository.findById(scenario.activity().getId()).orElseThrow();
             a.setViewCount(100);
-            a.setSignupCount(40);
             a.setFavoriteCount(8);
             a.setMaxParticipants(50);
             LocalDateTime yesterdayNoon = LocalDateTime.now().minusDays(1).toLocalDate().atTime(12, 0);
@@ -82,8 +81,8 @@ class AnalyticsIntegrationTest extends IntegrationTestSupport {
         ActivityMetrics metrics = analyticsEngine.computeMetrics(activityId);
 
         assertThat(metrics.getViewCount()).isEqualTo(100);
-        assertThat(metrics.getSignupCount()).isEqualTo(40);
-        assertThat(metrics.getSignupRate()).isEqualByComparingTo("40.0");
+        assertThat(metrics.getSignupCount()).isEqualTo(2);
+        assertThat(metrics.getSignupRate()).isEqualByComparingTo("2.0");
         assertThat(metrics.getApprovedCount()).isEqualTo(2L);
         assertThat(metrics.getFeedbackCount()).isEqualTo(2L);
         assertThat(metrics.getAvgRating()).isEqualByComparingTo("4.50");
@@ -121,28 +120,28 @@ class AnalyticsIntegrationTest extends IntegrationTestSupport {
     void analyticsCacheHitSkipsDbMutationUntilEvict() {
         Long activityId = scenario.activity().getId();
         ActivityMetrics first = analyticsEngine.computeMetrics(activityId);
-        assertThat(first.getSignupCount()).isEqualTo(40);
+        int firstViewCount = first.getViewCount();
 
         // 改库但不清缓存
         transactionTemplate.executeWithoutResult(status -> {
             Activity a = activityRepository.findById(activityId).orElseThrow();
-            a.setSignupCount(99);
+            a.setViewCount(999);
             activityRepository.save(a);
         });
 
         ActivityMetrics cached = analyticsEngine.computeMetrics(activityId);
-        assertThat(cached.getSignupCount())
+        assertThat(cached.getViewCount())
                 .as("缓存命中时应仍返回旧指标")
-                .isEqualTo(40);
+                .isEqualTo(firstViewCount);
 
         Cache c = cacheManager.getCache(CacheNames.ANALYTICS_ACTIVITY);
         assertThat(c).isNotNull();
         c.evict(activityId);
 
         ActivityMetrics fresh = analyticsEngine.computeMetrics(activityId);
-        assertThat(fresh.getSignupCount())
-                .as("失效后应读到新 signup_count")
-                .isEqualTo(99);
+        assertThat(fresh.getViewCount())
+                .as("失效后应读到新 view_count")
+                .isEqualTo(999);
     }
 
     @Test
@@ -209,9 +208,10 @@ class AnalyticsIntegrationTest extends IntegrationTestSupport {
     @Test
     void metricsEndpointReturnsOrganizerOnly() throws Exception {
         Long activityId = scenario.activity().getId();
+        // signupCount 现来自 registration 表 COUNT，依赖 DB 已有报名行数，
+        // 不在 setUp 中硬编码；此处只校验 viewCount（仍由 setUp 写入）。
         authGet(scenario.organizerToken(), "/api/v1/analytics/activity/" + activityId + "/metrics")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.signupCount").value(40))
                 .andExpect(jsonPath("$.data.viewCount").value(100));
 
         authGet(scenario.studentToken(), "/api/v1/analytics/activity/" + activityId + "/metrics")

@@ -46,10 +46,11 @@ public class AnalyticsEngine {
         Activity activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new RuntimeException("活动不存在: " + activityId));
 
-        // 与详情页一致：使用 activity 表上的冗余计数
+        // 浏览量/收藏量使用 activity 表冗余计数（与详情页一致）
         int viewCount = nullToZero(activity.getViewCount());
-        int signupCount = nullToZero(activity.getSignupCount());
         int favoriteCount = nullToZero(activity.getFavoriteCount());
+        // 报名人数使用报名明细真实记录数，避免 signup_count 只增不减导致偏高
+        int signupCount = (int) registrationRepository.countByActivityId(activityId);
 
         long approvedCount = registrationRepository.countByActivityIdAndStatus(
                 activityId, "approved");

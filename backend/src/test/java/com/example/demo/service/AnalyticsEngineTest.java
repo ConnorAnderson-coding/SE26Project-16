@@ -42,7 +42,6 @@ class AnalyticsEngineTest {
         activity.setCategory("sports");
         activity.setLocation("体育馆");
         activity.setViewCount(100);
-        activity.setSignupCount(40);
         activity.setFavoriteCount(10);
         activity.setMaxParticipants(50);
         activity.setCreatedAt(LocalDateTime.of(2026, 7, 1, 9, 0));
@@ -52,6 +51,7 @@ class AnalyticsEngineTest {
 
     private void stubBaseCounts() {
         when(activityRepository.findById(7L)).thenReturn(Optional.of(activity));
+        when(registrationRepository.countByActivityId(7L)).thenReturn(40L);
         when(registrationRepository.countByActivityIdAndStatus(7L, "approved")).thenReturn(30L);
         when(registrationRepository.countDailySignupsByActivityId(7L)).thenReturn(List.of());
         when(checkInRepository.countByActivityId(7L)).thenReturn(24L);
@@ -84,8 +84,8 @@ class AnalyticsEngineTest {
     @Test
     void signupRateIsZeroWhenViewCountIsZero() {
         activity.setViewCount(0);
-        activity.setSignupCount(10);
         stubBaseCounts();
+        when(registrationRepository.countByActivityId(7L)).thenReturn(10L);
         when(checkInRepository.countByActivityId(7L)).thenReturn(0L);
 
         ActivityMetrics metrics = analyticsEngine.computeMetrics(7L);
@@ -97,9 +97,9 @@ class AnalyticsEngineTest {
 
     @Test
     void attendanceRateIsZeroWhenSignupCountIsZero() {
-        activity.setSignupCount(0);
         activity.setViewCount(50);
         stubBaseCounts();
+        when(registrationRepository.countByActivityId(7L)).thenReturn(0L);
         when(checkInRepository.countByActivityId(7L)).thenReturn(5L); // 异常：签到 > 报名
 
         ActivityMetrics metrics = analyticsEngine.computeMetrics(7L);
@@ -111,9 +111,9 @@ class AnalyticsEngineTest {
     @Test
     void nullAggregateCountsTreatedAsZero() {
         activity.setViewCount(null);
-        activity.setSignupCount(null);
         activity.setFavoriteCount(null);
         stubBaseCounts();
+        when(registrationRepository.countByActivityId(7L)).thenReturn(0L);
 
         ActivityMetrics metrics = analyticsEngine.computeMetrics(7L);
 
