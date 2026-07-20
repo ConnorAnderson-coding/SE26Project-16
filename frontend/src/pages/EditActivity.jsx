@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  Form, Card, Input, Button, Select, DatePicker, Upload, message, Row, Col, Spin
+  Form, Card, Input, Button, Select, DatePicker, Upload, message, Row, Col, Spin, InputNumber
 } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
+import MapLocationPicker from '../components/MapLocationPicker'
 import { useApp } from '../context/AppContext'
 import { getActivityById } from '../services/activityApi'
 import { ACTIVITY_CATEGORIES } from '../data/mockData'
@@ -19,6 +20,8 @@ export default function EditActivity() {
   const [activity, setActivity] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const latitude = Form.useWatch('latitude', form)
+  const longitude = Form.useWatch('longitude', form)
 
   useEffect(() => {
     getActivityById(id)
@@ -55,6 +58,9 @@ export default function EditActivity() {
         description: values.description,
         location: values.location,
         maxParticipants: Number(values.maxParticipants),
+        latitude: values.latitude ?? null,
+        longitude: values.longitude ?? null,
+        checkInRadiusMeters: values.checkInRadiusMeters ? Number(values.checkInRadiusMeters) : 200,
         tags: values.tags || [],
         poster: values.poster?.[0]?.url || values.poster?.[0]?.thumbUrl || activity.poster,
         startTime: values.timeRange[0].toDate().toISOString(),
@@ -80,6 +86,9 @@ export default function EditActivity() {
               category: activity.category,
               description: activity.description,
               location: activity.location,
+              latitude: activity.latitude,
+              longitude: activity.longitude,
+              checkInRadiusMeters: activity.checkInRadiusMeters || 200,
               maxParticipants: activity.maxParticipants,
               tags: activity.tags,
               timeRange: [dayjs(activity.startTime), dayjs(activity.endTime)],
@@ -112,6 +121,36 @@ export default function EditActivity() {
             <Form.Item name="location" label="活动地点" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
+
+            <Form.Item label="地图选点">
+              <MapLocationPicker
+                value={{ latitude, longitude }}
+                onChange={({ latitude: nextLatitude, longitude: nextLongitude }) => {
+                  form.setFieldsValue({
+                    latitude: nextLatitude,
+                    longitude: nextLongitude
+                  })
+                }}
+              />
+            </Form.Item>
+
+            <Row gutter={16}>
+              <Col xs={24} md={8}>
+                <Form.Item name="latitude" label="签到纬度">
+                  <InputNumber min={-90} max={90} precision={6} style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item name="longitude" label="签到经度">
+                  <InputNumber min={-180} max={180} precision={6} style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={8}>
+                <Form.Item name="checkInRadiusMeters" label="签到半径（米）">
+                  <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+            </Row>
 
             <Form.Item name="tags" label="活动标签">
               <Select mode="tags" />
