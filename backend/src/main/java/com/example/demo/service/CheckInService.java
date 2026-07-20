@@ -1,6 +1,7 @@
 package com.example.demo.service;
 
 import com.example.demo.common.BusinessException;
+import com.example.demo.common.CacheNames;
 import com.example.demo.dto.DtoMapper;
 import com.example.demo.dto.request.LocationCheckInRequest;
 import com.example.demo.dto.request.PasswordCheckInRequest;
@@ -18,6 +19,7 @@ import com.example.demo.repository.RegistrationRepository;
 import com.example.demo.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -82,6 +84,7 @@ public class CheckInService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#request.activityId")
     public CheckInResponse checkInByQr(QRCodeCheckInRequest request) {
         String activityId = getValue(qrTokenKey(request.getToken()));
         if (!String.valueOf(request.getActivityId()).equals(activityId)) {
@@ -113,6 +116,7 @@ public class CheckInService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#request.activityId")
     public CheckInResponse checkInByPassword(PasswordCheckInRequest request) {
         String encodedSecret = getValue(passwordKey(request.getActivityId()));
         if (encodedSecret == null) {
@@ -129,6 +133,7 @@ public class CheckInService {
     }
 
     @Transactional
+    @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#request.activityId")
     public CheckInResponse checkInByLocation(LocationCheckInRequest request) {
         Activity activity = getActivity(request.getActivityId());
         if (activity.getLatitude() == null || activity.getLongitude() == null) {

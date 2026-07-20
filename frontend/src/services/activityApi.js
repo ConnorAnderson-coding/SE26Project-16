@@ -32,16 +32,6 @@ export async function getAllActivities(params = {}) {
   return result.content
 }
 
-export async function semanticSearch(query, size = 20) {
-  const data = await http.get('/activities/semantic-search', {
-    params: { q: query, size }
-  })
-  return {
-    ...data,
-    results: (data.results || []).map(normalizeActivity)
-  }
-}
-
 export async function getRecommended(limit = 6) {
   const data = await http.get('/activities/recommended', { params: { limit } })
   return data.map(normalizeActivity)

@@ -33,29 +33,11 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
             @Param("keyword") String keyword,
             Pageable pageable);
 
-    /**
-     * 按 ID 加载活动完整视图（含 organizer 与 record）。
-     * <p>
-     * 结果会写入 {@link CacheNames#ACTIVITY_DETAIL} 缓存，
-     * 但缓存中的 {@code viewCount} 字段可能落后于数据库；
-     * 调用方应在写入 DTO 时叠加本次自增的最新值。
-     *
-     * @param id 活动主键
-     * @return 活动实体
-     */
     @EntityGraph(attributePaths = {"organizer", "record"})
     @Cacheable(value = CacheNames.ACTIVITY_DETAIL, key = "#id")
     Optional<Activity> findWithDetailsById(Long id);
 
-    /**
-     * 原子自增活动浏览量 +1。
-     * <p>
-     * 使用 JPQL 走数据库原子更新，避免并发竞态；并彻底脱离 @Cacheable 缓存层，
-     * 保证后续 getById 读取到的 viewCount 始终是最新值。
-     *
-     * @param id 活动 ID
-     * @return 受影响的行数（0 表示活动不存在）
-     */
+    /** 原子自增活动浏览量，避免并发访问丢失计数。 */
     @Modifying
     @Query("UPDATE Activity a SET a.viewCount = a.viewCount + 1 WHERE a.id = :id")
     int incrementViewCount(@Param("id") Long id);
@@ -82,14 +64,13 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
             @Param("since") LocalDateTime since,
             @Param("until") LocalDateTime until);
 
-    @Modifying
-    @Query("UPDATE Activity a SET a.status = 'ended', a.updatedAt = :now " +
-           "WHERE a.status = 'published' AND a.endTime < :now")
-    int markEndedBefore(@Param("now") LocalDateTime now);
+    @EntityGraph(attributePaths = "organizer")
+    @Query("SELECT a FROM Activity a WHERE a.status = 'published' AND a.endTime < :now")
+    List<Activity> findPublishedEndedBefore(@Param("now") LocalDateTime now);
 
     @Query(value = "SELECT a.updated_at, " +
            "(SELECT MAX(f.created_at) FROM feedback f WHERE f.activity_id = :id), " +
-           "(SELECT MAX(c.check_in_time) FROM check_in c WHERE c.activity_id = :id), " +
+           "(SELECT MAX(c.checked_at) FROM check_in c WHERE c.activity_id = :id), " +
            "(SELECT MAX(r.created_at) FROM registration r WHERE r.activity_id = :id) " +
            "FROM activity a WHERE a.id = :id", nativeQuery = true)
     List<Object[]> findDataFreshness(@Param("id") Long id);

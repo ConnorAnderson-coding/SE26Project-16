@@ -43,7 +43,8 @@ public class FavoriteService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#activityId"),
-            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true)
+            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true),
+            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#activityId")
     })
     public FavoriteToggleResponse toggle(Long activityId) {
         String userId = SecurityUtils.getCurrentUserId();
