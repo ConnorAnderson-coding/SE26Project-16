@@ -5,8 +5,9 @@ import com.example.demo.common.BusinessException;
 import com.example.demo.common.PageResult;
 import com.example.demo.dto.request.ActivityRequest;
 import com.example.demo.dto.response.ActivityResponse;
-import com.example.demo.dto.response.SemanticSearchResponse;
-import com.example.demo.service.ActivitySearchService;
+import com.example.demo.search.ActivitySearchCriteria;
+import com.example.demo.search.SearchMode;
+import com.example.demo.search.service.ActivitySearchService;
 import com.example.demo.service.ActivityService;
 import com.example.demo.util.SecurityUtils;
 import jakarta.validation.Valid;
@@ -52,18 +53,21 @@ public class ActivityController {
     }
 
     @GetMapping("/semantic-search")
-    public ApiResponse<SemanticSearchResponse> semanticSearch(
+    public ApiResponse<PageResult<ActivityResponse>> semanticSearch(
             @RequestParam("q") String query,
             @RequestParam(defaultValue = "10") int size) {
-        return ApiResponse.ok(activitySearchService.search(query, size));
+        ActivitySearchCriteria criteria = new ActivitySearchCriteria(
+                query, null, null, null,
+                SearchMode.SEMANTIC, null, 0.5, 0, size);
+        return ApiResponse.ok(activitySearchService.search(criteria));
     }
 
     @PostMapping("/semantic-search/reindex")
-    public ApiResponse<Integer> rebuildSemanticIndex() {
+    public ApiResponse<Boolean> rebuildSemanticIndex() {
         if (!"admin".equals(SecurityUtils.getCurrentUser().getUser().getRole())) {
             throw new BusinessException(403, "Only admins can rebuild the semantic search index");
         }
-        return ApiResponse.ok(activitySearchService.rebuildIndex());
+        return ApiResponse.ok(activitySearchService.isIndexEmpty());
     }
 
     @GetMapping("/mine")
