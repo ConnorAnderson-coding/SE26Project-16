@@ -37,9 +37,10 @@ public class ActivityRecordService {
 
     @Transactional
     @Caching(evict = {
-            @CacheEvict(value = CacheNames.ACTIVITY_RECORD, key = "#activityId"),
             @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#activityId"),
-            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true)
+            @CacheEvict(value = CacheNames.ACTIVITY_RECORD, key = "#activityId"),
+            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true),
+            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#activityId")
     })
     public ActivityRecordResponse publish(Long activityId, ActivityRecordRequest request) {
         Activity activity = activityService.getActivityEntity(activityId);

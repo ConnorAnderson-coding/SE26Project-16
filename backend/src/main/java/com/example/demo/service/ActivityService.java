@@ -46,6 +46,7 @@ public class ActivityService {
     private final ActivityRepository activityRepository;
     private final UserService userService;
     private final RegistrationRepository registrationRepository;
+    private final ActivityViewService activityViewService;
     private final ObjectProvider<ActivityIndexService> activityIndexService;
     private final ObjectProvider<ActivitySearchService> activitySearchService;
     private final ObjectProvider<RecommendationService> recommendationService;
@@ -93,6 +94,13 @@ public class ActivityService {
     public ActivityResponse getById(Long id) {
         Activity activity = activityRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new BusinessException("活动不存在"));
+
+        try {
+            String userId = SecurityUtils.getCurrentUserId();
+            activityViewService.recordUniqueView(id, userId);
+        } catch (BusinessException ignored) {
+            // 未登录等场景，静默跳过
+        }
         return DtoMapper.toActivityResponse(activity);
     }
 
@@ -175,7 +183,8 @@ public class ActivityService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#id"),
-            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true)
+            @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true),
+            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#id")
     })
     public ActivityResponse update(Long id, ActivityRequest request) {
         Activity activity = getOwnedActivity(id);
@@ -192,7 +201,8 @@ public class ActivityService {
             @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#id"),
             @CacheEvict(value = CacheNames.ACTIVITY_HOT_LIST, allEntries = true),
             @CacheEvict(value = CacheNames.ACTIVITY_RECORD, key = "#id"),
-            @CacheEvict(value = CacheNames.FEEDBACK_BY_ACTIVITY, key = "#id")
+            @CacheEvict(value = CacheNames.FEEDBACK_BY_ACTIVITY, key = "#id"),
+            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#id")
     })
     public void delete(Long id) {
         Activity activity = getOwnedActivity(id);

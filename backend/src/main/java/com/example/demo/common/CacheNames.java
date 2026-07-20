@@ -10,6 +10,7 @@ public final class CacheNames {
     public static final String ACTIVITY_HOT_LIST = "activity:list:hot";
     public static final String FEEDBACK_BY_ACTIVITY = "feedback:activity";
     public static final String ACTIVITY_RECORD = "activity:record";
+    public static final String ANALYTICS_ACTIVITY = "analytics:activity";
 
     private CacheNames() {
     }

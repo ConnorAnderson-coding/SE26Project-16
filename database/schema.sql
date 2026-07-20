@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS activity (
   poster           VARCHAR(500) NULL,
   max_participants INT          NOT NULL DEFAULT 50,
   signup_count     INT          NOT NULL DEFAULT 0,
+  view_count       INT          NOT NULL DEFAULT 0 COMMENT '活动详情浏览量',
   favorite_count   INT          NOT NULL DEFAULT 0,
-  view_count       INT          NOT NULL DEFAULT 0,
   check_in_count   INT          NOT NULL DEFAULT 0,
   hotness_score    DOUBLE       NOT NULL DEFAULT 0,
   status           VARCHAR(16)  NOT NULL DEFAULT 'published' COMMENT 'draft/published/ended',
@@ -74,6 +74,17 @@ CREATE TABLE IF NOT EXISTS registration (
   UNIQUE KEY uk_reg_activity_user (activity_id, user_id),
   INDEX idx_reg_user (user_id),
   INDEX idx_reg_activity_status (activity_id, status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS activity_view (
+  id          BIGINT      NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  activity_id BIGINT      NOT NULL,
+  user_id     VARCHAR(32) NOT NULL,
+  viewed_at   DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  CONSTRAINT fk_view_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
+  CONSTRAINT fk_view_user FOREIGN KEY (user_id) REFERENCES `user`(id) ON DELETE CASCADE,
+  UNIQUE KEY uk_activity_view_user (activity_id, user_id),
+  INDEX idx_activity_view_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS check_in (
@@ -119,4 +130,29 @@ CREATE TABLE IF NOT EXISTS feedback (
   CONSTRAINT fk_feedback_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
   CONSTRAINT fk_feedback_user FOREIGN KEY (user_id) REFERENCES `user`(id),
   INDEX idx_feedback_activity (activity_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS activity_analysis (
+  id                       BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  activity_id              BIGINT       NOT NULL,
+  signup_rate              DECIMAL(5,1) NOT NULL,
+  attendance_rate          DECIMAL(5,1) NOT NULL,
+  avg_rating               DECIMAL(3,2) NULL,
+  rating_distribution      JSON NULL,
+  check_in_methods_stats   JSON NULL,
+  suggestions              JSON NULL,
+  suggestion_source        VARCHAR(16)  NOT NULL DEFAULT 'llm',
+  suggestion_model         VARCHAR(64)  NULL,
+  analysis_status          VARCHAR(16)  NOT NULL DEFAULT 'ready' COMMENT 'pending/ready/failed',
+  failure_reason           VARCHAR(500) NULL,
+  generated_at             DATETIME(3)  NOT NULL,
+  created_at               DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  -- 可选历史快照（页面展示以 activity 实时计数为准）
+  view_count_snapshot      INT          NULL COMMENT '历史浏览量快照',
+  signup_count_snapshot    INT          NULL COMMENT '历史报名量快照',
+  favorite_count_snapshot  INT          NULL COMMENT '历史收藏量快照',
+  snapshot_at              DATETIME(3)  NULL COMMENT '快照时间',
+  CONSTRAINT fk_analysis_activity FOREIGN KEY (activity_id) REFERENCES activity(id) ON DELETE CASCADE,
+  UNIQUE KEY uk_analysis_activity (activity_id),
+  INDEX idx_analysis_generated (generated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
