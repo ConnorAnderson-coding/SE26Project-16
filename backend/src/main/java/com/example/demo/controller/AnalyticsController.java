@@ -11,6 +11,7 @@ import com.example.demo.service.AnalyticsEngine;
 import com.example.demo.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -82,10 +83,14 @@ public class AnalyticsController {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     private void assertOrganizer(Long activityId) {
         var activity = activityRepository.findById(activityId)
                 .orElseThrow(() -> new BusinessException("活动不存在"));
-        if (!SecurityUtils.getCurrentUserId().equals(activity.getOrganizerId())) {
+        String organizerId = activity.getOrganizer() != null
+                ? activity.getOrganizer().getId()
+                : activity.getOrganizerId();
+        if (!SecurityUtils.getCurrentUserId().equals(organizerId)) {
             throw new BusinessException(403, "仅活动组织者可以查看或触发分析");
         }
     }
