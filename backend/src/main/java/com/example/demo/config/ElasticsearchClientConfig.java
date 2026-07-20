@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.net.URI;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 显式创建 Elasticsearch Java API Client，避免与 Spring Boot 自动配置重复注册 Bean，
@@ -32,7 +33,14 @@ public class ElasticsearchClientConfig {
         URI uri = URI.create(uris.split(",")[0].trim());
         int port = uri.getPort() > 0 ? uri.getPort() : 9200;
         String scheme = uri.getScheme() != null ? uri.getScheme() : "http";
-        return RestClient.builder(new HttpHost(uri.getHost(), port, scheme)).build();
+        // Embedding ingest on large rebuilds can exceed the default 30s socket timeout.
+        return RestClient.builder(new HttpHost(uri.getHost(), port, scheme))
+                .setRequestConfigCallback(requestConfig -> requestConfig
+                        .setConnectTimeout((int) TimeUnit.SECONDS.toMillis(10))
+                        .setSocketTimeout((int) TimeUnit.MINUTES.toMillis(5)))
+                .setHttpClientConfigCallback(httpClient -> httpClient
+                        .setKeepAliveStrategy((response, context) -> TimeUnit.MINUTES.toMillis(5)))
+                .build();
     }
 
     @Bean
