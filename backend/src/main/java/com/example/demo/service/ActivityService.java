@@ -226,6 +226,11 @@ public class ActivityService {
         activity.setLocation(request.getLocation());
         activity.setMaxParticipants(request.getMaxParticipants());
         activity.setPoster(request.getPoster());
+        activity.setLatitude(request.getLatitude());
+        activity.setLongitude(request.getLongitude());
+        activity.setCheckInRadiusMeters(request.getCheckInRadiusMeters() != null
+                ? request.getCheckInRadiusMeters()
+                : 200);
         activity.setTags(request.getTags() != null ? request.getTags() : new ArrayList<>());
     }
 

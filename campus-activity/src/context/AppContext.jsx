@@ -6,8 +6,8 @@ import * as registrationApi from '../services/registrationApi'
 import * as favoriteApi from '../services/favoriteApi'
 import * as recordApi from '../services/recordApi'
 import * as feedbackApi from '../services/feedbackApi'
-import { getStoredUser, getToken } from '../services/http'
-import { checkIn as mockCheckIn, getCheckIns } from '../services/mock/mockApi'
+import * as checkInApi from '../services/checkInApi'
+import { getStoredUser, getToken, setToken } from '../services/http'
 
 const AppContext = createContext(null)
 
@@ -29,13 +29,14 @@ export function AppProvider({ children }) {
       })
       .finally(() => setInitializing(false))
 
-    getCheckIns().then(setCheckIns)
+    checkInApi.getMine().then(setCheckIns).catch(() => setCheckIns([]))
   }, [])
 
   const login = useCallback(async (userId, password) => {
     try {
       const data = await authApi.login(userId, password)
       setCurrentUser(data.user)
+      checkInApi.getMine().then(setCheckIns).catch(() => setCheckIns([]))
       return { success: true }
     } catch (err) {
       return { success: false, message: err.message }
@@ -45,6 +46,20 @@ export function AppProvider({ children }) {
   const logout = useCallback(() => {
     authApi.logout()
     setCurrentUser(null)
+    setCheckIns([])
+  }, [])
+
+  const completeJAccountLogin = useCallback(async (token) => {
+    setToken(token)
+    authApi.setAuthProvider('jaccount')
+    const user = await userApi.getMe()
+    setCurrentUser(user)
+    checkInApi.getMine().then(setCheckIns).catch(() => setCheckIns([]))
+    return user
+  }, [])
+
+  const isJAccountSession = useCallback(() => {
+    return authApi.getAuthProvider() === 'jaccount'
   }, [])
 
   const register = useCallback(async (data) => {
@@ -96,13 +111,27 @@ export function AppProvider({ children }) {
     await registrationApi.reviewRegistration(signupId, approved)
   }, [])
 
-  const checkIn = useCallback(async (activityId, method) => {
+  const checkIn = useCallback(async (activityId, method, payload = {}) => {
     if (!currentUser) return { success: false, message: '请先登录' }
-    const result = await mockCheckIn(activityId, currentUser.id, method)
-    if (result.success) {
-      setCheckIns(await getCheckIns())
+    try {
+      if (method === 'qrcode') {
+        await checkInApi.checkInByQr({ activityId, token: payload.token })
+      } else if (method === 'location') {
+        await checkInApi.checkInByLocation({
+          activityId,
+          latitude: payload.latitude,
+          longitude: payload.longitude
+        })
+      } else if (method === 'password') {
+        await checkInApi.checkInByPassword({ activityId, code: payload.code })
+      } else {
+        return { success: false, message: '不支持的签到方式' }
+      }
+      setCheckIns(await checkInApi.getMine())
+      return { success: true, message: '签到成功' }
+    } catch (err) {
+      return { success: false, message: err.message }
     }
-    return result
   }, [currentUser])
 
   const submitFeedback = useCallback(async ({ activityId, rating, content }) => {
@@ -129,6 +158,8 @@ export function AppProvider({ children }) {
     checkIns,
     login,
     logout,
+    completeJAccountLogin,
+    isJAccountSession,
     register,
     updateProfile,
     createActivity,
@@ -142,7 +173,7 @@ export function AppProvider({ children }) {
     getRecommendedActivities
   }), [
     currentUser, initializing, checkIns,
-    login, logout, register, updateProfile, createActivity, updateActivity,
+    login, logout, completeJAccountLogin, isJAccountSession, register, updateProfile, createActivity, updateActivity,
     signupActivity, toggleFavorite, reviewSignup, checkIn, submitFeedback,
     publishRecord, getRecommendedActivities
   ])
