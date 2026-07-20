@@ -56,7 +56,21 @@ describe('ActivityCard 组件', () => {
       />
     )
 
-    expect(screen.getByText('智能推荐')).toBeInTheDocument()
+    expect(screen.getByText(/智能推荐/)).toBeInTheDocument()
+  })
+
+  it('开启推荐时应显示推荐原因标签', () => {
+    renderWithRouter(
+      <ActivityCard
+        activity={sampleActivity}
+        showRecommend
+        recommendScore={50}
+        recommendReasons={['社交相关', '内容相似']}
+      />
+    )
+
+    expect(screen.getByText('社交相关')).toBeInTheDocument()
+    expect(screen.getByText('内容相似')).toBeInTheDocument()
   })
 
   it('点击查看详情应跳转至活动详情页', async () => {

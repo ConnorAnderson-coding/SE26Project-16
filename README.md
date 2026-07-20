@@ -9,7 +9,8 @@
 3. 活动推荐与语义检索
 
     - 支持按兴趣、时间、地点、热度等维度筛选活动。
-    - 根据用户兴趣、时间冲突、历史参与记录和社交关系，智能推荐合适的活动。
+    - **语义检索（已实现）**：Elasticsearch + GTE hybrid（BM25 ∥ kNN，τ=0.90）；见 [`检索与推荐算法流程.md`](检索与推荐算法流程.md)。
+    - **智能推荐（已实现）**：喜好向量 kNN + 硬过滤 + 社交/热度/时间加权；见 [`检索与推荐算法流程.md`](检索与推荐算法流程.md) §七。
 
 4. 活动报名：任何师生都可报名发布后的活动，他们可以收藏和报名活动，并查看报名状态。活动组织者进行报名审核。
 
@@ -31,3 +32,56 @@
 4. 对报名转化率、到场率、用户评价和传播路径进行智能分析，并给出下一次活动改进建议。
 5. 设计社区聚类算法，根据师生的行为日志和个人信息，对师生进行聚类，自动划分出用户社区，并进行可视化展示。
 6. 其他创意的功能。
+
+### 文档与报告
+
+- 算法流程：[`检索与推荐算法流程.md`](检索与推荐算法流程.md)、[`热度算法流程.md`](热度算法流程.md)
+- 设计说明：[`doc/`](doc/)（技术选型、功能实现计划）
+- 实验与测试报告：[`report/`](report/)（阈值实验、推荐打分实验、向量 MDS 可视化等）
+
+---
+
+## 一键启动（推荐）
+
+**前置条件**：已安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)、JDK 17+、Node.js 18+。
+
+在项目根目录执行：
+
+```powershell
+.\start.ps1
+```
+
+将自动完成：
+
+1. **Docker 基础设施** — MySQL（建库 + seed）、Redis、Elasticsearch、Kibana
+2. **ES 初始化** — 创建 `campus_activities` 索引、部署 GTE 模型 `campus_gte`（首次约 5–15 分钟）
+3. **后端** — 新窗口启动 Spring Boot（`:8080`），空索引时自动从 MySQL 重建活动索引
+4. **前端** — 新窗口启动 Vite（`:5173`）
+
+访问：
+
+| 服务 | 地址 |
+|------|------|
+| 前端 | http://localhost:5173 |
+| 后端 API | http://localhost:8080/api/v1 |
+| Kibana | http://localhost:5601 |
+
+演示账号：`524030910001` / `123456`（学生）
+
+### 常用参数
+
+```powershell
+.\start.ps1 -SkipDeploy          # 仅启动前后端（Docker 已在运行）
+.\start.ps1 -InfraOnly           # 仅部署基础设施，不启动应用
+.\start.ps1 -ForceRecreateDb     # 清空数据卷后重新建库并启动
+.\start.ps1 -SkipEmbedding       # 跳过 GTE 模型下载（可稍后重新 deploy）
+```
+
+仅部署基础设施（不启动应用）：
+
+```powershell
+cd database
+.\deploy.ps1
+```
+
+基础设施与排障详见 [`database/README.md`](database/README.md)。

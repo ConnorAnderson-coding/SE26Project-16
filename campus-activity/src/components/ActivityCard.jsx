@@ -10,8 +10,24 @@ import { getCategoryLabel, formatDateTime } from '../data/mockData'
 
 const { Text, Paragraph } = Typography
 
-export default function ActivityCard({ activity, showRecommend = false, recommendScore }) {
+const REASON_COLORS = {
+  兴趣匹配: 'green',
+  内容相似: 'blue',
+  社交相关: 'purple',
+  热门活动: 'volcano',
+  时间合适: 'cyan',
+  热门推荐: 'orange'
+}
+
+export default function ActivityCard({
+  activity,
+  showRecommend = false,
+  recommendScore,
+  recommendReasons
+}) {
   const navigate = useNavigate()
+  const reasons = recommendReasons ?? activity?.recommendReasons ?? []
+  const hasRecommend = showRecommend && (recommendScore > 0 || reasons.length > 0)
 
   return (
     <Card
@@ -21,9 +37,10 @@ export default function ActivityCard({ activity, showRecommend = false, recommen
         activity.poster ? (
           <div className="activity-card-cover">
             <img src={activity.poster} alt={activity.title} />
-            {showRecommend && recommendScore > 0 && (
+            {hasRecommend && (
               <Tag color="volcano" className="recommend-tag">
                 智能推荐
+                {recommendScore > 0 ? ` ${recommendScore}` : ''}
               </Tag>
             )}
           </div>
@@ -35,6 +52,11 @@ export default function ActivityCard({ activity, showRecommend = false, recommen
         <Space wrap>
           <Tag color="blue">{getCategoryLabel(activity.category)}</Tag>
           {activity.status === 'ended' && <Tag>已结束</Tag>}
+          {hasRecommend && reasons.map(reason => (
+            <Tag key={reason} color={REASON_COLORS[reason] || 'default'}>
+              {reason}
+            </Tag>
+          ))}
         </Space>
 
         <Text strong style={{ fontSize: 16 }}>{activity.title}</Text>
