@@ -36,9 +36,11 @@ vi.mock('../../src/services/recordApi', () => ({
   publishRecord: vi.fn()
 }))
 
-vi.mock('../../src/services/mock/mockApi', () => ({
-  checkIn: vi.fn(),
-  getCheckIns: vi.fn().mockResolvedValue([])
+vi.mock('../../src/services/checkInApi', () => ({
+  getMine: vi.fn().mockResolvedValue([]),
+  checkInByQr: vi.fn(),
+  checkInByLocation: vi.fn(),
+  checkInByPassword: vi.fn()
 }))
 
 import * as authApi from '../../src/services/authApi'
@@ -47,7 +49,7 @@ import * as activityApi from '../../src/services/activityApi'
 import * as registrationApi from '../../src/services/registrationApi'
 import * as favoriteApi from '../../src/services/favoriteApi'
 import * as feedbackApi from '../../src/services/feedbackApi'
-import * as mockApi from '../../src/services/mock/mockApi'
+import * as checkInApi from '../../src/services/checkInApi'
 import { setToken, setStoredUser } from '../../src/services/http'
 
 const mockUser = {
@@ -71,7 +73,7 @@ describe('AppContext 业务逻辑', () => {
     localStorage.clear()
     vi.clearAllMocks()
     userApi.getMe.mockRejectedValue(new Error('no token'))
-    mockApi.getCheckIns.mockResolvedValue([])
+    checkInApi.getMine.mockResolvedValue([])
   })
 
   describe('login / logout', () => {
@@ -189,9 +191,9 @@ describe('AppContext 业务逻辑', () => {
   })
 
   describe('checkIn', () => {
-    it('mock 签到应成功', async () => {
+    it('二维码签到应成功', async () => {
       authApi.login.mockResolvedValue({ token: 't', user: mockUser })
-      mockApi.checkIn.mockResolvedValue({ success: true, message: '签到成功' })
+      checkInApi.checkInByQr.mockResolvedValue({ id: '1', activityId: '1', userId: mockUser.id, method: 'qrcode' })
       const { result } = useAppHook()
 
       await act(async () => {
@@ -200,10 +202,11 @@ describe('AppContext 业务逻辑', () => {
 
       let checkInResult
       await act(async () => {
-        checkInResult = await result.current.checkIn('1', 'qrcode')
+        checkInResult = await result.current.checkIn('1', 'qrcode', { token: 'token-1' })
       })
 
       expect(checkInResult).toEqual({ success: true, message: '签到成功' })
+      expect(checkInApi.checkInByQr).toHaveBeenCalledWith({ activityId: '1', token: 'token-1' })
     })
   })
 

@@ -6,13 +6,14 @@ import {
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import * as authApi from '../services/authApi'
 import SideMenu from '../components/SideMenu'
 
 const { Header, Sider, Content } = Layout
 
 export default function MainLayout({ children, title }) {
   const navigate = useNavigate()
-  const { currentUser, logout } = useApp()
+  const { currentUser, logout, isJAccountSession } = useApp()
 
   const menuItems = [
     {
@@ -26,8 +27,13 @@ export default function MainLayout({ children, title }) {
       icon: <LogoutOutlined />,
       label: '退出登录',
       onClick: () => {
+        const shouldLogoutJAccount = isJAccountSession()
         logout()
-        navigate('/')
+        if (shouldLogoutJAccount) {
+          authApi.startJAccountLogout()
+        } else {
+          navigate('/')
+        }
       }
     }
   ]
