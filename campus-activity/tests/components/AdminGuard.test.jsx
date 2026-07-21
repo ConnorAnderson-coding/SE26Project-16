@@ -1,89 +1,44 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { screen } from '@testing-library/react'
-import { Routes, Route } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import AdminGuard from '../../src/components/AdminGuard'
+import AuthGuard from '../../src/components/AuthGuard'
 import { renderWithApp } from '../helpers/renderWithApp'
 
-function ProtectedPage() {
-  return <div>管理后台内容</div>
+function authenticated(user) {
+  return new Response(JSON.stringify({ success: true, data: user }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+
+function renderAdminRoute() {
+  return renderWithApp(
+    <Routes>
+      <Route
+        path="/admin"
+        element={<AuthGuard><AdminGuard><div>管理后台内容</div></AdminGuard></AuthGuard>}
+      />
+    </Routes>,
+    { route: '/admin' }
+  )
 }
 
 describe('AdminGuard 组件', () => {
-  beforeEach(() => {
-    localStorage.clear()
-  })
+  it.each(['student', 'teacher'])('%s 不能进入管理员路由', async (role) => {
+    fetch.mockResolvedValueOnce(authenticated({ id: `${role}-1`, name: role, role }))
+    renderAdminRoute()
 
-  it('非管理员应重定向到首页', () => {
-    localStorage.setItem(
-      'campus-activity-state',
-      JSON.stringify({
-        currentUser: {
-          id: '524030910001',
-          name: '张三',
-          role: 'student',
-          college: '软件学院'
-        },
-        users: [],
-        activities: [],
-        signups: [],
-        favorites: [],
-        feedbacks: [],
-        checkIns: []
-      })
-    )
-
-    renderWithApp(
-      <Routes>
-        <Route
-          path="/admin"
-          element={
-            <AdminGuard>
-              <ProtectedPage />
-            </AdminGuard>
-          }
-        />
-        <Route path="/home" element={<div>首页</div>} />
-      </Routes>,
-      { route: '/admin' }
-    )
-
+    expect(await screen.findByText('你没有访问管理员功能的权限')).toBeInTheDocument()
     expect(screen.queryByText('管理后台内容')).not.toBeInTheDocument()
-    expect(screen.getByText('首页')).toBeInTheDocument()
   })
 
-  it('管理员应渲染子组件', () => {
-    localStorage.setItem(
-      'campus-activity-state',
-      JSON.stringify({
-        currentUser: {
-          id: 'admin001',
-          name: '系统管理员',
-          role: 'admin',
-          college: '软件学院'
-        },
-        users: [],
-        activities: [],
-        signups: [],
-        favorites: [],
-        feedbacks: [],
-        checkIns: []
-      })
-    )
+  it('管理员角色来自 /auth/me 并可渲染子组件', async () => {
+    fetch.mockResolvedValueOnce(authenticated({
+      id: 'server-admin', name: '管理员', role: 'admin'
+    }))
+    renderAdminRoute()
 
-    renderWithApp(
-      <Routes>
-        <Route
-          path="/admin"
-          element={
-            <AdminGuard>
-              <ProtectedPage />
-            </AdminGuard>
-          }
-        />
-      </Routes>,
-      { route: '/admin' }
-    )
-
-    expect(screen.getByText('管理后台内容')).toBeInTheDocument()
+    expect(await screen.findByText('管理后台内容')).toBeInTheDocument()
   })
 })

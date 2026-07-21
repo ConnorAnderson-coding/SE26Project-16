@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useCallback, useMemo } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState
+} from 'react'
 import {
   initialUsers,
   initialActivities,
@@ -7,27 +14,36 @@ import {
   initialFeedbacks,
   initialCheckIns
 } from '../data/mockData'
+import { ApiError, subscribeAuthenticationInvalid } from '../api/http'
+import { clearCsrfToken } from '../api/csrf'
+import {
+  getCurrentUser,
+  login as loginRequest,
+  logout as logoutRequest,
+  register as registerRequest
+} from '../api/auth'
 
 const STORAGE_KEY = 'campus-activity-state'
 
 function loadState() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) return JSON.parse(saved)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      const safeState = {
+        activities: parsed.activities,
+        signups: parsed.signups,
+        favorites: parsed.favorites,
+        feedbacks: parsed.feedbacks,
+        checkIns: parsed.checkIns
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(safeState))
+      return safeState
+    }
   } catch {
     /* ignore */
   }
   return null
-}
-
-function mergeSeedUsers(savedUsers) {
-  const merged = [...savedUsers]
-  for (const seed of initialUsers) {
-    if (!merged.some(u => u.id === seed.id)) {
-      merged.push(seed)
-    }
-  }
-  return merged
 }
 
 function saveState(state) {
@@ -39,10 +55,10 @@ const AppContext = createContext(null)
 export function AppProvider({ children }) {
   const saved = loadState()
 
-  const [currentUser, setCurrentUser] = useState(saved?.currentUser ?? null)
-  const [users, setUsers] = useState(
-    saved?.users ? mergeSeedUsers(saved.users) : initialUsers
-  )
+  const [currentUser, setCurrentUser] = useState(null)
+  const [authStatus, setAuthStatus] = useState('initializing')
+  const [authError, setAuthError] = useState(null)
+  const [users, setUsers] = useState(initialUsers)
   const [activities, setActivities] = useState(saved?.activities ?? initialActivities)
   const [signups, setSignups] = useState(saved?.signups ?? initialSignups)
   const [favorites, setFavorites] = useState(saved?.favorites ?? initialFavorites)
@@ -51,64 +67,117 @@ export function AppProvider({ children }) {
 
   const persist = useCallback((next) => {
     saveState({
-      currentUser: next.currentUser ?? currentUser,
-      users: next.users ?? users,
       activities: next.activities ?? activities,
       signups: next.signups ?? signups,
       favorites: next.favorites ?? favorites,
       feedbacks: next.feedbacks ?? feedbacks,
       checkIns: next.checkIns ?? checkIns
     })
-  }, [currentUser, users, activities, signups, favorites, feedbacks, checkIns])
+  }, [activities, signups, favorites, feedbacks, checkIns])
 
-  const login = useCallback((userId, password) => {
-    const user = users.find(u => u.id === userId && u.password === password)
-    if (!user) return { success: false, message: '学号/工号或密码错误' }
-    const { password: _, ...safeUser } = user
-    setCurrentUser(safeUser)
-    persist({ currentUser: safeUser })
-    return { success: true }
-  }, [users, persist])
+  const applyAuthenticatedUser = useCallback((user) => {
+    setCurrentUser(user)
+    setUsers(existing => {
+      const withoutCurrent = existing.filter(item => item.id !== user.id)
+      return [...withoutCurrent, user]
+    })
+    setAuthStatus('authenticated')
+    setAuthError(null)
+    return user
+  }, [])
 
-  const logout = useCallback(() => {
+  const becomeAnonymous = useCallback(() => {
     setCurrentUser(null)
-    persist({ currentUser: null })
-  }, [persist])
+    setUsers(initialUsers)
+    setAuthStatus('anonymous')
+    setAuthError(null)
+  }, [])
 
-  const register = useCallback((data) => {
-    if (users.some(u => u.id === data.id)) {
-      return { success: false, message: '该学号/工号已注册' }
+  const refreshAuth = useCallback(async ({ signal } = {}) => {
+    setAuthStatus('initializing')
+    setAuthError(null)
+    try {
+      const user = await getCurrentUser({ signal })
+      if (!user) {
+        throw new ApiError({
+          status: 200,
+          code: 'INVALID_RESPONSE',
+          message: '服务器未返回有效用户信息'
+        })
+      }
+      return applyAuthenticatedUser(user)
+    } catch (error) {
+      if (error?.name === 'AbortError') throw error
+      if (error instanceof ApiError && error.code === 'AUTHENTICATION_REQUIRED') {
+        becomeAnonymous()
+        return null
+      }
+      setCurrentUser(null)
+      setAuthStatus('error')
+      setAuthError(error instanceof ApiError ? error.message : '认证状态加载失败')
+      throw error
     }
-    const newUser = {
-      id: data.id,
-      password: data.password,
-      name: data.name,
-      role: data.role || 'student',
-      college: data.college,
-      grade: data.grade,
-      interests: data.interests || [],
-      availableTime: data.availableTime || [],
-      friends: []
+  }, [applyAuthenticatedUser, becomeAnonymous])
+
+  useEffect(() => {
+    const controller = new AbortController()
+    refreshAuth({ signal: controller.signal }).catch(error => {
+      if (error?.name !== 'AbortError') {
+        // The error state is exposed through context for an explicit retry.
+      }
+    })
+    return () => controller.abort()
+  }, [refreshAuth])
+
+  useEffect(() => subscribeAuthenticationInvalid(() => {
+    clearCsrfToken()
+    becomeAnonymous()
+  }), [becomeAnonymous])
+
+  const login = useCallback(async (credentials) => {
+    await loginRequest(credentials)
+    const user = await getCurrentUser()
+    if (!user) {
+      throw new ApiError({
+        status: 200,
+        code: 'INVALID_RESPONSE',
+        message: '登录后未能取得用户信息'
+      })
     }
-    const nextUsers = [...users, newUser]
-    setUsers(nextUsers)
-    const { password: _, ...safeUser } = newUser
-    setCurrentUser(safeUser)
-    persist({ users: nextUsers, currentUser: safeUser })
-    return { success: true }
-  }, [users, persist])
+    return applyAuthenticatedUser(user)
+  }, [applyAuthenticatedUser])
+
+  const logout = useCallback(async () => {
+    try {
+      await logoutRequest()
+    } catch (error) {
+      if (!(error instanceof ApiError && error.code === 'AUTHENTICATION_REQUIRED')) {
+        throw error
+      }
+      clearCsrfToken()
+    }
+    becomeAnonymous()
+  }, [becomeAnonymous])
+
+  const register = useCallback(async (data) => {
+    await registerRequest(data)
+    becomeAnonymous()
+  }, [becomeAnonymous])
 
   const updateProfile = useCallback((updates) => {
     if (!currentUser) return
+    const safeUpdates = Object.fromEntries(
+      ['name', 'college', 'grade', 'interests', 'availableTime']
+        .filter(key => updates[key] !== undefined)
+        .map(key => [key, updates[key]])
+    )
     const nextUsers = users.map(u =>
-      u.id === currentUser.id ? { ...u, ...updates } : u
+      u.id === currentUser.id ? { ...u, ...safeUpdates } : u
     )
     const updated = nextUsers.find(u => u.id === currentUser.id)
-    const { password: _, ...safeUser } = updated
     setUsers(nextUsers)
-    setCurrentUser(safeUser)
-    persist({ users: nextUsers, currentUser: safeUser })
-  }, [currentUser, users, persist])
+    setCurrentUser(updated)
+  }, [currentUser, users])
 
   const createActivity = useCallback((activity) => {
     const id = String(Date.now())
@@ -295,6 +364,8 @@ export function AppProvider({ children }) {
 
   const value = useMemo(() => ({
     currentUser,
+    authStatus,
+    authError,
     users,
     activities,
     signups,
@@ -304,6 +375,7 @@ export function AppProvider({ children }) {
     login,
     logout,
     register,
+    refreshAuth,
     updateProfile,
     createActivity,
     updateActivity,
@@ -317,8 +389,9 @@ export function AppProvider({ children }) {
     isFavorited,
     getRecommendedActivities
   }), [
-    currentUser, users, activities, signups, favorites, feedbacks, checkIns,
-    login, logout, register, updateProfile, createActivity, updateActivity,
+    currentUser, authStatus, authError, users, activities, signups, favorites,
+    feedbacks, checkIns, login, logout, register, refreshAuth, updateProfile,
+    createActivity, updateActivity,
     signupActivity, toggleFavorite, reviewSignup, checkIn, submitFeedback,
     publishRecord, getSignupStatus, isFavorited, getRecommendedActivities
   ])

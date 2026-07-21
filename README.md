@@ -1,5 +1,30 @@
 ## A3 校园活动一站式服务平台
 
+### 前端认证与社区聚类接入
+
+前端目录为 `campus-activity`。本地开发时先启动默认监听 `8080` 的 Spring Boot，
+再在前端目录运行 `npm.cmd run dev`；Vite 会把同源相对路径 `/api` 代理到
+`http://localhost:8080`。生产构建仍只使用同源 `/api`，浏览器不会直接访问 Python
+聚类服务。
+
+认证使用 Spring Security HTTP Session，不使用 JWT、Bearer Token 或 localStorage
+身份。所有 API 请求都发送 `credentials: "include"`；写请求先通过
+`GET /api/auth/csrf` 取得 `token` 与后端返回的 `headerName`，CSRF 信息只保存在页面
+内存中。登录成功和页面刷新后均通过 `GET /api/auth/me` 取得可信用户与角色；注册固定
+创建 student，不接受前端传入角色。管理员账号必须由后端已有数据提供，前端没有硬编码
+管理员账号。
+
+- 登录用户社区结果：`/community`
+- 管理员聚类任务：`/admin/community-clustering`
+
+管理员 POST 成功时返回 `202 Accepted` 和 `Location`，这只表示任务已持久化接受；页面会
+串行轮询该 Location 对应的运行详情，直到 `SUCCESS` 或 `FAILED`。`409 RUN_CONFLICT`
+表示已有任务正在处理，`503 CLUSTERING_SERVICE_UNAVAILABLE` 表示执行功能关闭，但历史
+社区查询仍可使用。POST 不会自动重试。
+
+后端目前没有活动运行列表接口，因此管理员页面不持久化 run 地址；刷新页面后无法自动
+发现刚提交的运行，需要保留当前页面等待终态。当前版本也未实现管理员社区成员分页。
+
 ### 1. 功能性需求：
 
 1. 用户信息管理：支持师生注册登录，维护兴趣标签、学院年级、可参与时间等个人档案。
