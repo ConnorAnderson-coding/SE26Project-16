@@ -1,5 +1,4 @@
 .DS_Store
-campus-activity/backend/target/
 logs/
 *.log
 *.pid

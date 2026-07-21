@@ -46,15 +46,6 @@ beforeEach(() => {
   const localStorageMock = createLocalStorageMock()
   vi.stubGlobal('localStorage', localStorageMock)
   localStorageMock.removeItem(STORAGE_KEY)
-
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
-    code: 'AUTHENTICATION_REQUIRED',
-    message: '请先登录',
-    details: {}
-  }), {
-    status: 401,
-    headers: { 'Content-Type': 'application/json' }
-  })))
 })
 
 afterEach(() => {
