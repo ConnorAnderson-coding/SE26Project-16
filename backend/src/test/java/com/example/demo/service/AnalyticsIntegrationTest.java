@@ -1,5 +1,21 @@
 package com.example.demo.service;
 
+import java.time.LocalDateTime;
+import static java.util.concurrent.TimeUnit.SECONDS;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.test.context.TestPropertySource;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.example.demo.common.CacheNames;
 import com.example.demo.dto.analytics.ActivityMetrics;
 import com.example.demo.entity.Activity;
@@ -12,23 +28,6 @@ import com.example.demo.repository.FeedbackRepository;
 import com.example.demo.repository.RegistrationRepository;
 import com.example.demo.scheduler.AnalysisScheduler;
 import com.example.demo.support.IntegrationTestSupport;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.test.context.TestPropertySource;
-
-import java.time.LocalDateTime;
-import java.util.List;
-
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * 分析模块集成测试：H2 真表 + simple 缓存 + 无 LLM Key 时规则降级。

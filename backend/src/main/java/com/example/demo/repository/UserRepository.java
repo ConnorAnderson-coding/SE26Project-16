@@ -1,13 +1,14 @@
 package com.example.demo.repository;
 
-import com.example.demo.common.CacheNames;
-import com.example.demo.entity.User;
+import java.util.Optional;
+
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.Optional;
+import com.example.demo.common.CacheNames;
+import com.example.demo.entity.User;
 
 public interface UserRepository extends JpaRepository<User, String> {
 
@@ -20,5 +21,6 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByJaccount(String jaccount);
 
+    @Override
     boolean existsById(String id);
 }

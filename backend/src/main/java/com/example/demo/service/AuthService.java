@@ -1,5 +1,21 @@
 package com.example.demo.service;
 
+import java.net.URI;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Objects;
+import java.util.UUID;
+
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
 import com.example.demo.common.BusinessException;
 import com.example.demo.dto.DtoMapper;
 import com.example.demo.dto.request.LoginRequest;
@@ -11,23 +27,9 @@ import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JAccountAuthClient;
 import com.example.demo.security.JAccountUserInfo;
 import com.example.demo.security.JwtTokenProvider;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
-
-import java.net.URI;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Objects;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -188,7 +190,8 @@ public class AuthService {
             return;
         }
         try {
-            long expiresIn = tokenResponse.expiresIn() != null ? tokenResponse.expiresIn() : 1800L;
+            long expiresIn = tokenResponse.expiresIn();
+            expiresIn = tokenResponse.expiresIn() != null ? expiresIn : 1800L;
             if (StringUtils.hasText(tokenResponse.accessToken())) {
                 redisTemplate.opsForValue().set(
                         "campus:jaccount:access:" + userId,

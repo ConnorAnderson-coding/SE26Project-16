@@ -1,13 +1,13 @@
 package com.example.demo.controller;
 
-import com.example.demo.support.IntegrationTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.example.demo.support.IntegrationTestSupport;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -16,7 +16,7 @@ class ActivityIntegrationTest extends IntegrationTestSupport {
     private TestScenario scenario;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         scenario = createScenario();
     }
 

@@ -1,5 +1,17 @@
 package com.example.demo.cache;
 
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+
 import com.example.demo.common.CacheNames;
 import com.example.demo.dto.request.ActivityRequest;
 import com.example.demo.dto.request.LoginRequest;
@@ -10,18 +22,6 @@ import com.example.demo.service.ActivityService;
 import com.example.demo.service.AuthService;
 import com.example.demo.service.RegistrationService;
 import com.example.demo.support.IntegrationTestSupport;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -31,10 +31,10 @@ class ActivityCacheIntegrationTest extends IntegrationTestSupport {
     private ActivityService activityService;
 
     @Autowired
-    private ActivityRepository activityRepository;
+    private ActivityRepository activityRepo;
 
     @Autowired
-    private UserRepository userRepository;
+    private UserRepository userRepo;
 
     @Autowired
     private AuthService authService;
@@ -48,18 +48,18 @@ class ActivityCacheIntegrationTest extends IntegrationTestSupport {
     private TestScenario scenario;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         scenario = createScenario();
     }
 
     @AfterEach
-    void tearDown() {
+    public void tearDown() {
         clearSecurityContext();
     }
 
     @Test
     void findWithDetailsByIdShouldPopulateCache() {
-        activityRepository.findWithDetailsById(scenario.activity().getId());
+        activityRepo.findWithDetailsById(scenario.activity().getId());
 
         Cache cache = cacheManager.getCache(CacheNames.ACTIVITY_DETAIL);
         assertNotNull(cache);
@@ -69,7 +69,7 @@ class ActivityCacheIntegrationTest extends IntegrationTestSupport {
     @Test
     void updateActivityShouldEvictDetailCache() {
         Long activityId = scenario.activity().getId();
-        activityRepository.findWithDetailsById(activityId);
+        activityRepo.findWithDetailsById(activityId);
 
         Cache cache = cacheManager.getCache(CacheNames.ACTIVITY_DETAIL);
         assertNotNull(cache);
@@ -85,7 +85,7 @@ class ActivityCacheIntegrationTest extends IntegrationTestSupport {
 
     @Test
     void cachedUserReadShouldNotBreakLogin() {
-        userRepository.findCachedById(scenario.student().getId());
+        userRepo.findCachedById(scenario.student().getId());
 
         LoginRequest loginRequest = new LoginRequest();
         loginRequest.setUserId(scenario.student().getId());
@@ -98,7 +98,7 @@ class ActivityCacheIntegrationTest extends IntegrationTestSupport {
 
     @Test
     void getByIdShouldReturnOrganizerAfterCacheHit() {
-        activityRepository.findWithDetailsById(scenario.activity().getId());
+        activityRepo.findWithDetailsById(scenario.activity().getId());
         var response = activityService.getById(scenario.activity().getId());
 
         assertEquals(scenario.organizer().getId(), response.getOrganizerId());
@@ -108,7 +108,7 @@ class ActivityCacheIntegrationTest extends IntegrationTestSupport {
     @Test
     void signupShouldEvictActivityDetailCache() {
         Long activityId = scenario.activity().getId();
-        activityRepository.findWithDetailsById(activityId);
+        activityRepo.findWithDetailsById(activityId);
         Cache cache = cacheManager.getCache(CacheNames.ACTIVITY_DETAIL);
         assertNotNull(cache.get(activityId));
 

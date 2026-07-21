@@ -19,7 +19,7 @@ class ActivityRecordIntegrationTest extends IntegrationTestSupport {
     private TestScenario scenario;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         scenario = createScenario();
     }
 

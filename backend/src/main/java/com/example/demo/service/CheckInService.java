@@ -1,5 +1,28 @@
 package com.example.demo.service;
 
+import java.nio.ByteBuffer;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.example.demo.common.BusinessException;
 import com.example.demo.common.CacheNames;
 import com.example.demo.dto.DtoMapper;
@@ -17,26 +40,8 @@ import com.example.demo.repository.ActivityRepository;
 import com.example.demo.repository.CheckInRepository;
 import com.example.demo.repository.RegistrationRepository;
 import com.example.demo.util.SecurityUtils;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.ByteBuffer;
-import java.security.SecureRandom;
-import java.time.Duration;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -144,7 +149,8 @@ public class CheckInService {
                 activity.getLongitude(),
                 request.getLatitude(),
                 request.getLongitude());
-        int radius = activity.getCheckInRadiusMeters() != null ? activity.getCheckInRadiusMeters() : 200;
+        Integer cfgRadius = activity.getCheckInRadiusMeters();
+        int radius = cfgRadius == null ? 200 : cfgRadius;
         if (distance > radius) {
             throw new BusinessException("当前位置不在签到范围内");
         }
@@ -274,7 +280,7 @@ public class CheckInService {
                     | ((hash[offset + 2] & 0xff) << 8)
                     | (hash[offset + 3] & 0xff);
             return String.format("%06d", binary % 1_000_000);
-        } catch (Exception ex) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException ex) {
             throw new IllegalStateException("生成动态口令失败", ex);
         }
     }

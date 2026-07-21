@@ -1,18 +1,5 @@
 package com.example.demo.service;
 
-import com.example.demo.common.CacheNames;
-import com.example.demo.dto.analytics.ActivityMetrics;
-import com.example.demo.entity.Activity;
-import com.example.demo.repository.ActivityRepository;
-import com.example.demo.repository.CheckInRepository;
-import com.example.demo.repository.FeedbackRepository;
-import com.example.demo.repository.RegistrationRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -22,6 +9,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.demo.common.CacheNames;
+import com.example.demo.dto.analytics.ActivityMetrics;
+import com.example.demo.entity.Activity;
+import com.example.demo.repository.ActivityRepository;
+import com.example.demo.repository.CheckInRepository;
+import com.example.demo.repository.FeedbackRepository;
+import com.example.demo.repository.RegistrationRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 活动分析指标计算。
@@ -165,13 +167,8 @@ public class AnalyticsEngine {
      * null 端表示该侧无界——例如 signupStart 为 null 时不做下界检查。
      */
     private static boolean isOutside(LocalDate day, LocalDate signupStart, LocalDate signupEnd) {
-        if (signupStart != null && day.isBefore(signupStart)) {
-            return true;
-        }
-        if (signupEnd != null && day.isAfter(signupEnd)) {
-            return true;
-        }
-        return false;
+        return (signupStart != null && day.isBefore(signupStart))
+                || (signupEnd != null && day.isAfter(signupEnd));
     }
 
     private static LocalDate toLocalDate(Object raw) {

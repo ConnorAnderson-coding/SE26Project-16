@@ -1,22 +1,11 @@
 package com.example.demo.service;
 
-import com.example.demo.common.BusinessException;
-import com.example.demo.common.CacheNames;
-import com.example.demo.common.PageResult;
-import com.example.demo.dto.DtoMapper;
-import com.example.demo.dto.request.ActivityRequest;
-import com.example.demo.dto.response.ActivityResponse;
-import com.example.demo.entity.Activity;
-import com.example.demo.entity.User;
-import com.example.demo.repository.ActivityRepository;
-import com.example.demo.repository.RegistrationRepository;
-import com.example.demo.recommend.RecommendationScorer;
-import com.example.demo.recommend.RecommendationService;
-import com.example.demo.search.ActivityIndexService;
-import com.example.demo.search.ActivitySearchCriteria;
-import com.example.demo.search.SearchMode;
-import com.example.demo.search.SearchSort;
-import com.example.demo.search.service.ActivitySearchService;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
@@ -28,15 +17,27 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.example.demo.common.BusinessException;
+import com.example.demo.common.CacheNames;
+import com.example.demo.common.PageResult;
+import com.example.demo.dto.DtoMapper;
+import com.example.demo.dto.request.ActivityRequest;
+import com.example.demo.dto.response.ActivityResponse;
+import com.example.demo.entity.Activity;
+import com.example.demo.entity.User;
+import com.example.demo.recommend.RecommendationScorer;
+import com.example.demo.recommend.RecommendationService;
+import com.example.demo.repository.ActivityRepository;
+import com.example.demo.repository.RegistrationRepository;
+import com.example.demo.search.ActivityIndexService;
+import com.example.demo.search.ActivitySearchCriteria;
+import com.example.demo.search.SearchMode;
+import com.example.demo.search.SearchSort;
+import com.example.demo.search.service.ActivitySearchService;
 import com.example.demo.util.SecurityUtils;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -238,9 +239,8 @@ public class ActivityService {
         activity.setPoster(request.getPoster());
         activity.setLatitude(request.getLatitude());
         activity.setLongitude(request.getLongitude());
-        activity.setCheckInRadiusMeters(request.getCheckInRadiusMeters() != null
-                ? request.getCheckInRadiusMeters()
-                : 200);
+        Integer radius = request.getCheckInRadiusMeters();
+        activity.setCheckInRadiusMeters(radius != null ? radius : 200);
         activity.setTags(request.getTags() != null ? request.getTags() : new ArrayList<>());
     }
 
@@ -255,7 +255,8 @@ public class ActivityService {
         List<String> tags = activity.getTags() != null ? activity.getTags() : List.of();
         long tagMatch = tags.stream().filter(interests::contains).count();
         score += (int) tagMatch * 30;
-        double hotness = activity.getHotnessScore() != null ? activity.getHotnessScore() : 0.0;
+        double hotness = activity.getHotnessScore();
+        hotness = activity.getHotnessScore() != null ? hotness : 0.0;
         score += (int) Math.round(Math.min(hotness * 20.0, 80.0));
         return score;
     }
@@ -268,7 +269,8 @@ public class ActivityService {
         if (interestHit) {
             reasons.add(RecommendationScorer.REASON_INTEREST);
         }
-        double hotness = activity.getHotnessScore() != null ? activity.getHotnessScore() : 0.0;
+        double hotness = activity.getHotnessScore();
+        hotness = activity.getHotnessScore() != null ? hotness : 0.0;        
         if (hotness >= 1.0) {
             reasons.add(RecommendationScorer.REASON_HOT);
         }

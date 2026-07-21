@@ -1,5 +1,23 @@
 package com.example.demo.scheduler;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import static java.util.concurrent.TimeUnit.SECONDS;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.TestPropertySource;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.transaction.support.TransactionTemplate;
+
 import com.example.demo.dto.analytics.ActivityMetrics;
 import com.example.demo.dto.analytics.SuggestionItem;
 import com.example.demo.entity.Activity;
@@ -8,24 +26,6 @@ import com.example.demo.repository.ActivityAnalysisRepository;
 import com.example.demo.repository.ActivityRepository;
 import com.example.demo.service.SuggestionGenerator;
 import com.example.demo.support.IntegrationTestSupport;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.transaction.support.TransactionTemplate;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * LLM 建议生成 + 定时调度分析 的端到端验证。
@@ -57,25 +57,25 @@ class AnalyticsEndToEndTest extends IntegrationTestSupport {
     private ActivityAnalysisRepository analysisRepository;
 
     @Autowired
-    private ActivityRepository activityRepository;
+    private ActivityRepository activityRepo;
 
     @Autowired
-    private TransactionTemplate transactionTemplate;
+    private TransactionTemplate transactionTempl;
 
     private TestScenario scenario;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         scenario = createScenario();
         // 默认 saveActivity 的 endTime 在未来；调整为昨天中午，让调度器能命中
-        transactionTemplate.executeWithoutResult(status -> {
-            Activity a = activityRepository.findById(scenario.activity().getId()).orElseThrow();
+        transactionTempl.executeWithoutResult(status -> {
+            Activity a = activityRepo.findById(scenario.activity().getId()).orElseThrow();
             LocalDateTime yesterdayNoon = LocalDateTime.now()
                     .minusDays(1).toLocalDate().atTime(12, 0);
             a.setStartTime(yesterdayNoon.minusHours(2));
             a.setEndTime(yesterdayNoon);
             a.setStatus("ended");
-            activityRepository.save(a);
+            activityRepo.save(a);
         });
     }
 

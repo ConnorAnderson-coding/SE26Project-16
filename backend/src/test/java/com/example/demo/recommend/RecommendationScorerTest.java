@@ -1,11 +1,5 @@
 package com.example.demo.recommend;
 
-import com.example.demo.config.ElasticsearchProperties;
-import com.example.demo.entity.Activity;
-import com.example.demo.recommend.support.ActivityTimeSlot;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +7,12 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import com.example.demo.config.ElasticsearchProperties;
+import com.example.demo.entity.Activity;
+import com.example.demo.recommend.support.ActivityTimeSlot;
 
 class RecommendationScorerTest {
 
@@ -20,7 +20,7 @@ class RecommendationScorerTest {
     private ElasticsearchProperties props;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         props = new ElasticsearchProperties();
         props.setRecommendWeightSim(0.55);
         props.setRecommendWeightTag(0.15);

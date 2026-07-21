@@ -1,11 +1,5 @@
 package com.example.demo.recommend;
 
-import com.example.demo.config.ElasticsearchProperties;
-import com.example.demo.entity.Activity;
-import com.example.demo.recommend.support.ActivityTimeSlot;
-import com.example.demo.recommend.support.VectorMath;
-import org.springframework.stereotype.Component;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -13,6 +7,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.springframework.stereotype.Component;
+
+import com.example.demo.config.ElasticsearchProperties;
+import com.example.demo.entity.Activity;
+import com.example.demo.recommend.support.ActivityTimeSlot;
+import com.example.demo.recommend.support.VectorMath;
 
 /**
  * Hard-filter + content-first ranking.
@@ -95,7 +96,8 @@ public class RecommendationScorer {
             if (socials[i] == 0.0 && a.getOrganizer() != null) {
                 socials[i] = socialByOrganizer.getOrDefault(a.getOrganizer().getId(), 0.0);
             }
-            hots[i] = a.getHotnessScore() != null ? a.getHotnessScore() : 0.0;
+            double hotness = a.getHotnessScore();
+            hots[i] = a.getHotnessScore() != null ? hotness : 0.0;
             times[i] = ActivityTimeSlot.timeFit(a.getStartTime(), availableTime);
         }
 

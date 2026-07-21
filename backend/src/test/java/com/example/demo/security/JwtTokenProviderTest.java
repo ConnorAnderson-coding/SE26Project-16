@@ -1,18 +1,17 @@
 package com.example.demo.security;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 class JwtTokenProviderTest {
 
     private JwtTokenProvider jwtTokenProvider;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         jwtTokenProvider = new JwtTokenProvider(
                 "campus-activity-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm",
                 3600000L);

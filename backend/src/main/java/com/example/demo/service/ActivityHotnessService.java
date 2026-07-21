@@ -100,10 +100,15 @@ public class ActivityHotnessService implements ApplicationRunner {
     }
 
     private double calculateBaseHotness(Activity activity) {
-        int views = activity.getViewCount() != null ? activity.getViewCount() : 0;
-        int signups = activity.getSignupCount() != null ? activity.getSignupCount() : 0;
-        int checkIns = activity.getCheckInCount() != null ? activity.getCheckInCount() : 0;
-        int favorites = activity.getFavoriteCount() != null ? activity.getFavoriteCount() : 0;
+        Integer viewCount = activity.getViewCount();
+        Integer signupCount = activity.getSignupCount();
+        Integer checkInCount = activity.getCheckInCount();
+        Integer favoriteCount = activity.getFavoriteCount();
+
+        int views = viewCount != null ? viewCount : 0;
+        int signups = signupCount != null ? signupCount : 0;
+        int checkIns = checkInCount != null ? checkInCount : 0;
+        int favorites = favoriteCount != null ? favoriteCount : 0;
 
         return views * WEIGHT_VIEWS
                 + signups * WEIGHT_SIGNUPS
