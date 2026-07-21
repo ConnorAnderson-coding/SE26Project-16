@@ -1,154 +1,79 @@
 # 社区聚类 API 契约
 
-## 1. 契约范围
+## 1. 契约范围与实现状态
 
-本文定义社区聚类迭代 2 的五个 Spring Boot 公开 API 和两个 Python 内部 API。本文是阶段 0 设计，不代表接口已经实现。
+本文同步阶段 3D 只读 HTTP API 的当前实现，并保留后续公开 API 与内部 Python API 的规划契约。浏览器只调用 Spring Boot 的 `/api/v1` 接口，不直接调用 Python 服务。
 
-## 2. 通用约定
+### 1.1 已实现的公开端点
+
+| 方法与路径 | 权限 | 当前行为 |
+| --- | --- | --- |
+| `GET /api/v1/admin/community-clustering/runs/{runId}` | `ROLE_ADMIN` | 查询指定聚类运行详情 |
+| `GET /api/v1/community-clustering/latest` | `authenticated` | 查询最新成功版本的社区与匿名散点 |
+| `GET /api/v1/community-clustering/me` | `authenticated` | 查询当前登录用户在最新成功版本中的归属 |
+
+### 1.2 规划中、尚未实现的公开能力
+
+| 方法或能力 | 当前状态 |
+| --- | --- |
+| `POST /api/v1/admin/community-clustering/runs` | 尚未实现；当前不存在可返回 `202` 的 Controller |
+| 管理员社区成员分页 | 尚未实现；路径与响应中的个人资料范围尚未最终确定 |
+| 真正的异步任务提交与恢复 | 尚未实现；当前 `CommunityClusteringOrchestrator.execute(...)` 为同步阻塞执行 |
+
+除非章节标题明确标注“规划中”，本文其余公开端点描述均表示当前已实现行为。
+
+## 2. 当前公开 API 通用约定
 
 ### 2.1 协议与数据格式
 
-- 公开接口前缀为 `/api/v1`，仅由 Spring Boot 对浏览器提供。
-- 内部接口前缀为 `/internal/v1`，仅供 Spring Boot 到 Python 服务的服务端调用。
-- 请求和响应使用 UTF-8 JSON；健康检查成功响应也使用 JSON。
-- 时间字段类型为 `string(date-time)`，采用带时区的 ISO 8601 格式，例如 `2026-07-13T10:30:00+08:00`。
-- 标识字段在 JSON 中均为 `string`。`runId` 对应数据模型 `ClusteringRun.id`，`communityId` 对应 `Community.id`，`userId` 原样对应现有 `UserAccount.id`；公开 API 与内部 API 不得对同一标识做数值转换。
-- `runId`、`communityId` 和仅用于持久化的 `CommunityMember.id` 由 Spring Boot 生成，均为长度 1 到 64 的不透明字符串；客户端不得解析其内部格式。最新概览中的 `pointId` 对应 `CommunityMember.id`，但绝不等同于 `userId`。
-- 坐标和距离使用 JSON `number`；坐标必须为有限数且位于 `[0, 100]`。
-- 未特别说明的可空字段返回 JSON `null`，不以空字符串代替。
-- 任务状态枚举固定为 `PENDING`、`RUNNING`、`SUCCESS`、`FAILED`。
+- 公开接口前缀为 `/api/v1`，请求和响应使用 UTF-8 JSON。
+- 时间字段使用 ISO 8601 UTC，例如 `2026-07-13T02:30:00Z`。
+- `runId`、`communityId` 与 `pointId` 均是不透明 `string`；`pointId` 对应运行内的 `CommunityMember.id`，不等于 `userId`。
+- 坐标和距离使用 JSON `number`；坐标是有限数且位于 `[0, 100]`。
+- 可空字段以 JSON `null` 表示，不以空字符串代替。
+- 运行状态为 `PENDING`、`RUNNING`、`SUCCESS` 或 `FAILED`。
 
-### 2.2 统一错误结构
+### 2.2 认证、Session 与 CSRF
 
-所有公开及内部接口的非 2xx 响应均使用：
+- 当前实现使用 Spring Security HTTP Session，浏览器会话 Cookie 为 `JSESSIONID`。
+- 前端跨源请求需要启用凭据发送，例如 Fetch API 使用 `credentials: "include"`。
+- 写请求需要有效 CSRF Token；GET 查询不要求 CSRF Token。当前三个聚类公开端点均为 GET。
+- 管理员端点要求 `ROLE_ADMIN`；`latest` 与 `me` 要求 `authenticated`。
+- `latest` 与 `me` 的 `currentUserId` 只来自 `Authentication.getName()`。
+- 身份和权限不接受 Body、Query 或 Header 中的 `userId`、`createdBy` 或 `role`；客户端传入这些字段不能改变当前用户或权限。
+
+当前统一的认证与授权错误码如下：
+
+| HTTP | 错误码 | 场景 |
+| --- | --- | --- |
+| `401` | `AUTHENTICATION_REQUIRED` | 受保护端点没有有效登录 Session |
+| `403` | `ACCESS_DENIED` | 已认证用户没有所需角色或权限 |
+| `403` | `CSRF_TOKEN_INVALID` | 写请求缺少或携带无效 CSRF Token |
+| `401` | `INVALID_CREDENTIALS` | 登录凭据无效；这是登录流程错误，不是三个聚类 GET 的业务错误 |
+
+### 2.3 当前聚类端点的统一错误结构
+
+三个已实现聚类端点的所有错误响应统一为：
 
 ```json
 {
-  "code": "CLUSTERING_ERROR_CODE",
-  "message": "中文错误说明",
+  "code": "ERROR_CODE",
+  "message": "安全的中文错误说明",
   "details": {}
 }
 ```
 
-字段类型：
+`details` 当前固定为空对象 `{}`，包括 404 响应；404 不回显 `runId`。公开错误不得返回异常 `message`、SQL、原始 JSON、堆栈、Python 地址或其他内部服务信息。存储数据损坏产生的内部 `CORRUPT_STORED_DATA` 不对外暴露，统一映射为 `500 INTERNAL_ERROR`。
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| `code` | `string` | 是 | 稳定、可供程序判断的错误码 |
-| `message` | `string` | 是 | 面向调用者的中文错误说明，不包含凭据、内部地址或堆栈 |
-| `details` | `object` | 是 | 非敏感结构化上下文；无详情时为 `{}` |
+## 3. 已实现的公开 API
 
-常用错误码包括 `INVALID_CLUSTER_COUNT`、`NO_EFFECTIVE_USERS`、`UNAUTHENTICATED`、`FORBIDDEN`、`RUN_NOT_FOUND`、`COMMUNITY_NOT_FOUND`、`NO_SUCCESSFUL_RUN`、`RUN_CONFLICT`、`INVALID_FEATURE_SCHEMA`、`INVALID_CLUSTERING_RESULT`、`PYTHON_SERVICE_UNAVAILABLE` 和 `INTERNAL_ERROR`。
+### 3.1 管理员查询运行详情
 
-### 2.3 安全边界
+#### `GET /api/v1/admin/community-clustering/runs/{runId}`
 
-- 管理员权限和当前用户身份必须由 Spring Boot 的可信服务端认证上下文提供，不接受请求参数伪造角色或当前用户 ID。
-- 当前仓库没有完整服务端认证体系；本文只定义最终权限语义，不在本阶段设计新的登录系统。
-- 公开 API 永不返回用户密码、认证令牌、内部特征向量、标准化矩阵、Python 服务地址或内部调用凭据。
-- 最新概览中的散点使用运行内不透明 `pointId`；普通用户不能据此反推出其他用户账号。
-- Python 地址只允许存在于 Spring Boot 服务端配置中。
+**权限：** `ROLE_ADMIN`。GET 不要求 CSRF Token。
 
-## 3. 公开 API
-
-## 3.1 管理员手动触发聚类
-
-### `POST /api/v1/admin/community-clustering/runs`
-
-**用途：** 创建并异步触发一次社区聚类运行。
-
-**调用者：** 管理后台通过 Spring Boot 调用。
-
-**权限：** 仅管理员。Spring Boot 必须从可信身份上下文判断权限。
-
-**请求参数：**
-
-| 位置 | 字段 | 类型 | 必填 | 约束与说明 |
-| --- | --- | --- | --- | --- |
-| Body | `clusterCount` | `integer(int32)` | 否 | K 值；省略时本地演示默认 2；必须满足 `2 <= K <= 有效用户数` |
-
-不接受客户端覆盖 `algorithm`、`randomState`、运行状态或服务地址；算法固定为 K-Means，随机种子固定为 42。
-
-**请求 JSON 示例：**
-
-```json
-{
-  "clusterCount": 2
-}
-```
-
-**成功响应：** `202 Accepted`。任务已登记为 `PENDING`，不表示聚类已完成。
-
-| 字段 | 类型 | 可空 | 说明 |
-| --- | --- | --- | --- |
-| `runId` | `string` | 否 | 运行 ID |
-| `version` | `string` | 否 | 全局唯一结果版本 |
-| `algorithm` | `string` | 否 | 固定为 `KMEANS` |
-| `clusterCount` | `integer(int32)` | 否 | 实际采用的 K |
-| `randomState` | `integer(int32)` | 否 | 固定为 42 |
-| `status` | `string(enum)` | 否 | 此处为 `PENDING` |
-| `createdAt` | `string(date-time)` | 否 | 创建时间 |
-
-**成功响应 JSON 示例：**
-
-```json
-{
-  "runId": "7a663bd4-95f1-4ef5-a8e9-84267f4fa301",
-  "version": "cc-20260713-0001",
-  "algorithm": "KMEANS",
-  "clusterCount": 2,
-  "randomState": 42,
-  "status": "PENDING",
-  "createdAt": "2026-07-13T10:30:00+08:00"
-}
-```
-
-**错误状态：**
-
-| HTTP | 错误码 | 场景 |
-| --- | --- | --- |
-| `400` | `INVALID_CLUSTER_COUNT` | K 不是整数、K 小于 2 或 K 大于有效用户数 |
-| `409` | `RUN_CONFLICT` | MVP 策略不允许并行运行且已有 `PENDING`/`RUNNING` 任务 |
-| `401` | `UNAUTHENTICATED` | 缺少可信身份 |
-| `403` | `FORBIDDEN` | 当前用户不是管理员 |
-| `500` | `INTERNAL_ERROR` | 创建运行记录失败 |
-
-**错误响应 JSON 示例：**
-
-```json
-{
-  "code": "INVALID_CLUSTER_COUNT",
-  "message": "聚类数量必须在 2 和有效用户数 18 之间",
-  "details": {
-    "min": 2,
-    "max": 18,
-    "actual": 20
-  }
-}
-```
-
-**空数据行为：** 请求体 `{}` 等同于使用本地默认 `clusterCount=2`。有效用户数少于 2 时返回 `400 NO_EFFECTIVE_USERS`，不创建可执行任务，也不调用 Python。
-
-## 3.2 查询聚类任务状态
-
-### `GET /api/v1/admin/community-clustering/runs/{runId}`
-
-**用途：** 查询指定运行的当前状态、参数、计数、时间和脱敏失败摘要。
-
-**调用者：** 管理后台通过 Spring Boot 调用。
-
-**权限：** 仅管理员。
-
-**请求参数：**
-
-| 位置 | 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- | --- |
-| Path | `runId` | `string` | 是 | 运行 ID |
-
-**请求 JSON 示例：** GET 请求不发送请求体；契约中的空对象表示无 Body 字段。
-
-```json
-{}
-```
+**请求参数：** 仅有必填 Path 参数 `runId`；不接收请求体。
 
 **成功响应：** `200 OK`。
 
@@ -156,24 +81,46 @@
 | --- | --- | --- | --- |
 | `runId` | `string` | 否 | 运行 ID |
 | `version` | `string` | 否 | 唯一版本 |
-| `algorithm` | `string` | 否 | `KMEANS` |
-| `clusterCount` | `integer(int32)` | 否 | K 值 |
-| `randomState` | `integer(int32)` | 否 | 42 |
-| `status` | `string(enum)` | 否 | 四种统一状态之一 |
-| `sampleCount` | `integer(int32)` | 是 | 聚合完成前可为 `null` |
+| `algorithm` | `string` | 否 | 当前为 `KMEANS` |
+| `clusterCount` | `integer` | 否 | K 值 |
+| `randomState` | `integer` | 否 | 当前为 42 |
+| `status` | `string` | 否 | 运行状态 |
+| `sampleCount` | `integer` | 是 | `SUCCESS` 时非空；其他状态依已登记快照而定 |
 | `featureSchemaVersion` | `string` | 否 | 特征模式版本 |
-| `metrics` | `object` | 是 | 成功后可返回非敏感指标；其他状态可为 `null` |
-| `startedAt` | `string(date-time)` | 是 | 尚未开始时为 `null` |
-| `finishedAt` | `string(date-time)` | 是 | 未结束时为 `null` |
-| `errorMessage` | `string` | 是 | 仅 `FAILED` 返回脱敏摘要，其他状态为 `null` |
-| `createdBy` | `string` | 否 | 触发管理员的用户 ID |
+| `metrics` | `object` | 是 | 仅 `SUCCESS` 非空 |
+| `failure` | `object` | 是 | 仅 `FAILED` 非空 |
 | `createdAt` | `string(date-time)` | 否 | 创建时间 |
+| `startedAt` | `string(date-time)` | 是 | 开始时间 |
+| `finishedAt` | `string(date-time)` | 是 | 结束时间 |
+| `createdBy` | `string` | 否 | 服务端登记的触发者标识 |
 
-**成功响应 JSON 示例：**
+`metrics` 当前字段为 `inertia` 和长度为 2 的 `pcaExplainedVarianceRatio`。`FAILED` 使用结构化的安全失败摘要：
 
 ```json
 {
-  "runId": "7a663bd4-95f1-4ef5-a8e9-84267f4fa301",
+  "failure": {
+    "code": "PYTHON_SERVICE_UNAVAILABLE",
+    "message": "PYTHON_SERVICE_UNAVAILABLE: 聚类服务不可用"
+  }
+}
+```
+
+公开响应没有原始 `errorMessage` 字段。
+
+状态字段语义：
+
+| 状态 | 字段约束 |
+| --- | --- |
+| `PENDING` | `metrics=null`、`failure=null`、`startedAt=null`、`finishedAt=null` |
+| `RUNNING` | `metrics=null`、`failure=null`、`startedAt` 非空、`finishedAt=null` |
+| `SUCCESS` | `metrics` 非空、`failure=null`、`startedAt`/`finishedAt`/`sampleCount` 非空 |
+| `FAILED` | `metrics=null`、`failure` 非空、`finishedAt` 非空；`startedAt` 可为 `null` |
+
+**成功响应示例：**
+
+```json
+{
+  "runId": "run-example-001",
   "version": "cc-20260713-0001",
   "algorithm": "KMEANS",
   "clusterCount": 2,
@@ -185,51 +132,39 @@
     "inertia": 31.48,
     "pcaExplainedVarianceRatio": [0.34, 0.21]
   },
-  "startedAt": "2026-07-13T10:30:01+08:00",
-  "finishedAt": "2026-07-13T10:30:03+08:00",
-  "errorMessage": null,
-  "createdBy": "admin-001",
-  "createdAt": "2026-07-13T10:30:00+08:00"
+  "failure": null,
+  "createdAt": "2026-07-13T02:30:00Z",
+  "startedAt": "2026-07-13T02:30:01Z",
+  "finishedAt": "2026-07-13T02:30:03Z",
+  "createdBy": "admin-example"
 }
 ```
 
-**错误状态：** `400 INVALID_RUN_ID`、`401 UNAUTHENTICATED`、`403 FORBIDDEN`、`404 RUN_NOT_FOUND`、`500 INTERNAL_ERROR`。
+**业务错误：**
 
-**错误响应 JSON 示例：**
+| HTTP | 错误码 | 场景 |
+| --- | --- | --- |
+| `400` | `INVALID_RUN_ID` | `runId` 为空、空白或不符合当前长度约束 |
+| `404` | `RUN_NOT_FOUND` | 没有对应运行 |
+| `500` | `INTERNAL_ERROR` | 存储数据不一致或未预期内部错误 |
+
+认证与授权错误另见 2.2。404 示例不会回显请求中的 `runId`：
 
 ```json
 {
   "code": "RUN_NOT_FOUND",
   "message": "未找到指定的聚类任务",
-  "details": {
-    "runId": "missing-run"
-  }
+  "details": {}
 }
 ```
 
-**空数据行为：** 运行存在时始终返回运行对象；未开始或未结束的时间及暂不可用的指标按字段定义返回 `null`。运行不存在时返回 404，不返回空对象。
+### 3.2 查询最新成功版本
 
-## 3.3 查询最新成功版本的社区概览和二维坐标
+#### `GET /api/v1/community-clustering/latest`
 
-### `GET /api/v1/community-clustering/latest`
-
-**用途：** 返回最近一次 `SUCCESS` 运行的社区摘要和匿名二维散点，供社区聚类页面展示。
-
-**调用者：** 已登录用户的浏览器通过 Spring Boot 调用。
-
-**权限：** 已登录用户；管理员也可调用。
-
-**请求参数：** 无 Path、Query 或 Body 参数。
-
-**请求 JSON 示例：** GET 请求不发送请求体；契约表示为：
-
-```json
-{}
-```
+**权限：** `authenticated`。GET 不要求 CSRF Token；无 Path、Query 或 Body 参数。当前用户只由 `Authentication.getName()` 确定。
 
 **成功响应：** `200 OK`。
-
-顶层字段：
 
 | 字段 | 类型 | 可空 | 说明 |
 | --- | --- | --- | --- |
@@ -237,43 +172,48 @@
 | `run.runId` | `string` | 否 | 运行 ID |
 | `run.version` | `string` | 否 | 版本 |
 | `run.algorithm` | `string` | 否 | `KMEANS` |
-| `run.clusterCount` | `integer(int32)` | 否 | K 值 |
-| `run.sampleCount` | `integer(int32)` | 否 | 样本数 |
+| `run.clusterCount` | `integer` | 否 | K 值 |
+| `run.sampleCount` | `integer` | 否 | 样本数 |
 | `run.finishedAt` | `string(date-time)` | 否 | 成功完成时间 |
-| `communities` | `array<object>` | 否 | 社区列表，按 `clusterNo` 升序 |
+| `communities` | `array<object>` | 否 | 按 `clusterNo` 升序的社区列表 |
 
 `communities[]` 字段：
 
 | 字段 | 类型 | 可空 | 说明 |
 | --- | --- | --- | --- |
 | `communityId` | `string` | 否 | 社区 ID |
-| `clusterNo` | `integer(int32)` | 否 | 运行内簇编号，范围 `0..K-1` |
-| `name` | `string` | 否 | 展示名称 |
-| `description` | `string` | 是 | 展示描述 |
-| `memberCount` | `integer(int32)` | 否 | 成员数 |
-| `topInterests` | `array<string>` | 否 | 代表性兴趣，最多 3 项，可为空数组 |
-| `color` | `string` | 否 | 展示颜色，建议 `#RRGGBB` |
-| `points` | `array<object>` | 否 | 该社区匿名散点 |
-| `points[].pointId` | `string` | 否 | 对应运行内 `CommunityMember.id` 的不透明点标识，不等同于用户 ID |
-| `points[].x` | `number(double)` | 否 | `[0, 100]` |
-| `points[].y` | `number(double)` | 否 | `[0, 100]` |
-| `points[].isCurrentUser` | `boolean` | 否 | 是否为当前登录用户的点 |
+| `clusterNo` | `integer` | 否 | 运行内簇编号 |
+| `name` | `string` | 否 | 社区名称 |
+| `description` | `string` | 是 | 社区描述 |
+| `memberCount` | `integer` | 否 | 成员数 |
+| `topInterests` | `array<string>` | 否 | 代表性兴趣；无值为 `[]` |
+| `color` | `string` | 否 | 展示颜色 |
+| `points` | `array<object>` | 否 | 匿名散点 |
 
-**成功响应 JSON 示例：**
+`points[]` 只包含：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `pointId` | `string` | 不透明点标识，不是用户 ID |
+| `x` | `number` | `[0, 100]` |
+| `y` | `number` | `[0, 100]` |
+| `currentUser` | `boolean` | 是否属于当前登录用户 |
+
+**成功响应示例：**
 
 ```json
 {
   "run": {
-    "runId": "7a663bd4-95f1-4ef5-a8e9-84267f4fa301",
+    "runId": "run-example-001",
     "version": "cc-20260713-0001",
     "algorithm": "KMEANS",
     "clusterCount": 2,
     "sampleCount": 3,
-    "finishedAt": "2026-07-13T10:30:03+08:00"
+    "finishedAt": "2026-07-13T02:30:03Z"
   },
   "communities": [
     {
-      "communityId": "community-0",
+      "communityId": "community-example-0",
       "clusterNo": 0,
       "name": "社区 1",
       "description": "主要兴趣：AI、编程",
@@ -281,12 +221,12 @@
       "topInterests": ["AI", "编程"],
       "color": "#1677FF",
       "points": [
-        {"pointId": "p-01", "x": 18.2, "y": 74.6, "isCurrentUser": true},
-        {"pointId": "p-02", "x": 29.4, "y": 81.0, "isCurrentUser": false}
+        {"pointId": "point-example-01", "x": 18.2, "y": 74.6, "currentUser": true},
+        {"pointId": "point-example-02", "x": 29.4, "y": 81.0, "currentUser": false}
       ]
     },
     {
-      "communityId": "community-1",
+      "communityId": "community-example-1",
       "clusterNo": 1,
       "name": "社区 2",
       "description": "主要兴趣：羽毛球",
@@ -294,16 +234,16 @@
       "topInterests": ["羽毛球"],
       "color": "#52C41A",
       "points": [
-        {"pointId": "p-03", "x": 91.0, "y": 12.5, "isCurrentUser": false}
+        {"pointId": "point-example-03", "x": 91.0, "y": 12.5, "currentUser": false}
       ]
     }
   ]
 }
 ```
 
-**错误状态：** `401 UNAUTHENTICATED`、`404 NO_SUCCESSFUL_RUN`、`500 INTERNAL_ERROR`。
+该端点明确不返回 `userId`、用户姓名、学院、年级、`distanceToCenter`、`assignedAt`、`createdBy`、`metrics` 或 `failure`。普通用户不能通过匿名点关联其他用户资料。
 
-**错误响应 JSON 示例：**
+没有成功运行时返回 `404 NO_SUCCESSFUL_RUN`；存储数据不一致或未预期错误返回 `500 INTERNAL_ERROR`。认证错误另见 2.2。
 
 ```json
 {
@@ -313,33 +253,11 @@
 }
 ```
 
-**空数据行为：** 没有 `SUCCESS` 运行时返回 404。成功运行按约束至少包含 2 个样本和 K 个非空社区；`topInterests` 没有可用值时返回 `[]`，描述可为 `null`，不得用虚构兴趣补齐。
+### 3.3 查询当前用户所属社区
 
-#### 前端消费约定
+#### `GET /api/v1/community-clustering/me`
 
-- 社区聚类页面以 `communities` 直接作为表格、图例和散点图的数据源，不需要再调用管理员成员接口或按 `userId` 关联用户列表。
-- `communityId` 用作社区稳定渲染键，表格成员数使用 `memberCount`；`points.length` 必须等于该社区的 `memberCount`。
-- 散点以 `pointId` 作为渲染键，直接使用 `x`、`y` 作为百分比坐标，并用 `isCurrentUser` 高亮当前用户。
-- 普通用户的散点提示只能显示“当前用户”或“匿名成员”及社区名称，不得沿用当前 mock 页面通过 `userId` 展示其他成员姓名、学院或兴趣的逻辑。
-- 因隐私边界不同，阶段 4 必须把当前 mock 的 `id/members/userId` 字段读取改为本契约的 `communityId/points/pointId`；完成这一次字段接入后，`latest` 单个响应应足以渲染公开社区页面。
-
-## 3.4 查询当前用户所属社区
-
-### `GET /api/v1/community-clustering/me`
-
-**用途：** 查询可信身份上下文中的当前用户在最新成功版本中的唯一社区归属。
-
-**调用者：** 已登录用户的浏览器通过 Spring Boot 调用。
-
-**权限：** 已登录用户；不接受 `userId` 参数。
-
-**请求参数：** 无 Path、Query 或 Body 参数，当前用户 ID 从服务端认证上下文取得。
-
-**请求 JSON 示例：**
-
-```json
-{}
-```
+**权限：** `authenticated`。GET 不要求 CSRF Token；无 Path、Query 或 Body 参数。该端点不接受 `userId`，当前用户只由 `Authentication.getName()` 确定。
 
 **成功响应：** `200 OK`。
 
@@ -347,150 +265,82 @@
 | --- | --- | --- | --- |
 | `runId` | `string` | 否 | 最新成功运行 ID |
 | `version` | `string` | 否 | 最新成功版本 |
-| `membership` | `object` | 是 | 当前用户未纳入该版本时为 `null` |
+| `membership` | `object` | 是 | 当前用户不在该版本样本中时为 `null` |
 | `membership.communityId` | `string` | 否 | 所属社区 ID |
-| `membership.clusterNo` | `integer(int32)` | 否 | 簇编号 |
-| `membership.name` | `string` | 否 | 社区名称 |
-| `membership.description` | `string` | 是 | 社区描述 |
+| `membership.clusterNo` | `integer` | 否 | 簇编号 |
+| `membership.communityName` | `string` | 否 | 社区名称 |
 | `membership.color` | `string` | 否 | 展示颜色 |
-| `membership.coordinateX` | `number(double)` | 否 | `[0, 100]` |
-| `membership.coordinateY` | `number(double)` | 否 | `[0, 100]` |
-| `membership.distanceToCenter` | `number(double)` | 否 | 非负且有限 |
-| `membership.assignedAt` | `string(date-time)` | 否 | 归属保存时间 |
+| `membership.pointId` | `string` | 否 | 当前用户在该运行内的不透明点标识 |
+| `membership.x` | `number` | 否 | `[0, 100]` |
+| `membership.y` | `number` | 否 | `[0, 100]` |
+| `membership.distanceToCenter` | `number` | 否 | 非负有限数 |
 
-**成功响应 JSON 示例：**
+**有归属的响应示例：**
 
 ```json
 {
-  "runId": "7a663bd4-95f1-4ef5-a8e9-84267f4fa301",
+  "runId": "run-example-001",
   "version": "cc-20260713-0001",
   "membership": {
-    "communityId": "community-0",
+    "communityId": "community-example-0",
     "clusterNo": 0,
-    "name": "社区 1",
-    "description": "主要兴趣：AI、编程",
+    "communityName": "社区 1",
     "color": "#1677FF",
-    "coordinateX": 18.2,
-    "coordinateY": 74.6,
-    "distanceToCenter": 0.83,
-    "assignedAt": "2026-07-13T10:30:03+08:00"
+    "pointId": "point-example-01",
+    "x": 18.2,
+    "y": 74.6,
+    "distanceToCenter": 0.83
   }
 }
 ```
 
-**错误状态：** `401 UNAUTHENTICATED`、`404 NO_SUCCESSFUL_RUN`、`500 INTERNAL_ERROR`。
-
-**错误响应 JSON 示例：**
+当前用户不在最新成功运行的样本中时仍返回 `200 OK`：
 
 ```json
 {
-  "code": "UNAUTHENTICATED",
-  "message": "请先登录后再查询所属社区",
-  "details": {}
+  "runId": "run-example-001",
+  "version": "cc-20260713-0001",
+  "membership": null
 }
 ```
 
-**空数据行为：** 有最新成功运行但当前用户不在该运行样本中时返回 `200`，`membership` 为 `null`；没有成功运行时返回 `404 NO_SUCCESSFUL_RUN`。不得把当前用户自动分配到最近社区。
+该端点不返回用户资料或其他成员信息。没有成功运行时返回 `404 NO_SUCCESSFUL_RUN`；存储数据不一致或未预期错误返回 `500 INTERNAL_ERROR`。认证错误另见 2.2。
 
-## 3.5 管理员查询某社区成员
+## 4. Python 功能开关对查询 API 的影响
 
-### `GET /api/v1/admin/community-clustering/communities/{communityId}/members`
+当配置为：
 
-**用途：** 分页查询指定社区的成员和其在该运行中的展示信息。
-
-**调用者：** 管理后台通过 Spring Boot 调用。
-
-**权限：** 仅管理员。
-
-**请求参数：**
-
-| 位置 | 字段 | 类型 | 必填 | 默认值/约束 |
-| --- | --- | --- | --- | --- |
-| Path | `communityId` | `string` | 是 | 社区 ID |
-| Query | `page` | `integer(int32)` | 否 | 默认 0，最小 0 |
-| Query | `size` | `integer(int32)` | 否 | 默认 20，范围 1 到 100 |
-
-**请求 JSON 示例：** `GET .../members?page=0&size=20` 不发送请求体；契约表示为：
-
-```json
-{}
+```properties
+community-clustering.python.enabled=false
 ```
 
-**成功响应：** `200 OK`。
+只会关闭条件装配的 `ClusteringClient` 和 `CommunityClusteringOrchestrator`。它不会关闭三个已实现查询端点、`CommunityClusteringQueryService`、聚类 Repository，也不会阻止读取历史 `SUCCESS` 或 `FAILED` 运行。因此管理员运行详情、`latest` 与 `me` 不会仅因 Python 关闭而返回 503；它们仍按已有数据和本文错误契约响应。
 
-| 字段 | 类型 | 可空 | 说明 |
-| --- | --- | --- | --- |
-| `community` | `object` | 否 | 社区摘要 |
-| `community.communityId` | `string` | 否 | 社区 ID |
-| `community.runId` | `string` | 否 | 所属运行 ID |
-| `community.version` | `string` | 否 | 所属运行版本 |
-| `community.clusterNo` | `integer(int32)` | 否 | 簇编号 |
-| `community.name` | `string` | 否 | 社区名称 |
-| `content` | `array<object>` | 否 | 当前页成员 |
-| `content[].userId` | `string` | 否 | 用户 ID，仅管理员可见 |
-| `content[].name` | `string` | 否 | 用户展示名 |
-| `content[].college` | `string` | 是 | 学院 |
-| `content[].grade` | `string` | 是 | 年级 |
-| `content[].coordinateX` | `number(double)` | 否 | `[0, 100]` |
-| `content[].coordinateY` | `number(double)` | 否 | `[0, 100]` |
-| `content[].distanceToCenter` | `number(double)` | 否 | 非负且有限 |
-| `content[].assignedAt` | `string(date-time)` | 否 | 归属保存时间 |
-| `page` | `integer(int32)` | 否 | 当前页，从 0 开始 |
-| `size` | `integer(int32)` | 否 | 页大小 |
-| `totalElements` | `integer(int64)` | 否 | 总成员数 |
-| `totalPages` | `integer(int32)` | 否 | 总页数 |
+## 5. 规划中的公开 API（尚未实现）
 
-**成功响应 JSON 示例：**
+### 5.1 管理员触发聚类
 
-```json
-{
-  "community": {
-    "communityId": "community-0",
-    "runId": "7a663bd4-95f1-4ef5-a8e9-84267f4fa301",
-    "version": "cc-20260713-0001",
-    "clusterNo": 0,
-    "name": "社区 1"
-  },
-  "content": [
-    {
-      "userId": "20260001",
-      "name": "张三",
-      "college": "软件学院",
-      "grade": "2024级",
-      "coordinateX": 18.2,
-      "coordinateY": 74.6,
-      "distanceToCenter": 0.83,
-      "assignedAt": "2026-07-13T10:30:03+08:00"
-    }
-  ],
-  "page": 0,
-  "size": 20,
-  "totalElements": 1,
-  "totalPages": 1
-}
-```
+#### `POST /api/v1/admin/community-clustering/runs`
 
-**错误状态：** `400 INVALID_PAGE_REQUEST`、`401 UNAUTHENTICATED`、`403 FORBIDDEN`、`404 COMMUNITY_NOT_FOUND`、`500 INTERNAL_ERROR`。
+> **尚未实现。当前应用不存在此 POST Controller，也不存在可供调用方使用的 `202 Accepted` 接口。**
 
-**错误响应 JSON 示例：**
+目标契约是真正的异步提交：服务端先以短事务登记运行，返回 `202 Accepted` 和 `PENDING`，再由后台执行器领取并执行。当前 `CommunityClusteringOrchestrator.execute(...)` 会在同一调用中同步完成特征聚合、运行状态流转、Python 调用、校验和持久化，不能直接包装成 `202` Controller。阻塞到执行完成后才返回的响应不得描述为 `202 Accepted` 或“任务仅已登记”。
 
-```json
-{
-  "code": "COMMUNITY_NOT_FOUND",
-  "message": "未找到指定社区",
-  "details": {
-    "communityId": "missing-community"
-  }
-}
-```
+后续实现至少还需要后台执行器、任务提交拒绝处理、应用重启后的恢复策略，以及失败记录失败时的可观测性。写请求还必须遵循 Session、`ROLE_ADMIN` 和 CSRF 约束；`createdBy` 必须来自可信认证上下文，不能由请求体、Query 或 Header 指定。
 
-**空数据行为：** 社区存在但请求页没有成员时返回 `200` 和 `content: []`；社区不存在时返回 404。响应不得包含密码、令牌或成员内部特征向量。
+规划请求仅包含可选 `clusterCount`；算法固定为 K-Means，`randomState=42`。响应字段、竞争错误和恢复语义应在异步基础设施实现时再以 Controller 测试确认。本节不宣称当前存在任何 POST 响应。
 
-## 4. 内部 Python API
+### 5.2 管理员社区成员分页
 
-## 4.1 执行聚类
+> **尚未实现。当前没有管理员成员分页 Controller 或响应 DTO。**
 
-### `POST /internal/v1/clustering/run`
+规划方向是管理员按社区分页查询成员，但路径、分页参数、响应字段和审计要求仍需实现前确认。尤其是是否公开 `userId`、姓名、学院、年级属于待定的隐私与最小权限决策；本文不将这些字段声明为已实现契约，也不提供会被误认为真实响应的成员样例。
+
+## 6. 内部 Python API
+
+### 6.1 执行聚类
+
+#### `POST /internal/v1/clustering/run`
 
 **用途：** 对 Spring Boot 提供的一次不可变特征快照执行预处理、标准化、K-Means 和 PCA，返回未持久化的计算结果。
 
@@ -529,7 +379,7 @@
 
 ```json
 {
-  "runId": "7a663bd4-95f1-4ef5-a8e9-84267f4fa301",
+  "runId": "run-example-001",
   "version": "cc-20260713-0001",
   "algorithm": "KMEANS",
   "clusterCount": 2,
@@ -537,7 +387,7 @@
   "featureSchemaVersion": "community-features-v1",
   "samples": [
     {
-      "userId": "20260001",
+      "userId": "user-example-01",
       "interests": ["AI", "摄影"],
       "college": "软件学院",
       "grade": "2024级",
@@ -551,7 +401,7 @@
       "categoryParticipationCounts": {"academic": 3, "sports": 1}
     },
     {
-      "userId": "20260002",
+      "userId": "user-example-02",
       "interests": ["羽毛球"],
       "college": "计算机学院",
       "grade": "2023级",
@@ -595,7 +445,7 @@
 
 ```json
 {
-  "runId": "7a663bd4-95f1-4ef5-a8e9-84267f4fa301",
+  "runId": "run-example-001",
   "version": "cc-20260713-0001",
   "algorithm": "KMEANS",
   "clusterCount": 2,
@@ -609,8 +459,8 @@
     {"clusterNo": 1, "memberCount": 1, "topInterests": ["羽毛球"]}
   ],
   "members": [
-    {"userId": "20260001", "clusterNo": 0, "coordinateX": 0.0, "coordinateY": 50.0, "distanceToCenter": 0.0},
-    {"userId": "20260002", "clusterNo": 1, "coordinateX": 100.0, "coordinateY": 50.0, "distanceToCenter": 0.0}
+    {"userId": "user-example-01", "clusterNo": 0, "coordinateX": 0.0, "coordinateY": 50.0, "distanceToCenter": 0.0},
+    {"userId": "user-example-02", "clusterNo": 1, "coordinateX": 100.0, "coordinateY": 50.0, "distanceToCenter": 0.0}
   ]
 }
 ```
@@ -654,9 +504,9 @@ Python 不生成或返回 `communityId`、`name`、`description`、`color`。Spr
 
 **空数据与 K 越界行为：** `samples` 为空或少于 2 时返回 `400 INVALID_SAMPLE_DATA`；缺少必填的 `randomState` 时返回 `400 INVALID_SAMPLE_DATA`；`clusterCount < 2` 或 `clusterCount > samples.length` 时返回 `400 INVALID_CLUSTER_COUNT`，均不返回空成功结果。空兴趣、空可参与时间和空类别计数是合法字段值；Python 按版本化规则处理，不虚构标签。合法输入发生 PCA 或不同特征行退化时，按上文“PCA 退化规则”处理或返回明确的 422 错误。
 
-## 4.2 内部健康检查
+### 6.2 内部健康检查
 
-### `GET /internal/v1/health`
+#### `GET /internal/v1/health`
 
 **用途：** 检查 Python 进程和聚类组件是否可响应。健康检查不访问或修改业务数据库。
 
@@ -704,7 +554,7 @@ Python 不生成或返回 `communityId`、`name`、`description`、`color`。Spr
 
 **空数据行为：** 无业务数据也应返回 `200 UP`，因为健康检查不以样本或成功运行是否存在作为健康条件。响应不得包含主机名、端口、数据库信息或凭据。
 
-## 5. Spring Boot 结果校验责任
+## 7. Spring Boot 结果校验责任
 
 收到 Python 成功响应后，Spring Boot 在持久化前必须至少校验：
 
