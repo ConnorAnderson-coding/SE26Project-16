@@ -24,7 +24,6 @@ export const INTEREST_TAGS = [
 export const initialUsers = [
   {
     id: '524030910001',
-    password: '123456',
     name: '张三',
     role: 'student',
     college: '软件学院',
@@ -35,7 +34,6 @@ export const initialUsers = [
   },
   {
     id: '524030910002',
-    password: '123456',
     name: '李四',
     role: 'student',
     college: '计算机学院',
@@ -46,24 +44,12 @@ export const initialUsers = [
   },
   {
     id: 'T001',
-    password: '123456',
     name: '王老师',
     role: 'teacher',
     college: '软件学院',
     grade: '教师',
     interests: ['AI', '创业'],
     availableTime: ['weekday_morning', 'weekday_afternoon'],
-    friends: []
-  },
-  {
-    id: 'admin001',
-    password: '123456',
-    name: '系统管理员',
-    role: 'admin',
-    college: '软件学院',
-    grade: '管理员',
-    interests: [],
-    availableTime: [],
     friends: []
   }
 ]
@@ -283,52 +269,6 @@ export const SHARE_CHANNEL_LABELS = {
   friend: '好友推荐',
   list: '活动列表'
 }
-
-export const initialCommunityClusters = [
-  {
-    id: 'cluster-tech',
-    name: '科创达人',
-    description: '偏好编程、AI、创新创业类活动',
-    color: '#1677ff',
-    topInterests: ['AI', '编程', '创业'],
-    members: [
-      { userId: '524030910001', x: 68, y: 72 },
-      { userId: '524030910002', x: 74, y: 65 },
-      { userId: 'T001', x: 62, y: 58 }
-    ]
-  },
-  {
-    id: 'cluster-sports',
-    name: '运动健将',
-    description: '热衷体育运动与户外竞技',
-    color: '#52c41a',
-    topInterests: ['羽毛球', '篮球', '电竞'],
-    members: [
-      { userId: '524030910002', x: 35, y: 42 }
-    ]
-  },
-  {
-    id: 'cluster-arts',
-    name: '文艺青年',
-    description: '关注摄影、音乐与艺术活动',
-    color: '#eb2f96',
-    topInterests: ['摄影', '音乐', '舞蹈'],
-    members: [
-      { userId: '524030910001', x: 28, y: 78 }
-    ]
-  },
-  {
-    id: 'cluster-volunteer',
-    name: '公益先锋',
-    description: '积极参与志愿服务与社区活动',
-    color: '#fa8c16',
-    topInterests: ['志愿服务', '阅读'],
-    members: [
-      { userId: '524030910001', x: 82, y: 28 },
-      { userId: 'T001', x: 88, y: 35 }
-    ]
-  }
-]
 
 export function getCategoryLabel(value) {
   return ACTIVITY_CATEGORIES.find(c => c.value === value)?.label || value

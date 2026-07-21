@@ -17,6 +17,7 @@ import Feedback from '../pages/Feedback'
 import OrganizerAnalytics from '../pages/OrganizerAnalytics'
 import CommunityClusters from '../pages/CommunityClusters'
 import AdminDashboard from '../pages/AdminDashboard'
+import AdminCommunityClustering from '../pages/AdminCommunityClustering'
 
 export default function Router() {
   return (
@@ -38,6 +39,7 @@ export default function Router() {
         <Route path="/organizer-analytics" element={<OrganizerAnalytics />} />
         <Route path="/community" element={<CommunityClusters />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/community-clustering" element={<AdminCommunityClustering />} />
       </Routes>
     </BrowserRouter>
   )
