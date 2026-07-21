@@ -26,6 +26,25 @@ public interface ClusteringRunRepository extends JpaRepository<ClusteringRun, St
 
     long countByStatusIn(Collection<ClusteringRunStatus> statuses);
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT run
+            FROM ClusteringRun run
+            WHERE run.status = com.example.campusactivity.entity.ClusteringRunStatus.PENDING
+            ORDER BY run.createdAt ASC, run.id ASC
+            """)
+    List<ClusteringRun> findPendingForClaim(Pageable pageable);
+
+    @Query("""
+            SELECT run.id
+            FROM ClusteringRun run
+            WHERE run.status = :status
+            ORDER BY run.createdAt ASC, run.id ASC
+            """)
+    List<String> findIdsByStatusOrderByCreatedAtAscIdAsc(
+            @Param("status") ClusteringRunStatus status
+    );
+
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
             UPDATE ClusteringRun run

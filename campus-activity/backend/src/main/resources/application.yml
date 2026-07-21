@@ -41,3 +41,9 @@ community-clustering:
     base-url: ${CLUSTERING_SERVICE_BASE_URL:}
     connect-timeout: ${CLUSTERING_SERVICE_CONNECT_TIMEOUT:2s}
     read-timeout: ${CLUSTERING_SERVICE_READ_TIMEOUT:30s}
+  execution:
+    queue-capacity: ${CLUSTERING_EXECUTOR_QUEUE_CAPACITY:8}
+    shutdown-wait: ${CLUSTERING_EXECUTOR_SHUTDOWN_WAIT:10s}
+  dispatcher:
+    poll-interval-ms: ${CLUSTERING_DISPATCHER_POLL_INTERVAL_MS:1000}
+    initial-delay-ms: ${CLUSTERING_DISPATCHER_INITIAL_DELAY_MS:1000}

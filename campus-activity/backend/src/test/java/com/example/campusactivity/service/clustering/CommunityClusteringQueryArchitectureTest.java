@@ -9,6 +9,7 @@ import com.example.campusactivity.dto.clustering.CommunityResponse;
 import com.example.campusactivity.dto.clustering.CurrentUserClusteringResponse;
 import com.example.campusactivity.dto.clustering.CurrentUserMembershipResponse;
 import com.example.campusactivity.dto.clustering.LatestClusteringResponse;
+import com.example.campusactivity.dto.clustering.TriggerClusteringResponse;
 import com.example.campusactivity.entity.ClusteringRun;
 import com.example.campusactivity.entity.Community;
 import com.example.campusactivity.entity.CommunityMember;
@@ -47,7 +48,8 @@ class CommunityClusteringQueryArchitectureTest {
             CommunityResponse.class,
             LatestClusteringResponse.class,
             CurrentUserMembershipResponse.class,
-            CurrentUserClusteringResponse.class
+            CurrentUserClusteringResponse.class,
+            TriggerClusteringResponse.class
     );
 
     private static final List<Class<?>> PROJECTION_TYPES = List.of(
@@ -124,7 +126,9 @@ class CommunityClusteringQueryArchitectureTest {
                             "metricsJson",
                             "topInterestsJson",
                             "errorMessage",
-                            "activeSlot"
+                            "activeSlot",
+                            "college",
+                            "grade"
                     );
         }
 

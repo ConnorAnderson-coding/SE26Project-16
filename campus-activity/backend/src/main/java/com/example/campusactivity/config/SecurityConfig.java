@@ -162,6 +162,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                         .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/v1/admin/community-clustering/runs"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/v1/admin/community-clustering/runs/*"
                         ).hasRole("ADMIN")

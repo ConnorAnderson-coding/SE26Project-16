@@ -52,7 +52,8 @@ import static org.mockito.Mockito.when;
 
 @SpringBootTest(properties = {
         "community-clustering.python.enabled=true",
-        "community-clustering.python.base-url=http://localhost:8000"
+        "community-clustering.python.base-url=http://localhost:8000",
+        "community-clustering.dispatcher.initial-delay-ms=3600000"
 })
 @Import(ClusteringPersistenceTestConfig.class)
 class CommunityClusteringOrchestratorIntegrationTest {
@@ -296,15 +297,16 @@ class CommunityClusteringOrchestratorIntegrationTest {
             );
 
             assertThat(results)
+                    .as("concurrent results: %s", results)
                     .filteredOn(result -> result.outcome() == ClusteringExecutionOutcome.SUCCESS)
                     .hasSize(1);
             assertThat(results)
                     .filteredOn(result ->
-                            result.outcome() == ClusteringExecutionOutcome.PRE_RUN_FAILED
+                            result.outcome() == ClusteringExecutionOutcome.PRECONDITION_REJECTED
                     )
                     .hasSize(1)
                     .allSatisfy(result -> assertThat(result.failureCode())
-                            .isEqualTo(ClusteringRunFailureCode.INTERNAL_ERROR));
+                            .isEqualTo(ClusteringRunFailureCode.ACTIVE_RUN_EXISTS));
             assertThat(runRepository.count()).isEqualTo(1);
             assertThat(runRepository.findAll())
                     .singleElement()

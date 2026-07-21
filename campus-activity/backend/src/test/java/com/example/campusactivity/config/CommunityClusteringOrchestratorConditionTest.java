@@ -1,12 +1,8 @@
 package com.example.campusactivity.config;
 
-import com.example.campusactivity.client.clustering.ClusteringClient;
-import com.example.campusactivity.service.clustering.ClusteringResponseValidator;
-import com.example.campusactivity.service.clustering.ClusteringResultPersistenceService;
-import com.example.campusactivity.service.clustering.ClusteringRunFailureService;
-import com.example.campusactivity.service.clustering.ClusteringRunLifecycleService;
+import com.example.campusactivity.service.clustering.CommunityClusteringRunExecutor;
 import com.example.campusactivity.service.clustering.CommunityClusteringOrchestrator;
-import com.example.campusactivity.service.clustering.CommunityFeatureAggregationService;
+import com.example.campusactivity.service.clustering.CommunityClusteringSubmissionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
@@ -38,29 +34,16 @@ class CommunityClusteringOrchestratorConditionTest {
     }
 
     @Test
-    void enabledPropertyCreatesExactlyOneOrchestratorWhenSixDependenciesExist() {
+    void enabledPropertyCreatesExactlyOneOrchestratorWithSharedServices() {
         contextRunner
                 .withPropertyValues("community-clustering.python.enabled=true")
                 .withBean(
-                        CommunityFeatureAggregationService.class,
-                        () -> mock(CommunityFeatureAggregationService.class)
+                        CommunityClusteringSubmissionService.class,
+                        () -> mock(CommunityClusteringSubmissionService.class)
                 )
                 .withBean(
-                        ClusteringRunLifecycleService.class,
-                        () -> mock(ClusteringRunLifecycleService.class)
-                )
-                .withBean(
-                        ClusteringRunFailureService.class,
-                        () -> mock(ClusteringRunFailureService.class)
-                )
-                .withBean(ClusteringClient.class, () -> mock(ClusteringClient.class))
-                .withBean(
-                        ClusteringResponseValidator.class,
-                        () -> mock(ClusteringResponseValidator.class)
-                )
-                .withBean(
-                        ClusteringResultPersistenceService.class,
-                        () -> mock(ClusteringResultPersistenceService.class)
+                        CommunityClusteringRunExecutor.class,
+                        () -> mock(CommunityClusteringRunExecutor.class)
                 )
                 .run(context -> {
                     assertThat(context).hasNotFailed();

@@ -12,6 +12,9 @@ import com.example.campusactivity.repository.CommunityMemberRepository;
 import com.example.campusactivity.repository.CommunityRepository;
 import com.example.campusactivity.repository.UserRepository;
 import com.example.campusactivity.service.clustering.CommunityClusteringOrchestrator;
+import com.example.campusactivity.service.clustering.CommunityClusteringDispatcher;
+import com.example.campusactivity.service.clustering.CommunityClusteringRunExecutor;
+import com.example.campusactivity.service.clustering.CommunityClusteringStartupRecovery;
 import com.example.campusactivity.service.clustering.CommunityClusteringQueryService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -206,6 +209,15 @@ class CommunityClusteringDisabledIntegrationTest {
         assertThat(queryService).isNotNull();
         assertThat(applicationContext.getBeansOfType(
                 CommunityClusteringOrchestrator.class
+        )).isEmpty();
+        assertThat(applicationContext.getBeansOfType(
+                CommunityClusteringDispatcher.class
+        )).isEmpty();
+        assertThat(applicationContext.getBeansOfType(
+                CommunityClusteringRunExecutor.class
+        )).isEmpty();
+        assertThat(applicationContext.getBeansOfType(
+                CommunityClusteringStartupRecovery.class
         )).isEmpty();
         assertThat(applicationContext.getBeansOfType(
                 ClusteringClient.class

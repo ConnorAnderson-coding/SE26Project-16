@@ -11,6 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.EnumSet;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.domain.PageRequest;
 
 @Service
 public class ClusteringRunLifecycleService {
@@ -115,6 +118,36 @@ public class ClusteringRunLifecycleService {
         } catch (RuntimeException exception) {
             fail(ClusteringRunStateCode.RESULT_PERSISTENCE_FAILED);
             return null;
+        }
+    }
+
+    @Transactional
+    public Optional<ClusteringRunSnapshot> claimNextPending() {
+        try {
+            List<ClusteringRun> candidates = runRepository.findPendingForClaim(
+                    PageRequest.of(0, 1)
+            );
+            if (candidates.isEmpty()) {
+                return Optional.empty();
+            }
+            ClusteringRun run = candidates.get(0);
+            requirePending(run.getStatus());
+            Instant startedAt = clock.instant();
+            if (run.getCreatedAt() == null || startedAt.isBefore(run.getCreatedAt())) {
+                fail(ClusteringRunStateCode.INVALID_STATE_TRANSITION);
+            }
+            run.setStatus(ClusteringRunStatus.RUNNING);
+            run.setActiveSlot(ClusteringRun.GLOBAL_ACTIVE_SLOT);
+            run.setStartedAt(startedAt);
+            run.setFinishedAt(null);
+            run.setErrorMessage(null);
+            runRepository.flush();
+            return Optional.of(ClusteringRunSnapshot.from(run));
+        } catch (ClusteringRunStateException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            fail(ClusteringRunStateCode.RESULT_PERSISTENCE_FAILED);
+            return Optional.empty();
         }
     }
 

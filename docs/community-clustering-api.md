@@ -2,12 +2,13 @@
 
 ## 1. 契约范围与实现状态
 
-本文同步阶段 3D 只读 HTTP API 的当前实现，并保留后续公开 API 与内部 Python API 的规划契约。浏览器只调用 Spring Boot 的 `/api/v1` 接口，不直接调用 Python 服务。
+本文同步阶段 3E 异步聚类提交与查询 API 的当前实现，并保留后续公开 API 与内部 Python API 的规划契约。浏览器只调用 Spring Boot 的 `/api/v1` 接口，不直接调用 Python 服务。
 
 ### 1.1 已实现的公开端点
 
 | 方法与路径 | 权限 | 当前行为 |
 | --- | --- | --- |
+| `POST /api/v1/admin/community-clustering/runs` | `ROLE_ADMIN` + CSRF | 原子持久化 `PENDING` 运行与冻结输入后返回 `202 Accepted` |
 | `GET /api/v1/admin/community-clustering/runs/{runId}` | `ROLE_ADMIN` | 查询指定聚类运行详情 |
 | `GET /api/v1/community-clustering/latest` | `authenticated` | 查询最新成功版本的社区与匿名散点 |
 | `GET /api/v1/community-clustering/me` | `authenticated` | 查询当前登录用户在最新成功版本中的归属 |
@@ -16,9 +17,7 @@
 
 | 方法或能力 | 当前状态 |
 | --- | --- |
-| `POST /api/v1/admin/community-clustering/runs` | 尚未实现；当前不存在可返回 `202` 的 Controller |
 | 管理员社区成员分页 | 尚未实现；路径与响应中的个人资料范围尚未最终确定 |
-| 真正的异步任务提交与恢复 | 尚未实现；当前 `CommunityClusteringOrchestrator.execute(...)` 为同步阻塞执行 |
 
 除非章节标题明确标注“规划中”，本文其余公开端点描述均表示当前已实现行为。
 
@@ -37,7 +36,7 @@
 
 - 当前实现使用 Spring Security HTTP Session，浏览器会话 Cookie 为 `JSESSIONID`。
 - 前端跨源请求需要启用凭据发送，例如 Fetch API 使用 `credentials: "include"`。
-- 写请求需要有效 CSRF Token；GET 查询不要求 CSRF Token。当前三个聚类公开端点均为 GET。
+- 写请求需要有效 CSRF Token；GET 查询不要求 CSRF Token。聚类 POST 必须携带登录后取得的有效 CSRF Token。
 - 管理员端点要求 `ROLE_ADMIN`；`latest` 与 `me` 要求 `authenticated`。
 - `latest` 与 `me` 的 `currentUserId` 只来自 `Authentication.getName()`。
 - 身份和权限不接受 Body、Query 或 Header 中的 `userId`、`createdBy` 或 `role`；客户端传入这些字段不能改变当前用户或权限。
@@ -53,7 +52,7 @@
 
 ### 2.3 当前聚类端点的统一错误结构
 
-三个已实现聚类端点的所有错误响应统一为：
+四个已实现聚类端点的所有错误响应统一为：
 
 ```json
 {
@@ -306,7 +305,7 @@
 
 该端点不返回用户资料或其他成员信息。没有成功运行时返回 `404 NO_SUCCESSFUL_RUN`；存储数据不一致或未预期错误返回 `500 INTERNAL_ERROR`。认证错误另见 2.2。
 
-## 4. Python 功能开关对查询 API 的影响
+## 4. Python 功能开关对公开 API 的影响
 
 当配置为：
 
@@ -314,21 +313,52 @@
 community-clustering.python.enabled=false
 ```
 
-只会关闭条件装配的 `ClusteringClient` 和 `CommunityClusteringOrchestrator`。它不会关闭三个已实现查询端点、`CommunityClusteringQueryService`、聚类 Repository，也不会阻止读取历史 `SUCCESS` 或 `FAILED` 运行。因此管理员运行详情、`latest` 与 `me` 不会仅因 Python 关闭而返回 503；它们仍按已有数据和本文错误契约响应。
+会关闭 Python 客户端、异步提交实现、后台调度器和工作执行器。POST 路由本身始终存在，但返回 `503 CLUSTERING_SERVICE_UNAVAILABLE`，且不会聚合特征、创建 run 或保存输入快照。三个 GET 查询端点、`CommunityClusteringQueryService` 和聚类 Repository 仍然可用，可继续读取历史 `SUCCESS` 或 `FAILED` 运行。
 
-## 5. 规划中的公开 API（尚未实现）
+## 5. 管理员提交 API 与规划能力
 
-### 5.1 管理员触发聚类
+### 5.1 管理员触发聚类（已实现）
 
 #### `POST /api/v1/admin/community-clustering/runs`
 
-> **尚未实现。当前应用不存在此 POST Controller，也不存在可供调用方使用的 `202 Accepted` 接口。**
+**权限：** `ROLE_ADMIN`，并要求有效 Session 与 CSRF Token。`createdBy` 只取自 `Authentication.getName()`。
 
-目标契约是真正的异步提交：服务端先以短事务登记运行，返回 `202 Accepted` 和 `PENDING`，再由后台执行器领取并执行。当前 `CommunityClusteringOrchestrator.execute(...)` 会在同一调用中同步完成特征聚合、运行状态流转、Python 调用、校验和持久化，不能直接包装成 `202` Controller。阻塞到执行完成后才返回的响应不得描述为 `202 Accepted` 或“任务仅已登记”。
+请求体可省略、为 `{}`，或只包含可空整数 `clusterCount`；省略或 `null` 时默认 2。端点局部严格 JSON 解析会拒绝未知字段、重复键、尾随 JSON、非整数值，以及 `createdBy`、`role`、`userId` 等身份注入字段。
 
-后续实现至少还需要后台执行器、任务提交拒绝处理、应用重启后的恢复策略，以及失败记录失败时的可观测性。写请求还必须遵循 Session、`ROLE_ADMIN` 和 CSRF 约束；`createdBy` 必须来自可信认证上下文，不能由请求体、Query 或 Header 指定。
+```json
+{"clusterCount": 2}
+```
 
-规划请求仅包含可选 `clusterCount`；算法固定为 K-Means，`randomState=42`。响应字段、竞争错误和恢复语义应在异步基础设施实现时再以 Controller 测试确认。本节不宣称当前存在任何 POST 响应。
+提交线程先在事务外聚合当前有效用户特征并完成 K 值校验，再在一个短事务中原子写入 `PENDING` run 和该 run 的全部冻结输入快照。事务提交后立即返回 `202 Accepted`，设置 `Location: /api/v1/admin/community-clustering/runs/{runId}`，响应为：
+
+输入快照只保存无损执行当前 Python 请求所需的最小算法特征。当前 `FeatureSample` 契约包含可空的 `college` 和 `grade`，因此它们会随提交时的值冻结在内部 `ClusteringRunInput` 中；它们不是公开用户资料副本，不保存完整 `UserAccount` 实体，也不通过本节 POST 响应、运行详情、`latest`、`me` 或公开错误响应返回。后台执行仅从 `ClusteringRunInput` 恢复这些值，不重新读取实时用户资料，从而保证提交后资料变化或应用重启都不会改变本次 Python 请求。
+
+```json
+{
+  "runId": "run-example-002",
+  "version": "cc-20260721-0002",
+  "algorithm": "KMEANS",
+  "clusterCount": 2,
+  "randomState": 42,
+  "status": "PENDING",
+  "createdAt": "2026-07-21T04:00:00Z"
+}
+```
+
+`202` 只表示任务及输入快照已经持久化接受，不表示 Python 已开始或聚类已成功。后台调度器从数据库领取 `PENDING`，只使用已冻结快照构建 Python 请求；客户端应轮询管理员 GET 详情，直至 `SUCCESS` 或 `FAILED`。POST 返回后发生的 Python、协议或持久化失败只反映在运行详情中，不回写原 HTTP 响应。
+
+| HTTP | 错误码 | 场景 |
+| --- | --- | --- |
+| `400` | `INVALID_CLUSTERING_REQUEST` | JSON 格式、字段或类型非法 |
+| `400` | `NO_EFFECTIVE_USERS` | 没有有效用户样本 |
+| `400` | `INVALID_CLUSTER_COUNT` | K 小于 2 或大于样本数 |
+| `409` | `RUN_CONFLICT` | 已存在 `PENDING` 或 `RUNNING` 活动运行 |
+| `503` | `CLUSTERING_SERVICE_UNAVAILABLE` | Python/后台能力被配置关闭 |
+| `500` | `INTERNAL_ERROR` | 提交持久化或未预期内部错误 |
+
+任务事实来源是数据库中的 `PENDING` 记录，不是进程内队列。单线程有界执行器只承载当前进程已领取的工作：应用启动时保留 `PENDING` 供后续重新领取；上次进程遗留的 `RUNNING` 固定标记为 `FAILED`（`EXECUTION_INTERRUPTED`）并释放 active slot。当前恢复语义仅支持单应用实例，不提供分布式 lease、心跳、leader election，也不承诺消息队列级 exactly-once。数据库 active slot 保证同时最多一个活动 run。
+
+如果未来从聚类输入中移除 `college` 或 `grade`，必须通过新的 `featureSchemaVersion` 和对应的 Python 契约版本实施，不能在读取旧快照时静默删除、回填或改变字段语义。
 
 ### 5.2 管理员社区成员分页
 
@@ -344,7 +374,7 @@ community-clustering.python.enabled=false
 
 **用途：** 对 Spring Boot 提供的一次不可变特征快照执行预处理、标准化、K-Means 和 PCA，返回未持久化的计算结果。
 
-**调用者：** 仅 Spring Boot 聚类编排组件。
+**调用者：** 仅 Spring Boot 的共享聚类运行执行器。
 
 **权限：** 内部服务身份与网络边界双重保护；不接受浏览器或普通用户身份。具体内部认证机制在实现阶段结合部署环境决定，凭据不得出现在请求业务字段、日志或公开响应中。
 
