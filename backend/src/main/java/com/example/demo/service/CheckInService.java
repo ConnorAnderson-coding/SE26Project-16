@@ -220,7 +220,14 @@ public class CheckInService {
         checkIn.setLatitude(latitude);
         checkIn.setLongitude(longitude);
         checkIn.setDistanceMeters(distanceMeters);
-        return checkInRepository.save(checkIn);
+        checkIn = checkInRepository.save(checkIn);
+
+        int current = activity.getCheckInCount() != null ? activity.getCheckInCount() : 0;
+        activity.setCheckInCount(current + 1);
+        activity.setUpdatedAt(LocalDateTime.now());
+        activityRepository.save(activity);
+
+        return checkIn;
     }
 
     private Activity getActivity(Long activityId) {
