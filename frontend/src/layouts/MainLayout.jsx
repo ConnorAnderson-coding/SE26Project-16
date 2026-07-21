@@ -1,4 +1,4 @@
-import { Layout, Typography, Avatar, Dropdown, Space, Badge } from 'antd'
+import { Layout, Typography, Avatar, Dropdown, Space, Badge, message } from 'antd'
 import {
   UserOutlined,
   LogoutOutlined,
@@ -26,13 +26,18 @@ export default function MainLayout({ children, title }) {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: '退出登录',
-      onClick: () => {
-        const shouldLogoutJAccount = isJAccountSession()
-        logout()
-        if (shouldLogoutJAccount) {
-          authApi.startJAccountLogout()
-        } else {
-          navigate('/')
+
+      onClick: async () => {
+        try {
+          const shouldLogoutJAccount = isJAccountSession()
+          await logout()
+          if (shouldLogoutJAccount) {
+            authApi.startJAccountLogout()
+          } else {
+            navigate('/')
+          }
+        } catch {
+          message.error('退出登录失败，请稍后重试')
         }
       }
     }

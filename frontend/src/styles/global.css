@@ -149,6 +149,15 @@ body {
   border-radius: 12px;
 }
 
+.community-scatter {
+  display: block;
+  width: 100%;
+  max-height: 520px;
+  aspect-ratio: 16 / 9;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
 .cluster-dot {
   position: absolute;
   width: 16px;
