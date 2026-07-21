@@ -36,6 +36,10 @@ import java.util.UUID;
                 @Index(
                         name = "idx_clustering_runs_status_finished",
                         columnList = "run_status, finished_at"
+                ),
+                @Index(
+                        name = "idx_clustering_runs_created_id",
+                        columnList = "created_at, run_id"
                 )
         }
 )

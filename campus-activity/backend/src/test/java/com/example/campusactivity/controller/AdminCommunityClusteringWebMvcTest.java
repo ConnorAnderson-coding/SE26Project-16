@@ -3,6 +3,8 @@ package com.example.campusactivity.controller;
 import com.example.campusactivity.dto.clustering.ClusteringFailureResponse;
 import com.example.campusactivity.dto.clustering.ClusteringMetricsResponse;
 import com.example.campusactivity.dto.clustering.ClusteringRunDetailResponse;
+import com.example.campusactivity.dto.clustering.ClusteringRunListItemResponse;
+import com.example.campusactivity.dto.clustering.ClusteringRunPageResponse;
 import com.example.campusactivity.entity.ClusteringAlgorithm;
 import com.example.campusactivity.entity.ClusteringRunStatus;
 import com.example.campusactivity.service.clustering.ClusteringQueryCode;
@@ -51,6 +53,62 @@ class AdminCommunityClusteringWebMvcTest {
     private MockMvc mockMvc;
     @MockBean
     private CommunityClusteringQueryService queryService;
+
+    @Test
+    void serializesDefaultRunPageWithoutInternalFields() throws Exception {
+        when(queryService.findRuns("0", "20")).thenReturn(new ClusteringRunPageResponse(
+                List.of(new ClusteringRunListItemResponse(
+                        "page-run", "page-version", ClusteringAlgorithm.KMEANS,
+                        2, 42, ClusteringRunStatus.RUNNING, 3,
+                        "community-features-v1", CREATED_AT, STARTED_AT, null,
+                        "admin-page"
+                )),
+                0, 20, 21, 2
+        ));
+
+        mockMvc.perform(get("/api/v1/admin/community-clustering/runs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].runId").value("page-run"))
+                .andExpect(jsonPath("$.items[0].status").value("RUNNING"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(21))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.items[0].metrics").doesNotExist())
+                .andExpect(jsonPath("$.items[0].failure").doesNotExist())
+                .andExpect(jsonPath("$.items[0].activeSlot").doesNotExist())
+                .andExpect(jsonPath("$.items[0].parametersJson").doesNotExist())
+                .andExpect(jsonPath("$.items[0].metricsJson").doesNotExist())
+                .andExpect(jsonPath("$.items[0].errorMessage").doesNotExist());
+    }
+
+    @Test
+    void forwardsCustomPageAndIgnoresUnknownSort() throws Exception {
+        when(queryService.findRuns("2", "5")).thenReturn(
+                new ClusteringRunPageResponse(List.of(), 2, 5, 0, 0)
+        );
+
+        mockMvc.perform(get("/api/v1/admin/community-clustering/runs")
+                        .queryParam("page", "2")
+                        .queryParam("size", "5")
+                        .queryParam("sort", "parametersJson,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(2))
+                .andExpect(jsonPath("$.size").value(5));
+    }
+
+    @Test
+    void mapsInvalidPageToFixed400WithoutEchoingInput() throws Exception {
+        when(queryService.findRuns("secret-invalid", "20")).thenThrow(
+                new ClusteringQueryException(ClusteringQueryCode.INVALID_PAGE_REQUEST)
+        );
+
+        mockMvc.perform(get("/api/v1/admin/community-clustering/runs")
+                        .queryParam("page", "secret-invalid"))
+                .andExpect(fixedError(
+                        400, "INVALID_PAGE_REQUEST", "分页请求无效", "secret-invalid"
+                ));
+    }
 
     @Test
     void mapsInvalidRunIdToFixed400() throws Exception {

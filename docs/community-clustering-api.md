@@ -2,24 +2,26 @@
 
 ## 1. 契约范围与实现状态
 
-本文同步阶段 3E 异步聚类提交与查询 API 的当前实现，并保留后续公开 API 与内部 Python API 的规划契约。浏览器只调用 Spring Boot 的 `/api/v1` 接口，不直接调用 Python 服务。
+本文同步阶段 3G 异步聚类提交与查询 API 的当前实现，并保留内部 Python API 契约。浏览器只调用 Spring Boot 的 `/api/v1` 接口，不直接调用 Python 服务。
 
 ### 1.1 已实现的公开端点
 
 | 方法与路径 | 权限 | 当前行为 |
 | --- | --- | --- |
 | `POST /api/v1/admin/community-clustering/runs` | `ROLE_ADMIN` + CSRF | 原子持久化 `PENDING` 运行与冻结输入后返回 `202 Accepted` |
+| `GET /api/v1/admin/community-clustering/runs` | `ROLE_ADMIN` | 按创建时间稳定倒序分页查询运行历史 |
 | `GET /api/v1/admin/community-clustering/runs/{runId}` | `ROLE_ADMIN` | 查询指定聚类运行详情 |
+| `GET /api/v1/admin/community-clustering/communities/{communityId}/members` | `ROLE_ADMIN` | 分页查询指定社区的管理员成员资料与聚类点 |
 | `GET /api/v1/community-clustering/latest` | `authenticated` | 查询最新成功版本的社区与匿名散点 |
 | `GET /api/v1/community-clustering/me` | `authenticated` | 查询当前登录用户在最新成功版本中的归属 |
 
-### 1.2 规划中、尚未实现的公开能力
+### 1.2 当前明确未提供的公开能力
 
 | 方法或能力 | 当前状态 |
 | --- | --- |
-| 管理员社区成员分页 | 尚未实现；路径与响应中的个人资料范围尚未最终确定 |
+| 任意历史 run 的社区列表 | 未实现；没有 `GET /runs/{runId}/communities`，管理员成员入口只来自 `latest` 社区 |
 
-除非章节标题明确标注“规划中”，本文其余公开端点描述均表示当前已实现行为。
+除非章节明确标注“未提供”，本文其余公开端点描述均表示当前已实现行为。
 
 ## 2. 当前公开 API 通用约定
 
@@ -52,7 +54,7 @@
 
 ### 2.3 当前聚类端点的统一错误结构
 
-四个已实现聚类端点的所有错误响应统一为：
+六个已实现聚类端点的所有错误响应统一为：
 
 ```json
 {
@@ -66,7 +68,44 @@
 
 ## 3. 已实现的公开 API
 
-### 3.1 管理员查询运行详情
+### 3.1 管理员分页查询运行历史
+
+#### `GET /api/v1/admin/community-clustering/runs?page=0&size=20`
+
+**权限：** `ROLE_ADMIN`。GET 不要求 CSRF Token。
+
+`page` 默认为 0 且必须为非负整数；`size` 默认为 20，范围为 1 到 100。客户端不接收 `sort` 契约；未知 Query 参数可忽略，排序始终为 `createdAt DESC, id DESC`。非法分页统一返回 `400 INVALID_PAGE_REQUEST`，错误消息固定且 `details={}`，不回显原始参数。
+
+成功响应是安全分页 DTO，不是 Spring Data `Page`：
+
+```json
+{
+  "items": [
+    {
+      "runId": "run-example-002",
+      "version": "cc-20260721-0002",
+      "algorithm": "KMEANS",
+      "clusterCount": 2,
+      "randomState": 42,
+      "status": "RUNNING",
+      "sampleCount": 120,
+      "featureSchemaVersion": "community-features-v1",
+      "createdAt": "2026-07-21T04:00:00Z",
+      "startedAt": "2026-07-21T04:00:01Z",
+      "finishedAt": null,
+      "createdBy": "admin-example"
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 42,
+  "totalPages": 3
+}
+```
+
+列表摘要不返回 `metrics`、`failure`、`activeSlot`、`parametersJson`、`metricsJson`、`errorMessage`、输入快照或 Python 信息。详细指标和失败摘要仍通过运行详情查询。查询使用数据库 Projection 分页，正常非空页为数据查询加 count 查询，不加载社区、成员或 `ClusteringRunInput`。
+
+### 3.2 管理员查询运行详情
 
 #### `GET /api/v1/admin/community-clustering/runs/{runId}`
 
@@ -157,7 +196,7 @@
 }
 ```
 
-### 3.2 查询最新成功版本
+### 3.3 查询最新成功版本
 
 #### `GET /api/v1/community-clustering/latest`
 
@@ -252,7 +291,7 @@
 }
 ```
 
-### 3.3 查询当前用户所属社区
+### 3.4 查询当前用户所属社区
 
 #### `GET /api/v1/community-clustering/me`
 
@@ -313,9 +352,9 @@
 community-clustering.python.enabled=false
 ```
 
-会关闭 Python 客户端、异步提交实现、后台调度器和工作执行器。POST 路由本身始终存在，但返回 `503 CLUSTERING_SERVICE_UNAVAILABLE`，且不会聚合特征、创建 run 或保存输入快照。三个 GET 查询端点、`CommunityClusteringQueryService` 和聚类 Repository 仍然可用，可继续读取历史 `SUCCESS` 或 `FAILED` 运行。
+会关闭 Python 客户端、异步提交实现、后台调度器和工作执行器。POST 路由本身始终存在，但返回 `503 CLUSTERING_SERVICE_UNAVAILABLE`，且不会聚合特征、创建 run 或保存输入快照。五个 GET 查询端点、`CommunityClusteringQueryService` 和聚类 Repository 仍然可用，可继续读取历史 `SUCCESS`、`FAILED` 运行和已保存成员。
 
-## 5. 管理员提交 API 与规划能力
+## 5. 管理员提交与成员 API
 
 ### 5.1 管理员触发聚类（已实现）
 
@@ -362,9 +401,53 @@ community-clustering.python.enabled=false
 
 ### 5.2 管理员社区成员分页
 
-> **尚未实现。当前没有管理员成员分页 Controller 或响应 DTO。**
+#### `GET /api/v1/admin/community-clustering/communities/{communityId}/members?page=0&size=20`
 
-规划方向是管理员按社区分页查询成员，但路径、分页参数、响应字段和审计要求仍需实现前确认。尤其是是否公开 `userId`、姓名、学院、年级属于待定的隐私与最小权限决策；本文不将这些字段声明为已实现契约，也不提供会被误认为真实响应的成员样例。
+**权限：** `ROLE_ADMIN`。GET 不要求 CSRF Token。该端点用于管理员内部查看。
+
+`communityId` 必须为 1 到 64 字符的非空不透明标识；`page`/`size` 默认值与运行历史相同，`size` 最大 100。客户端不能指定排序，固定为 `distanceToCenter ASC, userId ASC`。成功响应：
+
+```json
+{
+  "community": {
+    "communityId": "community-example-0",
+    "runId": "run-example-001",
+    "clusterNo": 0,
+    "name": "社区 1",
+    "color": "#1677FF",
+    "memberCount": 37
+  },
+  "items": [
+    {
+      "userId": "student-example",
+      "name": "张同学",
+      "college": "软件学院",
+      "grade": "2026",
+      "pointId": "point-example-01",
+      "x": 12.3,
+      "y": 45.6,
+      "distanceToCenter": 0.48
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalElements": 37,
+  "totalPages": 2
+}
+```
+
+`name`、`college`、`grade` 来自当前 `UserAccount` 真实字段；学院和年级可为 `null`。当前数据模型使用非空用户外键和 `RESTRICT/NO ACTION` 删除语义，因此有历史成员引用时用户删除会被拒绝，正常数据中不会出现缺失账号。端点不返回密码/密码哈希、角色/authorities、联系方式、朋友、完整兴趣、`assignedAt`、任何实体、`ClusteringRunInput`、Session/CSRF 或原始 JSON。
+
+查询先读取一条社区安全摘要，再执行成员分页 JOIN 和 count，总 SQL 数量固定且无逐成员用户查询。存储坐标必须为 `[0,100]` 有限数，距离必须为有限非负数；社区计数或存储值损坏统一对外返回 `500 INTERNAL_ERROR`。
+
+| HTTP | 错误码 | 场景 |
+| --- | --- | --- |
+| `400` | `INVALID_COMMUNITY_ID` | 社区标识无效 |
+| `400` | `INVALID_PAGE_REQUEST` | 页码或页大小无效 |
+| `404` | `COMMUNITY_NOT_FOUND` | 社区不存在 |
+| `500` | `INTERNAL_ERROR` | 存储损坏或未预期错误 |
+
+管理员 UI 只从 `/api/v1/community-clustering/latest` 的社区列表进入本端点。`latest` 明确表示最新 `SUCCESS`，不等同于管理员手动选中的任意历史 run。
 
 ## 6. 内部 Python API
 

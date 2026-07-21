@@ -1,10 +1,15 @@
 package com.example.campusactivity.service.clustering;
 
 import com.example.campusactivity.dto.clustering.ClusteringFailureResponse;
+import com.example.campusactivity.dto.clustering.AdminCommunityMemberResponse;
+import com.example.campusactivity.dto.clustering.AdminCommunitySummaryResponse;
 import com.example.campusactivity.dto.clustering.ClusteringMetricsResponse;
 import com.example.campusactivity.dto.clustering.ClusteringRunDetailResponse;
+import com.example.campusactivity.dto.clustering.ClusteringRunListItemResponse;
+import com.example.campusactivity.dto.clustering.ClusteringRunPageResponse;
 import com.example.campusactivity.dto.clustering.ClusteringRunSummaryResponse;
 import com.example.campusactivity.dto.clustering.CommunityMemberPointResponse;
+import com.example.campusactivity.dto.clustering.CommunityMembersPageResponse;
 import com.example.campusactivity.dto.clustering.CommunityResponse;
 import com.example.campusactivity.dto.clustering.CurrentUserClusteringResponse;
 import com.example.campusactivity.dto.clustering.CurrentUserMembershipResponse;
@@ -15,11 +20,16 @@ import com.example.campusactivity.repository.ClusteringRunRepository;
 import com.example.campusactivity.repository.CommunityMemberRepository;
 import com.example.campusactivity.repository.CommunityRepository;
 import com.example.campusactivity.repository.projection.ClusteringRunQueryProjection;
+import com.example.campusactivity.repository.projection.ClusteringRunListProjection;
+import com.example.campusactivity.repository.projection.AdminCommunityMemberProjection;
+import com.example.campusactivity.repository.projection.AdminCommunitySummaryProjection;
 import com.example.campusactivity.repository.projection.CommunityMemberPointProjection;
 import com.example.campusactivity.repository.projection.CommunityQueryProjection;
 import com.example.campusactivity.repository.projection.CurrentUserMembershipProjection;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -33,11 +43,14 @@ import java.util.Set;
 @Service
 @Transactional(readOnly = true)
 public class CommunityClusteringQueryService {
+    private static final int MAX_PAGE_SIZE = 100;
     private static final int RUN_ID_MAX_LENGTH = 64;
     private static final int VERSION_MAX_LENGTH = 64;
     private static final int FEATURE_SCHEMA_VERSION_MAX_LENGTH = 64;
     private static final int CREATED_BY_MAX_LENGTH = 255;
     private static final int CURRENT_USER_ID_MAX_LENGTH = 255;
+    private static final int USER_ID_MAX_LENGTH = 255;
+    private static final int USER_PROFILE_FIELD_MAX_LENGTH = 255;
     private static final int COMMUNITY_ID_MAX_LENGTH = 64;
     private static final int POINT_ID_MAX_LENGTH = 64;
     private static final int COMMUNITY_NAME_MAX_LENGTH = 100;
@@ -70,6 +83,60 @@ public class CommunityClusteringQueryService {
                 .findQueryProjectionById(runId)
                 .orElseThrow(() -> queryError(ClusteringQueryCode.RUN_NOT_FOUND));
         return toRunDetail(run);
+    }
+
+    public ClusteringRunPageResponse findRuns(String pageValue, String sizeValue) {
+        int page = parsePageValue(pageValue, 0, Integer.MAX_VALUE);
+        int size = parsePageValue(sizeValue, 1, MAX_PAGE_SIZE);
+        Page<ClusteringRunListProjection> storedPage = clusteringRunRepository
+                .findRunList(PageRequest.of(page, size));
+        List<ClusteringRunListItemResponse> items = storedPage.getContent()
+                .stream()
+                .map(this::toRunListItem)
+                .toList();
+        return new ClusteringRunPageResponse(
+                items,
+                page,
+                size,
+                storedPage.getTotalElements(),
+                storedPage.getTotalPages()
+        );
+    }
+
+    public CommunityMembersPageResponse findCommunityMembers(
+            String communityId,
+            String pageValue,
+            String sizeValue
+    ) {
+        if (!validRequiredString(communityId, COMMUNITY_ID_MAX_LENGTH)) {
+            throw queryError(ClusteringQueryCode.INVALID_COMMUNITY_ID);
+        }
+        int page = parsePageValue(pageValue, 0, Integer.MAX_VALUE);
+        int size = parsePageValue(sizeValue, 1, MAX_PAGE_SIZE);
+        AdminCommunitySummaryProjection storedCommunity = communityRepository
+                .findAdminSummaryById(communityId)
+                .orElseThrow(() -> queryError(ClusteringQueryCode.COMMUNITY_NOT_FOUND));
+        AdminCommunitySummaryResponse community = toAdminCommunity(storedCommunity);
+        Page<AdminCommunityMemberProjection> storedPage = communityMemberRepository
+                .findAdminMembersByCommunityId(
+                        communityId,
+                        PageRequest.of(page, size)
+                );
+        if (storedPage.getTotalElements() != community.memberCount()) {
+            throw corrupt();
+        }
+        List<AdminCommunityMemberResponse> items = storedPage.getContent()
+                .stream()
+                .map(this::toAdminMember)
+                .toList();
+        return new CommunityMembersPageResponse(
+                community,
+                items,
+                page,
+                size,
+                storedPage.getTotalElements(),
+                storedPage.getTotalPages()
+        );
     }
 
     public LatestClusteringResponse findLatestClustering(String currentUserId) {
@@ -131,6 +198,149 @@ public class CommunityClusteringQueryService {
                 run.getFinishedAt(),
                 run.getCreatedBy()
         );
+    }
+
+    private ClusteringRunListItemResponse toRunListItem(
+            ClusteringRunListProjection run
+    ) {
+        validateRunListItem(run);
+        return new ClusteringRunListItemResponse(
+                run.getId(),
+                run.getVersion(),
+                run.getAlgorithm(),
+                run.getClusterCount(),
+                run.getRandomState(),
+                run.getStatus(),
+                run.getSampleCount(),
+                run.getFeatureSchemaVersion(),
+                run.getCreatedAt(),
+                run.getStartedAt(),
+                run.getFinishedAt(),
+                run.getCreatedBy()
+        );
+    }
+
+    private AdminCommunitySummaryResponse toAdminCommunity(
+            AdminCommunitySummaryProjection community
+    ) {
+        if (community == null
+                || !validRequiredString(
+                        community.getCommunityId(), COMMUNITY_ID_MAX_LENGTH
+                )
+                || !validRequiredString(community.getRunId(), RUN_ID_MAX_LENGTH)
+                || community.getClusterNo() == null
+                || community.getClusterNo() < 0
+                || !validRequiredString(
+                        community.getName(), COMMUNITY_NAME_MAX_LENGTH
+                )
+                || !validRequiredString(
+                        community.getColor(), COMMUNITY_COLOR_MAX_LENGTH
+                )
+                || community.getMemberCount() == null
+                || community.getMemberCount() <= 0) {
+            throw corrupt();
+        }
+        return new AdminCommunitySummaryResponse(
+                community.getCommunityId(),
+                community.getRunId(),
+                community.getClusterNo(),
+                community.getName(),
+                community.getColor(),
+                community.getMemberCount()
+        );
+    }
+
+    private AdminCommunityMemberResponse toAdminMember(
+            AdminCommunityMemberProjection member
+    ) {
+        if (member == null
+                || !validRequiredString(member.getUserId(), USER_ID_MAX_LENGTH)
+                || !validRequiredString(member.getName(), USER_PROFILE_FIELD_MAX_LENGTH)
+                || !validOptionalString(
+                        member.getCollege(), USER_PROFILE_FIELD_MAX_LENGTH
+                )
+                || !validOptionalString(
+                        member.getGrade(), USER_PROFILE_FIELD_MAX_LENGTH
+                )
+                || !validRequiredString(member.getPointId(), POINT_ID_MAX_LENGTH)
+                || !validCoordinate(member.getCoordinateX())
+                || !validCoordinate(member.getCoordinateY())
+                || member.getDistanceToCenter() == null
+                || !Double.isFinite(member.getDistanceToCenter())
+                || member.getDistanceToCenter() < 0.0) {
+            throw corrupt();
+        }
+        return new AdminCommunityMemberResponse(
+                member.getUserId(),
+                member.getName(),
+                member.getCollege(),
+                member.getGrade(),
+                member.getPointId(),
+                member.getCoordinateX(),
+                member.getCoordinateY(),
+                member.getDistanceToCenter()
+        );
+    }
+
+    private void validateRunListItem(ClusteringRunListProjection run) {
+        if (run == null
+                || !validRequiredString(run.getId(), RUN_ID_MAX_LENGTH)
+                || !validRequiredString(run.getVersion(), VERSION_MAX_LENGTH)
+                || run.getAlgorithm() != ClusteringAlgorithm.KMEANS
+                || run.getClusterCount() == null
+                || run.getClusterCount() < 2
+                || run.getRandomState() == null
+                || run.getRandomState() != 42
+                || run.getStatus() == null
+                || !validRequiredString(
+                        run.getFeatureSchemaVersion(),
+                        FEATURE_SCHEMA_VERSION_MAX_LENGTH
+                )
+                || !validRequiredString(run.getCreatedBy(), CREATED_BY_MAX_LENGTH)
+                || run.getCreatedAt() == null
+                || run.getSampleCount() != null && run.getSampleCount() < 0
+                || !validListStatusTimes(run)) {
+            throw corrupt();
+        }
+    }
+
+    private boolean validListStatusTimes(ClusteringRunListProjection run) {
+        return switch (run.getStatus()) {
+            case PENDING -> run.getStartedAt() == null && run.getFinishedAt() == null;
+            case RUNNING -> run.getStartedAt() != null
+                    && run.getFinishedAt() == null
+                    && !run.getStartedAt().isBefore(run.getCreatedAt());
+            case SUCCESS -> run.getStartedAt() != null
+                    && run.getFinishedAt() != null
+                    && run.getSampleCount() != null
+                    && run.getSampleCount() >= run.getClusterCount()
+                    && validListTerminalTimes(run);
+            case FAILED -> run.getFinishedAt() != null && validListTerminalTimes(run);
+        };
+    }
+
+    private boolean validListTerminalTimes(ClusteringRunListProjection run) {
+        if (run.getFinishedAt().isBefore(run.getCreatedAt())) {
+            return false;
+        }
+        return run.getStartedAt() == null
+                || !run.getStartedAt().isBefore(run.getCreatedAt())
+                && !run.getFinishedAt().isBefore(run.getStartedAt());
+    }
+
+    private int parsePageValue(String value, int minimum, int maximum) {
+        if (value == null || value.isBlank()) {
+            throw queryError(ClusteringQueryCode.INVALID_PAGE_REQUEST);
+        }
+        try {
+            int parsed = Integer.parseInt(value);
+            if (parsed < minimum || parsed > maximum) {
+                throw queryError(ClusteringQueryCode.INVALID_PAGE_REQUEST);
+            }
+            return parsed;
+        } catch (NumberFormatException exception) {
+            throw queryError(ClusteringQueryCode.INVALID_PAGE_REQUEST);
+        }
     }
 
     private LatestClusteringResponse assembleLatest(
@@ -435,6 +645,10 @@ public class CommunityClusteringQueryService {
 
     private boolean validRequiredString(String value, int maxLength) {
         return value != null && !value.isBlank() && value.length() <= maxLength;
+    }
+
+    private boolean validOptionalString(String value, int maxLength) {
+        return value == null || value.length() <= maxLength;
     }
 
     private ClusteringQueryException corrupt() {

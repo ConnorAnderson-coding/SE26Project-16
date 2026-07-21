@@ -5,8 +5,11 @@ import com.example.campusactivity.entity.Community;
 import com.example.campusactivity.entity.CommunityMember;
 import com.example.campusactivity.entity.UserAccount;
 import com.example.campusactivity.repository.projection.CommunityMemberPointProjection;
+import com.example.campusactivity.repository.projection.AdminCommunityMemberProjection;
 import com.example.campusactivity.repository.projection.CurrentUserMembershipProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -62,5 +65,31 @@ public interface CommunityMemberRepository extends JpaRepository<CommunityMember
     Optional<CurrentUserMembershipProjection> findMembershipProjection(
             @Param("runId") String runId,
             @Param("currentUserId") String currentUserId
+    );
+
+    @Query(
+            value = """
+                    SELECT user.id AS userId,
+                           user.name AS name,
+                           user.college AS college,
+                           user.grade AS grade,
+                           member.id AS pointId,
+                           member.coordinateX AS coordinateX,
+                           member.coordinateY AS coordinateY,
+                           member.distanceToCenter AS distanceToCenter
+                    FROM CommunityMember member
+                    JOIN member.user user
+                    WHERE member.communityId = :communityId
+                    ORDER BY member.distanceToCenter ASC, user.id ASC
+                    """,
+            countQuery = """
+                    SELECT COUNT(member)
+                    FROM CommunityMember member
+                    WHERE member.communityId = :communityId
+                    """
+    )
+    Page<AdminCommunityMemberProjection> findAdminMembersByCommunityId(
+            @Param("communityId") String communityId,
+            Pageable pageable
     );
 }

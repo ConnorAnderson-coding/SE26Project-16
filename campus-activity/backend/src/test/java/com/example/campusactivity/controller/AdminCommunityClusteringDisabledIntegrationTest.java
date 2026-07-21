@@ -117,6 +117,13 @@ class AdminCommunityClusteringDisabledIntegrationTest {
                 .andExpect(jsonPath("$.createdBy").value(ADMIN_ID))
                 .andExpect(jsonPath("$.errorMessage").doesNotExist());
 
+        mockMvc.perform(get("/api/v1/admin/community-clustering/runs")
+                        .session(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].runId").value(SUCCESS_ID))
+                .andExpect(jsonPath("$.items[1].runId").value(FAILED_ID));
+
         mockMvc.perform(get(
                         "/api/v1/admin/community-clustering/runs/{runId}",
                         FAILED_ID

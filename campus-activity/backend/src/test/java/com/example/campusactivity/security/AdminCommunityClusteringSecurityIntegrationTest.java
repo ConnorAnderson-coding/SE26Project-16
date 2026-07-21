@@ -1,6 +1,9 @@
 package com.example.campusactivity.security;
 
 import com.example.campusactivity.dto.clustering.ClusteringRunDetailResponse;
+import com.example.campusactivity.dto.clustering.ClusteringRunPageResponse;
+import com.example.campusactivity.dto.clustering.AdminCommunitySummaryResponse;
+import com.example.campusactivity.dto.clustering.CommunityMembersPageResponse;
 import com.example.campusactivity.entity.ClusteringAlgorithm;
 import com.example.campusactivity.entity.ClusteringRunStatus;
 import com.example.campusactivity.entity.UserAccount;
@@ -49,6 +52,10 @@ class AdminCommunityClusteringSecurityIntegrationTest {
     private static final String RUN_ID = "security-run";
     private static final String RUN_PATH =
             "/api/v1/admin/community-clustering/runs/" + RUN_ID;
+    private static final String COMMUNITY_ID = "security-community";
+    private static final String MEMBER_PATH =
+            "/api/v1/admin/community-clustering/communities/" + COMMUNITY_ID
+                    + "/members";
 
     @Autowired
     private MockMvc mockMvc;
@@ -68,6 +75,16 @@ class AdminCommunityClusteringSecurityIntegrationTest {
         userRepository.save(user(TEACHER_ID, "teacher"));
         userRepository.save(user(ADMIN_ID, "admin"));
         when(queryService.findRunById(RUN_ID)).thenReturn(response());
+        when(queryService.findRuns("0", "20")).thenReturn(
+                new ClusteringRunPageResponse(List.of(), 0, 20, 0, 0)
+        );
+        when(queryService.findCommunityMembers(COMMUNITY_ID, "0", "20"))
+                .thenReturn(new CommunityMembersPageResponse(
+                        new AdminCommunitySummaryResponse(
+                                COMMUNITY_ID, RUN_ID, 0, "社区 1", "#1677FF", 1
+                        ),
+                        List.of(), 0, 20, 0, 0
+                ));
     }
 
     @AfterEach
@@ -128,6 +145,43 @@ class AdminCommunityClusteringSecurityIntegrationTest {
                 .andExpect(jsonPath("$.status").value("PENDING"));
 
         verify(queryService).findRunById(RUN_ID);
+    }
+
+    @Test
+    void runListUsesTheSameAdminOnlySessionBoundaryWithoutCsrf() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/community-clustering/runs")
+                        .header("X-Role", "admin"))
+                .andExpect(status().isUnauthorized());
+
+        MockHttpSession student = loggedIn(STUDENT_ID);
+        mockMvc.perform(get("/api/v1/admin/community-clustering/runs")
+                        .session(student))
+                .andExpect(status().isForbidden());
+
+        MockHttpSession admin = loggedIn(ADMIN_ID);
+        mockMvc.perform(get("/api/v1/admin/community-clustering/runs")
+                        .session(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isArray());
+
+        verify(queryService).findRuns("0", "20");
+    }
+
+    @Test
+    void memberListIsAdminOnlyAndGetNeedsNoCsrf() throws Exception {
+        mockMvc.perform(get(MEMBER_PATH).header("X-Role", "admin"))
+                .andExpect(status().isUnauthorized());
+
+        MockHttpSession teacher = loggedIn(TEACHER_ID);
+        mockMvc.perform(get(MEMBER_PATH).session(teacher))
+                .andExpect(status().isForbidden());
+
+        MockHttpSession admin = loggedIn(ADMIN_ID);
+        mockMvc.perform(get(MEMBER_PATH).session(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.community.communityId").value(COMMUNITY_ID));
+
+        verify(queryService).findCommunityMembers(COMMUNITY_ID, "0", "20");
     }
 
     @Test

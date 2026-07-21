@@ -173,7 +173,10 @@ class CommunityClusteringControllerTest {
         assertThat(userAdvice.assignableTypes())
                 .containsExactly(CommunityClusteringController.class);
         assertThat(adminAdvice.assignableTypes())
-                .containsExactly(AdminCommunityClusteringController.class);
+                .containsExactlyInAnyOrder(
+                        AdminCommunityClusteringController.class,
+                        AdminCommunityMemberController.class
+                );
     }
 
     private static void assertBusinessMethod(
