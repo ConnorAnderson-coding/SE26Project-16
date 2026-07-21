@@ -1,0 +1,1045 @@
+{
+  "cases": [
+    {
+      "name": "A1_羽毛球_keyword",
+      "params": {
+        "keyword": "羽毛球",
+        "mode": "keyword",
+        "sort": "relevance"
+      },
+      "total": 1,
+      "ids": [
+        2
+      ],
+      "hits": [
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": 4.665724,
+          "semanticScore": null,
+          "searchScore": 4.665724,
+          "compositeScore": null,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "keyword"
+        }
+      ]
+    },
+    {
+      "name": "A2_羽毛球_semantic",
+      "params": {
+        "keyword": "羽毛球",
+        "mode": "semantic",
+        "sort": "relevance"
+      },
+      "total": 6,
+      "ids": [
+        2,
+        4,
+        3,
+        5,
+        1,
+        6
+      ],
+      "hits": [
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": null,
+          "semanticScore": 0.9312035,
+          "searchScore": 0.9312035,
+          "compositeScore": null,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "semantic"
+        },
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9093244,
+          "searchScore": 0.9093244,
+          "compositeScore": null,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "semantic"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9047996,
+          "searchScore": 0.9047996,
+          "compositeScore": null,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "semantic"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.9047135,
+          "searchScore": 0.9047135,
+          "compositeScore": null,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "semantic"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.9037485,
+          "searchScore": 0.9037485,
+          "compositeScore": null,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "semantic"
+        },
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.8940457,
+          "searchScore": 0.8940457,
+          "compositeScore": null,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "semantic"
+        }
+      ]
+    },
+    {
+      "name": "A3_羽毛球_hybrid",
+      "params": {
+        "keyword": "羽毛球",
+        "mode": "hybrid",
+        "sort": "relevance"
+      },
+      "total": 6,
+      "ids": [
+        2,
+        4,
+        3,
+        5,
+        1,
+        6
+      ],
+      "hits": [
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": 4.665724,
+          "semanticScore": 0.9312035,
+          "searchScore": 0.03278688524590164,
+          "compositeScore": null,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9093244,
+          "searchScore": 0.016129032258064516,
+          "compositeScore": null,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9047996,
+          "searchScore": 0.015873015873015872,
+          "compositeScore": null,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.9047135,
+          "searchScore": 0.015625,
+          "compositeScore": null,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.9037485,
+          "searchScore": 0.015384615384615385,
+          "compositeScore": null,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.8940457,
+          "searchScore": 0.015151515151515152,
+          "compositeScore": null,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "hybrid"
+        }
+      ]
+    },
+    {
+      "name": "B1_周末放松_keyword",
+      "params": {
+        "keyword": "周末放松",
+        "mode": "keyword",
+        "sort": "relevance"
+      },
+      "total": 0,
+      "ids": [],
+      "hits": []
+    },
+    {
+      "name": "B2_周末放松_semantic",
+      "params": {
+        "keyword": "周末放松",
+        "mode": "semantic",
+        "sort": "relevance"
+      },
+      "total": 6,
+      "ids": [
+        4,
+        3,
+        6,
+        5,
+        1,
+        2
+      ],
+      "hits": [
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9216851,
+          "searchScore": 0.9216851,
+          "compositeScore": null,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "semantic"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9186883,
+          "searchScore": 0.9186883,
+          "compositeScore": null,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "semantic"
+        },
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.9162173,
+          "searchScore": 0.9162173,
+          "compositeScore": null,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "semantic"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.9160929,
+          "searchScore": 0.9160929,
+          "compositeScore": null,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "semantic"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.911466,
+          "searchScore": 0.911466,
+          "compositeScore": null,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "semantic"
+        },
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": null,
+          "semanticScore": 0.9017739,
+          "searchScore": 0.9017739,
+          "compositeScore": null,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "semantic"
+        }
+      ]
+    },
+    {
+      "name": "B3_周末放松_hybrid",
+      "params": {
+        "keyword": "周末放松",
+        "mode": "hybrid",
+        "sort": "relevance"
+      },
+      "total": 6,
+      "ids": [
+        4,
+        3,
+        6,
+        5,
+        1,
+        2
+      ],
+      "hits": [
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9216851,
+          "searchScore": 0.01639344262295082,
+          "compositeScore": null,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9186883,
+          "searchScore": 0.016129032258064516,
+          "compositeScore": null,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.9162173,
+          "searchScore": 0.015873015873015872,
+          "compositeScore": null,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.9160929,
+          "searchScore": 0.015625,
+          "compositeScore": null,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.911466,
+          "searchScore": 0.015384615384615385,
+          "compositeScore": null,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": null,
+          "semanticScore": 0.9017739,
+          "searchScore": 0.015151515151515152,
+          "compositeScore": null,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "hybrid"
+        }
+      ]
+    },
+    {
+      "name": "C1_量子物理_hybrid",
+      "params": {
+        "keyword": "量子物理",
+        "mode": "hybrid",
+        "sort": "relevance"
+      },
+      "total": 6,
+      "ids": [
+        4,
+        1,
+        3,
+        5,
+        2,
+        6
+      ],
+      "hits": [
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9122721,
+          "searchScore": 0.01639344262295082,
+          "compositeScore": null,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.90683997,
+          "searchScore": 0.016129032258064516,
+          "compositeScore": null,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9036803,
+          "searchScore": 0.015873015873015872,
+          "compositeScore": null,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.89741755,
+          "searchScore": 0.015625,
+          "compositeScore": null,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": null,
+          "semanticScore": 0.89670587,
+          "searchScore": 0.015384615384615385,
+          "compositeScore": null,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.88624597,
+          "searchScore": 0.015151515151515152,
+          "compositeScore": null,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "hybrid"
+        }
+      ]
+    },
+    {
+      "name": "D1_周末放松_relevance",
+      "params": {
+        "keyword": "周末放松",
+        "mode": "hybrid",
+        "sort": "relevance"
+      },
+      "total": 6,
+      "ids": [
+        4,
+        3,
+        6,
+        5,
+        1,
+        2
+      ],
+      "hits": [
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9216851,
+          "searchScore": 0.01639344262295082,
+          "compositeScore": null,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9186883,
+          "searchScore": 0.016129032258064516,
+          "compositeScore": null,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.9162173,
+          "searchScore": 0.015873015873015872,
+          "compositeScore": null,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.9160929,
+          "searchScore": 0.015625,
+          "compositeScore": null,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.911466,
+          "searchScore": 0.015384615384615385,
+          "compositeScore": null,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": null,
+          "semanticScore": 0.9017739,
+          "searchScore": 0.015151515151515152,
+          "compositeScore": null,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "hybrid"
+        }
+      ]
+    },
+    {
+      "name": "D2_周末放松_hot",
+      "params": {
+        "keyword": "周末放松",
+        "mode": "hybrid",
+        "sort": "hot"
+      },
+      "total": 6,
+      "ids": [
+        6,
+        1,
+        4,
+        2,
+        3,
+        5
+      ],
+      "hits": [
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.9162173,
+          "searchScore": 0.015873015873015872,
+          "compositeScore": null,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.911466,
+          "searchScore": 0.015384615384615385,
+          "compositeScore": null,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9216851,
+          "searchScore": 0.01639344262295082,
+          "compositeScore": null,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": null,
+          "semanticScore": 0.9017739,
+          "searchScore": 0.015151515151515152,
+          "compositeScore": null,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9186883,
+          "searchScore": 0.016129032258064516,
+          "compositeScore": null,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.9160929,
+          "searchScore": 0.015625,
+          "compositeScore": null,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "hybrid"
+        }
+      ]
+    },
+    {
+      "name": "D3_周末放松_composite_0.7",
+      "params": {
+        "keyword": "周末放松",
+        "mode": "hybrid",
+        "sort": "composite",
+        "matchWeight": 0.7
+      },
+      "total": 6,
+      "ids": [
+        4,
+        6,
+        3,
+        5,
+        1,
+        2
+      ],
+      "hits": [
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9216851,
+          "searchScore": 0.01639344262295082,
+          "compositeScore": 0.7235714285714285,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.9162173,
+          "searchScore": 0.015873015873015872,
+          "compositeScore": 0.7066666666666658,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9186883,
+          "searchScore": 0.016129032258064516,
+          "compositeScore": 0.5547177419354832,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.9160929,
+          "searchScore": 0.015625,
+          "compositeScore": 0.26687499999999964,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.911466,
+          "searchScore": 0.015384615384615385,
+          "compositeScore": 0.17263461538461558,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": null,
+          "semanticScore": 0.9017739,
+          "searchScore": 0.015151515151515152,
+          "compositeScore": 0.011250000000000001,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "hybrid"
+        }
+      ]
+    },
+    {
+      "name": "D4_周末放松_composite_1.0",
+      "params": {
+        "keyword": "周末放松",
+        "mode": "hybrid",
+        "sort": "composite",
+        "matchWeight": 1.0
+      },
+      "total": 6,
+      "ids": [
+        4,
+        3,
+        6,
+        5,
+        1,
+        2
+      ],
+      "hits": [
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9216851,
+          "searchScore": 0.01639344262295082,
+          "compositeScore": 1.0,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9186883,
+          "searchScore": 0.016129032258064516,
+          "compositeScore": 0.7870967741935474,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.9162173,
+          "searchScore": 0.015873015873015872,
+          "compositeScore": 0.5809523809523797,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.9160929,
+          "searchScore": 0.015625,
+          "compositeScore": 0.38124999999999953,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.911466,
+          "searchScore": 0.015384615384615385,
+          "compositeScore": 0.18769230769230796,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": null,
+          "semanticScore": 0.9017739,
+          "searchScore": 0.015151515151515152,
+          "compositeScore": 0.0,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "hybrid"
+        }
+      ]
+    },
+    {
+      "name": "D5_周末放松_composite_0.0",
+      "params": {
+        "keyword": "周末放松",
+        "mode": "hybrid",
+        "sort": "composite",
+        "matchWeight": 0.0
+      },
+      "total": 6,
+      "ids": [
+        6,
+        1,
+        4,
+        2,
+        3,
+        5
+      ],
+      "hits": [
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.9162173,
+          "searchScore": 0.015873015873015872,
+          "compositeScore": 1.0,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.911466,
+          "searchScore": 0.015384615384615385,
+          "compositeScore": 0.1375,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9216851,
+          "searchScore": 0.01639344262295082,
+          "compositeScore": 0.07857142857142857,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": null,
+          "semanticScore": 0.9017739,
+          "searchScore": 0.015151515151515152,
+          "compositeScore": 0.0375,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9186883,
+          "searchScore": 0.016129032258064516,
+          "compositeScore": 0.0125,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.9160929,
+          "searchScore": 0.015625,
+          "compositeScore": 0.0,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "hybrid"
+        }
+      ]
+    },
+    {
+      "name": "E1_activities接口_羽毛球_composite",
+      "params": {
+        "keyword": "羽毛球",
+        "sort": "composite",
+        "matchWeight": 0.5
+      },
+      "total": 6,
+      "ids": [
+        2,
+        6,
+        1,
+        4,
+        3,
+        5
+      ],
+      "hits": [
+        {
+          "id": 2,
+          "title": "校园羽毛球友谊赛",
+          "keywordScore": 4.665724,
+          "semanticScore": 0.9312035,
+          "searchScore": 0.03278688524590164,
+          "compositeScore": 0.51875,
+          "signupCount": 43,
+          "favoriteCount": 28,
+          "hot": 71,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 6,
+          "title": "校园音乐节 — 夏日之声",
+          "keywordScore": null,
+          "semanticScore": 0.8940457,
+          "searchScore": 0.015151515151515152,
+          "compositeScore": 0.5,
+          "signupCount": 412,
+          "favoriteCount": 198,
+          "hot": 610,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 1,
+          "title": "AI 与大模型技术前沿讲座",
+          "keywordScore": null,
+          "semanticScore": 0.9037485,
+          "searchScore": 0.015384615384615385,
+          "compositeScore": 0.07535888407367282,
+          "signupCount": 85,
+          "favoriteCount": 42,
+          "hot": 127,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 4,
+          "title": "程序设计竞赛训练营",
+          "keywordScore": null,
+          "semanticScore": 0.9093244,
+          "searchScore": 0.016129032258064516,
+          "compositeScore": 0.06700038943337441,
+          "signupCount": 38,
+          "favoriteCount": 56,
+          "hot": 94,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 3,
+          "title": "摄影社户外采风活动",
+          "keywordScore": null,
+          "semanticScore": 0.9047996,
+          "searchScore": 0.015873015873015872,
+          "compositeScore": 0.026706069751844363,
+          "signupCount": 22,
+          "favoriteCount": 35,
+          "hot": 57,
+          "searchChannel": "hybrid"
+        },
+        {
+          "id": 5,
+          "title": "校园志愿者招募 — 社区服务日",
+          "keywordScore": null,
+          "semanticScore": 0.9047135,
+          "searchScore": 0.015625,
+          "compositeScore": 0.013424295774647875,
+          "signupCount": 31,
+          "favoriteCount": 19,
+          "hot": 50,
+          "searchChannel": "hybrid"
+        }
+      ]
+    }
+  ]
+}

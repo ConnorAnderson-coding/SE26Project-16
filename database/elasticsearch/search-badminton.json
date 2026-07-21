@@ -1,0 +1,1 @@
+{"query":{"multi_match":{"query":"羽毛球","fields":["title^3","description"]}}}
