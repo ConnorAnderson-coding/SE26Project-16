@@ -6,6 +6,7 @@ import {
   formatDateRange,
   initialUsers,
   initialActivities,
+  initialCommunityClusters,
   SHARE_CHANNEL_LABELS
 } from '../../src/data/mockData'
 
@@ -51,12 +52,15 @@ describe('mockData 初始数据', () => {
     const roles = initialUsers.map(u => u.role)
     expect(roles).toContain('student')
     expect(roles).toContain('teacher')
-    expect(roles).not.toContain('admin')
+    expect(roles).toContain('admin')
   })
 
-  it('生产示例用户不应包含密码或硬编码管理员', () => {
-    initialUsers.forEach(user => expect(user).not.toHaveProperty('password'))
-    expect(initialUsers.some(user => user.role === 'admin')).toBe(false)
+  it('应包含管理员演示账号', () => {
+    const admin = initialUsers.find(u => u.id === 'admin001')
+    expect(admin).toMatchObject({
+      role: 'admin',
+      password: '123456'
+    })
   })
 
   it('初始活动应包含已发布与已结束状态', () => {
@@ -73,9 +77,18 @@ describe('mockData 初始数据', () => {
     })
   })
 
-  it('生产 mock 数据不再包含静态社区聚类结果', async () => {
-    const module = await import('../../src/data/mockData')
-    expect(module).not.toHaveProperty('initialCommunityClusters')
+  it('社区聚类示例数据应完整', () => {
+    expect(initialCommunityClusters.length).toBeGreaterThanOrEqual(3)
+    initialCommunityClusters.forEach(cluster => {
+      expect(cluster).toHaveProperty('name')
+      expect(cluster).toHaveProperty('members')
+      expect(cluster.members.length).toBeGreaterThan(0)
+      cluster.members.forEach(member => {
+        expect(member).toHaveProperty('userId')
+        expect(member).toHaveProperty('x')
+        expect(member).toHaveProperty('y')
+      })
+    })
   })
 
   it('传播渠道标签应覆盖主要渠道', () => {
