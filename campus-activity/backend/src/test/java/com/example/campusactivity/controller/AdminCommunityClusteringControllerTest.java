@@ -2,6 +2,7 @@ package com.example.campusactivity.controller;
 
 import com.example.campusactivity.client.clustering.ClusteringClient;
 import com.example.campusactivity.dto.clustering.ClusteringRunDetailResponse;
+import com.example.campusactivity.dto.clustering.ClusteringRunPageResponse;
 import com.example.campusactivity.entity.ClusteringAlgorithm;
 import com.example.campusactivity.entity.ClusteringRunStatus;
 import com.example.campusactivity.repository.ClusteringRunRepository;
@@ -33,6 +34,22 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class AdminCommunityClusteringControllerTest {
+    @Test
+    void forwardsPaginationStringsUnchanged() {
+        CommunityClusteringQueryService queryService =
+                mock(CommunityClusteringQueryService.class);
+        AdminCommunityClusteringController controller =
+                new AdminCommunityClusteringController(queryService);
+        ClusteringRunPageResponse response = new ClusteringRunPageResponse(
+                List.of(), 2, 7, 0, 0
+        );
+        when(queryService.findRuns("2", "7")).thenReturn(response);
+
+        assertThat(controller.findRuns("2", "7")).isSameAs(response);
+        verify(queryService).findRuns("2", "7");
+        verifyNoMoreInteractions(queryService);
+    }
+
     @Test
     void forwardsRunIdUnchangedAndReturnsSameDtoInstance() {
         CommunityClusteringQueryService queryService =
@@ -67,7 +84,7 @@ class AdminCommunityClusteringControllerTest {
     }
 
     @Test
-    void controllerHasOnlyTheApprovedDependencyAndOneBusinessGetMethod() {
+    void controllerHasOnlyTheApprovedDependencyAndTwoBusinessGetMethods() {
         Class<AdminCommunityClusteringController> type =
                 AdminCommunityClusteringController.class;
         List<Field> instanceFields = Arrays.stream(type.getDeclaredFields())
@@ -86,14 +103,20 @@ class AdminCommunityClusteringControllerTest {
                         ClusteringClient.class,
                         EntityManager.class
                 );
-        assertThat(publicMethods).singleElement().satisfies(method -> {
-            assertThat(method.getName()).isEqualTo("findRun");
-            assertThat(method.getReturnType())
-                    .isEqualTo(ClusteringRunDetailResponse.class);
+        assertThat(publicMethods).hasSize(2).allSatisfy(method -> {
             assertThat(method.getReturnType()).isNotEqualTo(ResponseEntity.class);
             assertThat(method.isAnnotationPresent(GetMapping.class)).isTrue();
             assertThat(method.isAnnotationPresent(Transactional.class)).isFalse();
         });
+        assertThat(publicMethods)
+                .extracting(Method::getName)
+                .containsExactlyInAnyOrder("findRun", "findRuns");
+        assertThat(publicMethods)
+                .extracting(Method::getReturnType)
+                .containsExactlyInAnyOrder(
+                        ClusteringRunDetailResponse.class,
+                        ClusteringRunPageResponse.class
+                );
     }
 
     @Test
@@ -115,7 +138,10 @@ class AdminCommunityClusteringControllerTest {
                 .map(annotation -> annotation.annotationType().getName()))
                 .noneMatch(name -> name.contains("Conditional"));
         assertThat(advice.assignableTypes())
-                .containsExactly(AdminCommunityClusteringController.class);
+                .containsExactlyInAnyOrder(
+                        AdminCommunityClusteringController.class,
+                        AdminCommunityMemberController.class
+                );
         assertThat(Arrays.stream(
                         CommunityClusteringQueryExceptionHandler.class
                                 .getAnnotations())

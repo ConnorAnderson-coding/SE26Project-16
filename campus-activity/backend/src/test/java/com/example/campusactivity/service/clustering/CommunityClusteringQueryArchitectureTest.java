@@ -1,6 +1,9 @@
 package com.example.campusactivity.service.clustering;
 
 import com.example.campusactivity.dto.clustering.ClusteringFailureResponse;
+import com.example.campusactivity.dto.clustering.AdminCommunityMemberResponse;
+import com.example.campusactivity.dto.clustering.AdminCommunitySummaryResponse;
+import com.example.campusactivity.dto.clustering.CommunityMembersPageResponse;
 import com.example.campusactivity.dto.clustering.ClusteringMetricsResponse;
 import com.example.campusactivity.dto.clustering.ClusteringRunDetailResponse;
 import com.example.campusactivity.dto.clustering.ClusteringRunSummaryResponse;
@@ -87,7 +90,7 @@ class CommunityClusteringQueryArchitectureTest {
     }
 
     @Test
-    void queryServiceHasOnlyThreePublicBusinessMethods() {
+    void queryServiceHasOnlyApprovedPublicBusinessMethods() {
         Set<String> publicMethods = Arrays.stream(
                         CommunityClusteringQueryService.class.getDeclaredMethods()
                 )
@@ -97,6 +100,8 @@ class CommunityClusteringQueryArchitectureTest {
 
         assertThat(publicMethods).containsExactlyInAnyOrder(
                 "findRunById",
+                "findRuns",
+                "findCommunityMembers",
                 "findLatestClustering",
                 "findCurrentUserClustering"
         );
@@ -156,6 +161,56 @@ class CommunityClusteringQueryArchitectureTest {
         assertThat(Arrays.stream(ClusteringRunQueryProjection.class.getMethods())
                 .map(Method::getName))
                 .doesNotContain("getActiveSlot", "getParametersJson");
+    }
+
+    @Test
+    void adminMemberDtosExposeOnlyTheApprovedPrivateAdminShape() {
+        assertThat(recordComponentNames(AdminCommunityMemberResponse.class))
+                .containsExactly(
+                        "userId", "name", "college", "grade", "pointId",
+                        "x", "y", "distanceToCenter"
+                )
+                .doesNotContain(
+                        "password", "passwordHash", "role", "authorities",
+                        "friends", "interests", "assignedAt"
+                );
+        assertThat(recordComponentNames(AdminCommunitySummaryResponse.class))
+                .containsExactly(
+                        "communityId", "runId", "clusterNo", "name", "color",
+                        "memberCount"
+                );
+        assertThat(recordComponentNames(CommunityMembersPageResponse.class))
+                .containsExactly(
+                        "community", "items", "page", "size",
+                        "totalElements", "totalPages"
+                );
+        assertThat(Arrays.stream(AdminCommunityMemberResponse.class.getRecordComponents())
+                .map(component -> component.getType()))
+                .noneMatch(type -> type == UserAccount.class
+                        || type == CommunityMember.class);
+    }
+
+    @Test
+    void adminMemberQueryUsesOnePagedJoinAndStableApprovedSorting()
+            throws Exception {
+        Query query = CommunityMemberRepository.class
+                .getMethod(
+                        "findAdminMembersByCommunityId",
+                        String.class,
+                        org.springframework.data.domain.Pageable.class
+                )
+                .getAnnotation(Query.class);
+
+        assertThat(query.value())
+                .contains(
+                        "JOIN member.user user",
+                        "member.communityId = :communityId",
+                        "ORDER BY member.distanceToCenter ASC, user.id ASC"
+                )
+                .doesNotContain(
+                        "user.password", "user.role", "user.interests",
+                        "user.friends", "FETCH"
+                );
     }
 
     @Test

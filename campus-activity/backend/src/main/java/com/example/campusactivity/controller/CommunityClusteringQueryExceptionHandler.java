@@ -12,7 +12,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.Map;
 
 @RestControllerAdvice(
-        assignableTypes = AdminCommunityClusteringController.class
+        assignableTypes = {
+                AdminCommunityClusteringController.class,
+                AdminCommunityMemberController.class
+        }
 )
 public class CommunityClusteringQueryExceptionHandler {
     @ExceptionHandler(ClusteringQueryException.class)
@@ -20,6 +23,14 @@ public class CommunityClusteringQueryExceptionHandler {
             ClusteringQueryException exception
     ) {
         return switch (exception.getCode()) {
+            case INVALID_PAGE_REQUEST -> response(
+                    HttpStatus.BAD_REQUEST,
+                    ClusteringQueryCode.INVALID_PAGE_REQUEST
+            );
+            case INVALID_COMMUNITY_ID -> response(
+                    HttpStatus.BAD_REQUEST,
+                    ClusteringQueryCode.INVALID_COMMUNITY_ID
+            );
             case INVALID_RUN_ID -> response(
                     HttpStatus.BAD_REQUEST,
                     ClusteringQueryCode.INVALID_RUN_ID
@@ -27,6 +38,10 @@ public class CommunityClusteringQueryExceptionHandler {
             case RUN_NOT_FOUND -> response(
                     HttpStatus.NOT_FOUND,
                     ClusteringQueryCode.RUN_NOT_FOUND
+            );
+            case COMMUNITY_NOT_FOUND -> response(
+                    HttpStatus.NOT_FOUND,
+                    ClusteringQueryCode.COMMUNITY_NOT_FOUND
             );
             case INVALID_CURRENT_USER_ID,
                  NO_SUCCESSFUL_RUN,

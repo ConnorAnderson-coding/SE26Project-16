@@ -3,6 +3,8 @@ import { getCsrfToken, clearCsrfToken, csrfPost } from '../../src/api/csrf'
 import { getCurrentUser, login, logout, register } from '../../src/api/auth'
 import {
   getClusteringRun,
+  getClusteringRuns,
+  getCommunityMembers,
   getLatestClustering,
   getMyClustering,
   resolveRunLocation,
@@ -155,6 +157,37 @@ describe('CSRF 与 API 服务模块', () => {
     })
   })
 
+  it('管理员分页 GET 只发送固定分页和编码后的社区路径', async () => {
+    fetch
+      .mockResolvedValueOnce(jsonResponse({ items: [], page: 2, size: 20 }))
+      .mockResolvedValueOnce(jsonResponse({ items: [], page: 1, size: 20 }))
+
+    await getClusteringRuns({ page: 2, size: 20 })
+    await getCommunityMembers({ communityId: '社区/一', page: 1, size: 20 })
+
+    expect(fetch.mock.calls.map(call => call[0])).toEqual([
+      '/api/v1/admin/community-clustering/runs?page=2&size=20',
+      '/api/v1/admin/community-clustering/communities/%E7%A4%BE%E5%8C%BA%2F%E4%B8%80/members?page=1&size=20'
+    ])
+    fetch.mock.calls.forEach(([, options]) => {
+      expect(options.credentials).toBe('include')
+      expect(options.method).toBe('GET')
+      expect(options.body).toBeUndefined()
+      expect(options.headers.has('X-Role')).toBe(false)
+      expect(options.headers.has('X-CSRF-TOKEN')).toBe(false)
+    })
+  })
+
+  it('管理员分页 API 在发请求前拒绝越界参数和空社区标识', async () => {
+    await expect(getClusteringRuns({ page: -1, size: 20 }))
+      .rejects.toMatchObject({ code: 'INVALID_PAGE_REQUEST' })
+    await expect(getClusteringRuns({ page: 0, size: 101 }))
+      .rejects.toMatchObject({ code: 'INVALID_PAGE_REQUEST' })
+    await expect(getCommunityMembers({ communityId: ' ', page: 0, size: 20 }))
+      .rejects.toMatchObject({ code: 'INVALID_COMMUNITY_ID' })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('聚类触发只发送 clusterCount 并读取 202 Location', async () => {
     fetch
       .mockResolvedValueOnce(jsonResponse(csrfResponse))
@@ -201,4 +234,3 @@ describe('CSRF 与 API 服务模块', () => {
     expect(localStorage.setItem).not.toHaveBeenCalled()
   })
 })
-

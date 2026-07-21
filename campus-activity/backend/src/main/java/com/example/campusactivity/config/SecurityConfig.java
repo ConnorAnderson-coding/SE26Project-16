@@ -167,7 +167,15 @@ public class SecurityConfig {
                         ).hasRole("ADMIN")
                         .requestMatchers(
                                 HttpMethod.GET,
+                                "/api/v1/admin/community-clustering/runs"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.GET,
                                 "/api/v1/admin/community-clustering/runs/*"
+                        ).hasRole("ADMIN")
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/v1/admin/community-clustering/communities/*/members"
                         ).hasRole("ADMIN")
                         .requestMatchers(
                                 HttpMethod.GET,

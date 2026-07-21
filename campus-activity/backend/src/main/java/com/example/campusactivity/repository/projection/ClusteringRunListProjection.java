@@ -1,0 +1,32 @@
+package com.example.campusactivity.repository.projection;
+
+import com.example.campusactivity.entity.ClusteringAlgorithm;
+import com.example.campusactivity.entity.ClusteringRunStatus;
+
+import java.time.Instant;
+
+public interface ClusteringRunListProjection {
+    String getId();
+
+    String getVersion();
+
+    ClusteringAlgorithm getAlgorithm();
+
+    Integer getClusterCount();
+
+    Integer getRandomState();
+
+    ClusteringRunStatus getStatus();
+
+    Integer getSampleCount();
+
+    String getFeatureSchemaVersion();
+
+    Instant getCreatedAt();
+
+    Instant getStartedAt();
+
+    Instant getFinishedAt();
+
+    String getCreatedBy();
+}

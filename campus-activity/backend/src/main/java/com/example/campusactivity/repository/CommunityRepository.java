@@ -3,6 +3,7 @@ package com.example.campusactivity.repository;
 import com.example.campusactivity.entity.ClusteringRun;
 import com.example.campusactivity.entity.Community;
 import com.example.campusactivity.repository.projection.CommunityQueryProjection;
+import com.example.campusactivity.repository.projection.AdminCommunitySummaryProjection;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -39,5 +40,19 @@ public interface CommunityRepository extends JpaRepository<Community, String> {
             """)
     List<CommunityQueryProjection> findQueryProjectionsByRunId(
             @Param("runId") String runId
+    );
+
+    @Query("""
+            SELECT community.id AS communityId,
+                   community.run.id AS runId,
+                   community.clusterNo AS clusterNo,
+                   community.name AS name,
+                   community.color AS color,
+                   community.memberCount AS memberCount
+            FROM Community community
+            WHERE community.id = :communityId
+            """)
+    Optional<AdminCommunitySummaryProjection> findAdminSummaryById(
+            @Param("communityId") String communityId
     );
 }

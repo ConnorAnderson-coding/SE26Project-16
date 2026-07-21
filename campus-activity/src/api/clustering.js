@@ -3,6 +3,18 @@ import { csrfPost } from './csrf'
 
 const RUN_PATH_PREFIX = '/api/v1/admin/community-clustering/runs/'
 const RUN_PATH_PATTERN = /^\/api\/v1\/admin\/community-clustering\/runs\/[^/?#]+$/
+const RUNS_PATH = '/api/v1/admin/community-clustering/runs'
+const COMMUNITIES_PATH = '/api/v1/admin/community-clustering/communities'
+
+function validatePage(page, size) {
+  if (!Number.isInteger(page) || page < 0 || !Number.isInteger(size) || size < 1 || size > 100) {
+    throw new ApiError({
+      status: 0,
+      code: 'INVALID_PAGE_REQUEST',
+      message: '分页参数无效'
+    })
+  }
+}
 
 export function getLatestClustering({ signal } = {}) {
   return request('/api/v1/community-clustering/latest', { signal })
@@ -11,6 +23,26 @@ export function getLatestClustering({ signal } = {}) {
 
 export function getMyClustering({ signal } = {}) {
   return request('/api/v1/community-clustering/me', { signal })
+    .then(result => result.data)
+}
+
+export async function getClusteringRuns({ page = 0, size = 20, signal } = {}) {
+  validatePage(page, size)
+  return request(`${RUNS_PATH}?page=${page}&size=${size}`, { signal })
+    .then(result => result.data)
+}
+
+export async function getCommunityMembers({ communityId, page = 0, size = 20, signal } = {}) {
+  validatePage(page, size)
+  if (typeof communityId !== 'string' || !communityId.trim()) {
+    return Promise.reject(new ApiError({
+      status: 0,
+      code: 'INVALID_COMMUNITY_ID',
+      message: '社区标识无效'
+    }))
+  }
+  const path = `${COMMUNITIES_PATH}/${encodeURIComponent(communityId)}/members`
+  return request(`${path}?page=${page}&size=${size}`, { signal })
     .then(result => result.data)
 }
 

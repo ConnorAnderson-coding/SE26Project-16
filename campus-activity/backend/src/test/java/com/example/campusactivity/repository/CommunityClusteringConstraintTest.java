@@ -411,6 +411,22 @@ class CommunityClusteringConstraintTest {
     }
 
     @Test
+    void userDeletionIsRestrictedWhileHistoricalMembershipExists() {
+        MembershipFixture fixture = membershipFixture("user-delete-restricted");
+        memberRepository.saveAndFlush(member(
+                "member-user-delete-restricted",
+                fixture.run(),
+                fixture.community(),
+                fixture.user()
+        ));
+
+        userRepository.delete(fixture.user());
+
+        assertThatThrownBy(userRepository::flush)
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
     void deletingCommunityDoesNotDeleteRun() {
         MembershipFixture fixture = membershipFixture("community-delete");
 

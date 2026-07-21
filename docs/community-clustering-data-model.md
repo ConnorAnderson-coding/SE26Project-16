@@ -158,13 +158,13 @@ UserAccount (id)
 | `ClusteringRun` | `UNIQUE(version)` | 按版本定位并保证版本唯一 |
 | `ClusteringRun` | `uk_clustering_runs_active_slot: UNIQUE(active_slot)` | 数据库原子保证最多一个 `PENDING`/`RUNNING` 活动运行；允许多个 `active_slot IS NULL` 的终态运行共存 |
 | `ClusteringRun` | `(status, finishedAt)` | 查找最近一次成功运行；查询条件固定 `status='SUCCESS'`，按 `finishedAt DESC` |
-| `ClusteringRun` | `(createdAt)` | 管理员按创建时间查看运行历史 |
+| `ClusteringRun` | `(createdAt, id)` | 管理员按 `createdAt DESC, id DESC` 稳定分页查看运行历史；当前实体索引名为 `idx_clustering_runs_created_id` |
 | `ClusteringRunInput` | `UNIQUE(runId, userId)` | 保证一个 run 每个有效用户恰好一份输入 |
 | `ClusteringRunInput` | `UNIQUE(runId, sampleOrder)` / `(runId, sampleOrder)` | 确定顺序批量恢复 Python 请求，避免用户实体 N+1 |
 | `Community` | `UNIQUE(runId, clusterNo)` | 保证同一运行簇编号唯一 |
 | `Community` | `(runId)` | 加载某运行的社区 |
 | `CommunityMember` | `UNIQUE(runId, userId)` | 保证一人一社区并支持 `me` 查询 |
-| `CommunityMember` | `(communityId, id)` | 稳定分页查询社区成员 |
+| `CommunityMember` | `(communityId, distanceToCenter, userId)` | 管理员按 `distanceToCenter ASC, userId ASC` 稳定分页；当前实体索引名为 `idx_community_memberships_admin_page` |
 | `CommunityMember` | `(runId, communityId)` | 统计/校验运行内各社区成员数 |
 | `CommunityMember` | `(userId, runId)` | 查询用户跨版本归属；若仅查 latest，可由唯一索引和运行 ID 满足 |
 

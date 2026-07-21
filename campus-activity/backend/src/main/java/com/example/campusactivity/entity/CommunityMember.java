@@ -39,7 +39,11 @@ import java.util.UUID;
                         name = "idx_community_memberships_community_run",
                         columnList = "community_id, run_id"
                 ),
-                @Index(name = "idx_community_memberships_user", columnList = "user_id")
+                @Index(name = "idx_community_memberships_user", columnList = "user_id"),
+                @Index(
+                        name = "idx_community_memberships_admin_page",
+                        columnList = "community_id, distance_to_center, user_id"
+                )
         }
 )
 @Check(

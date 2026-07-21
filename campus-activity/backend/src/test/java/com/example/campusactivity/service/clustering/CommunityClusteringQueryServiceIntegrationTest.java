@@ -1,6 +1,8 @@
 package com.example.campusactivity.service.clustering;
 
 import com.example.campusactivity.dto.clustering.CurrentUserClusteringResponse;
+import com.example.campusactivity.dto.clustering.ClusteringRunPageResponse;
+import com.example.campusactivity.dto.clustering.CommunityMembersPageResponse;
 import com.example.campusactivity.dto.clustering.LatestClusteringResponse;
 import com.example.campusactivity.entity.ClusteringAlgorithm;
 import com.example.campusactivity.entity.ClusteringRun;
@@ -17,6 +19,8 @@ import org.hibernate.SessionFactory;
 import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -225,6 +229,117 @@ class CommunityClusteringQueryServiceIntegrationTest {
         });
     }
 
+    @Test
+    void runHistoryUsesStableDatabasePaginationAndTwoQueries() {
+        runRepository.saveAndFlush(failedRun(
+                "run-a", "page-version-a", BASE_TIME, BASE_TIME.plusSeconds(10)
+        ));
+        runRepository.saveAndFlush(failedRun(
+                "run-b", "page-version-b", BASE_TIME.plusSeconds(20),
+                BASE_TIME.plusSeconds(30)
+        ));
+        runRepository.saveAndFlush(failedRun(
+                "run-c", "page-version-c", BASE_TIME.plusSeconds(20),
+                BASE_TIME.plusSeconds(31)
+        ));
+        runRepository.saveAndFlush(failedRun(
+                "run-d", "page-version-d", BASE_TIME.plusSeconds(40),
+                BASE_TIME.plusSeconds(50)
+        ));
+
+        Statistics statistics = statistics();
+        statistics.clear();
+        ClusteringRunPageResponse response = queryService.findRuns("1", "2");
+
+        assertThat(response.items())
+                .extracting(item -> item.runId())
+                .containsExactly("run-b", "run-a");
+        assertThat(response.page()).isEqualTo(1);
+        assertThat(response.size()).isEqualTo(2);
+        assertThat(response.totalElements()).isEqualTo(4);
+        assertThat(response.totalPages()).isEqualTo(2);
+        assertThat(response.toString()).doesNotContain(
+                "parametersJson", "metricsJson", "errorMessage", "activeSlot"
+        );
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(2);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "-1,20",
+            "0,0",
+            "0,101",
+            "not-a-number,20",
+            "0,not-a-number"
+    })
+    void rejectsInvalidRunHistoryPagination(String page, String size) {
+        assertThatThrownBy(() -> queryService.findRuns(page, size))
+                .isInstanceOfSatisfying(ClusteringQueryException.class, exception ->
+                        assertThat(exception.getCode())
+                                .isEqualTo(ClusteringQueryCode.INVALID_PAGE_REQUEST)
+                );
+    }
+
+    @Test
+    void adminMembersUseThreeFixedQueriesWithStableDatabasePagination() {
+        createThreePointSuccess(
+                "admin-member-run",
+                "admin-member-version",
+                BASE_TIME,
+                BASE_TIME.plusSeconds(20),
+                "admin-member-current"
+        );
+
+        Statistics statistics = statistics();
+        statistics.clear();
+        CommunityMembersPageResponse first = queryService.findCommunityMembers(
+                "community-0-admin-member-run", "0", "1"
+        );
+
+        assertThat(first.community().runId()).isEqualTo("admin-member-run");
+        assertThat(first.community().clusterNo()).isZero();
+        assertThat(first.community().memberCount()).isEqualTo(2);
+        assertThat(first.items()).singleElement().satisfies(member -> {
+            assertThat(member.userId())
+                    .isEqualTo("private-use-user-admin-member-run");
+            assertThat(member.name()).isEqualTo("测试用户");
+            assertThat(member.college()).isEqualTo("软件学院");
+            assertThat(member.grade()).isEqualTo("2026");
+            assertThat(member.pointId())
+                    .isEqualTo("point-\uE000-admin-member-run");
+            assertThat(member.distanceToCenter()).isEqualTo(0.6);
+        });
+        assertThat(first.totalElements()).isEqualTo(2);
+        assertThat(first.totalPages()).isEqualTo(2);
+        assertThat(first.toString()).doesNotContain(
+                "password", "role", "friends", "interests", "assignedAt"
+        );
+        assertThat(statistics.getPrepareStatementCount()).isEqualTo(3);
+
+        CommunityMembersPageResponse second = queryService.findCommunityMembers(
+                "community-0-admin-member-run", "1", "1"
+        );
+        assertThat(second.items()).singleElement().satisfies(member ->
+                assertThat(member.userId())
+                        .isEqualTo("supplementary-user-admin-member-run")
+        );
+    }
+
+    @Test
+    void adminMemberQueryRejectsInvalidOrMissingCommunity() {
+        assertThatThrownBy(() -> queryService.findCommunityMembers(" ", "0", "20"))
+                .isInstanceOfSatisfying(ClusteringQueryException.class, exception ->
+                        assertThat(exception.getCode())
+                                .isEqualTo(ClusteringQueryCode.INVALID_COMMUNITY_ID)
+                );
+        assertThatThrownBy(() -> queryService.findCommunityMembers(
+                "missing-community", "0", "20"
+        )).isInstanceOfSatisfying(ClusteringQueryException.class, exception ->
+                assertThat(exception.getCode())
+                        .isEqualTo(ClusteringQueryCode.COMMUNITY_NOT_FOUND)
+        );
+    }
+
     private void createThreePointSuccess(
             String runId,
             String version,
@@ -397,6 +512,8 @@ class CommunityClusteringQueryServiceIntegrationTest {
             user.setId(id);
             user.setPassword("test-password");
             user.setName("测试用户");
+            user.setCollege("软件学院");
+            user.setGrade("2026");
             return userRepository.saveAndFlush(user);
         });
     }

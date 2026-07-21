@@ -2,9 +2,11 @@ package com.example.campusactivity.repository;
 
 import com.example.campusactivity.entity.ClusteringRun;
 import com.example.campusactivity.entity.ClusteringRunStatus;
+import com.example.campusactivity.repository.projection.ClusteringRunListProjection;
 import com.example.campusactivity.repository.projection.ClusteringRunQueryProjection;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -108,6 +110,27 @@ public interface ClusteringRunRepository extends JpaRepository<ClusteringRun, St
     Optional<ClusteringRunQueryProjection> findQueryProjectionById(
             @Param("runId") String runId
     );
+
+    @Query(
+            value = """
+                    SELECT run.id AS id,
+                           run.version AS version,
+                           run.algorithm AS algorithm,
+                           run.clusterCount AS clusterCount,
+                           run.randomState AS randomState,
+                           run.status AS status,
+                           run.sampleCount AS sampleCount,
+                           run.featureSchemaVersion AS featureSchemaVersion,
+                           run.createdAt AS createdAt,
+                           run.startedAt AS startedAt,
+                           run.finishedAt AS finishedAt,
+                           run.createdBy AS createdBy
+                    FROM ClusteringRun run
+                    ORDER BY run.createdAt DESC, run.id DESC
+                    """,
+            countQuery = "SELECT COUNT(run) FROM ClusteringRun run"
+    )
+    Page<ClusteringRunListProjection> findRunList(Pageable pageable);
 
     default Optional<ClusteringRunQueryProjection> findLatestSuccessfulProjection() {
         return findSuccessfulQueryProjectionsForLatest(PageRequest.of(0, 1))
