@@ -1,10 +1,10 @@
 package com.example.demo.config;
 
-import com.example.demo.common.CacheNames;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,20 +12,24 @@ import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.SerializationException;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
+import com.example.demo.common.CacheNames;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 
 @Configuration
 @ConditionalOnProperty(name = "spring.cache.type", havingValue = "redis", matchIfMissing = true)
 public class RedisConfig {
 
     @Bean
-    public GenericJackson2JsonRedisSerializer redisJsonSerializer() {
+    public RedisSerializer<Object> redisJsonSerializer() {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.findAndRegisterModules();
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -34,13 +38,38 @@ public class RedisConfig {
                 LaissezFaireSubTypeValidator.instance,
                 ObjectMapper.DefaultTyping.NON_FINAL,
                 JsonTypeInfo.As.PROPERTY);
-        return new GenericJackson2JsonRedisSerializer(objectMapper);
+
+        return new RedisSerializer<>() {
+            @Override
+            public byte[] serialize(Object source) throws SerializationException {
+                if (source == null) {
+                    return new byte[0];
+                }
+                try {
+                    return objectMapper.writeValueAsBytes(source);
+                } catch (JsonProcessingException ex) {
+                    throw new SerializationException("Failed to serialize object to Redis", ex);
+                }
+            }
+
+            @Override
+            public Object deserialize(byte[] source) throws SerializationException {
+                if (source == null || source.length == 0) {
+                    return null;
+                }
+                try {
+                    return objectMapper.readValue(source, Object.class);
+                } catch (IOException ex) {
+                    throw new SerializationException("Failed to deserialize object from Redis", ex);
+                }
+            }
+        };
     }
 
     @Bean
     public RedisCacheManager cacheManager(
             RedisConnectionFactory connectionFactory,
-            GenericJackson2JsonRedisSerializer redisJsonSerializer) {
+            RedisSerializer<Object> redisJsonSerializer) {
         RedisCacheConfiguration defaults = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(30))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))

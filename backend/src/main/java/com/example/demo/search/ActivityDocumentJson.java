@@ -1,11 +1,12 @@
 package com.example.demo.search;
 
-import co.elastic.clients.json.JsonData;
+import java.util.Map;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-import java.util.Map;
+import co.elastic.clients.json.JsonData;
 
 final class ActivityDocumentJson {
 
@@ -16,7 +17,6 @@ final class ActivityDocumentJson {
     private ActivityDocumentJson() {
     }
 
-    @SuppressWarnings("unchecked")
     static JsonData toJsonData(ActivityDocument document) {
         return JsonData.of(MAPPER.convertValue(document, Map.class));
     }

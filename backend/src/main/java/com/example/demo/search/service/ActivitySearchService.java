@@ -1,5 +1,16 @@
 package com.example.demo.search.service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.example.demo.common.BusinessException;
 import com.example.demo.common.PageResult;
 import com.example.demo.config.ElasticsearchProperties;
@@ -9,23 +20,13 @@ import com.example.demo.entity.Activity;
 import com.example.demo.repository.ActivityRepository;
 import com.example.demo.search.ActivitySearchCriteria;
 import com.example.demo.search.ActivitySearchHit;
-import com.example.demo.search.SearchMode;
 import com.example.demo.search.repository.ActivitySearchRepository;
 import com.example.demo.search.support.ActivitySearchRanker;
 import com.example.demo.search.support.HybridRelevanceScorer;
 import com.example.demo.search.support.SemanticScoreFilter;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service

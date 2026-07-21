@@ -1,20 +1,21 @@
 package com.example.demo.service;
 
-import com.example.demo.dto.analytics.ActivityMetrics;
-import com.example.demo.dto.analytics.SuggestionItem;
-import com.example.demo.entity.Activity;
-import com.example.demo.entity.ActivityAnalysis;
-import com.example.demo.repository.ActivityAnalysisRepository;
-import com.example.demo.repository.ActivityRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+
+import com.example.demo.dto.analytics.ActivityMetrics;
+import com.example.demo.dto.analytics.SuggestionItem;
+import com.example.demo.entity.ActivityAnalysis;
+import com.example.demo.repository.ActivityAnalysisRepository;
+import com.example.demo.repository.ActivityRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -115,7 +116,7 @@ public class LlmAnalysisRunner {
         analysis.setAvgRating(metrics.getAvgRating());
         analysis.setRatingDistribution(metrics.getRatingDistribution());
         analysis.setCheckInMethodsStats(metrics.getCheckInMethodsStats());
-        analysis.setSuggestions((List) suggestions.stream().map(s -> {
+        analysis.setSuggestions(suggestions.stream().map(s -> {
             Map<String, String> m = new HashMap<>();
             m.put("id", s.getId());
             m.put("category", s.getCategory());
