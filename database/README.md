@@ -46,13 +46,18 @@ docker compose up -d --build elasticsearch
 初始化索引并部署 GTE `campus_gte`（`thenlper/gte-small-zh`，512 维；中文专用 small，经 Eland **8.15.0** 导入，约 5–15 分钟）：
 
 > **从 E5 切换到 GTE**：维度 384→512，必须 `.\init-es.ps1 -ForceRecreateIndex`，再 `POST /api/v1/search/index/rebuild`。阈值已按 gte-small-zh 重测为 0.90。  
-> **国内网络**：默认 `HF_ENDPOINT=https://hf-mirror.com`；`eland:latest` 与 ES 8.15 不兼容，须用 `docker.elastic.co/eland/eland:8.15.0`。
+> **国内网络**：默认 `HF_ENDPOINT=https://huggingface.co`；`eland:latest` 与 ES 8.15 不兼容，须用 `docker.elastic.co/eland/eland:8.15.0`。
+> 若 `huggingface.co` 不可用，可改用其它可访问的镜像源：
+> `.
+init-es.ps1 -HfEndpoint "https://<your-endpoint>"`
 
 
 ```powershell
 cd database
 .\init-es.ps1
 # 仅建索引、跳过 GTE：.\init-es.ps1 -SkipEmbedding
+# 指定可用 Hugging Face endpoint：
+# .\init-es.ps1 -HfEndpoint "https://huggingface.co"
 ```
 
 或使用一键部署（含上述步骤）：

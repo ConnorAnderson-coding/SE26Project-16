@@ -28,7 +28,12 @@ param(
     [switch]$SkipEmbedding,
     [switch]$SkipElasticsearch,
     [switch]$StartApps,
-    [int]$ElasticsearchPort = 9200
+    [int]$ElasticsearchPort = 9200,
+    [int]$MysqlPort = 3307,
+    [int]$RedisPort = 6379,
+    [int]$KibanaPort = 5601,
+    [string]$HfEndpoint = "",
+    [string]$ElandImage = "docker.elastic.co/eland/eland:8.15.0"
 )
 
 $ErrorActionPreference = "Stop"
@@ -59,10 +64,16 @@ try {
         docker compose down -v
     }
 
+    $env:MYSQL_PORT = $MysqlPort
+    $env:REDIS_PORT = $RedisPort
+    $env:ES_HTTP_PORT = $ElasticsearchPort
+    $env:ES_TCP_PORT = 9300
+    $env:KIBANA_PORT = $KibanaPort
+
     Write-Step "启动 Docker 服务（MySQL / Redis / Elasticsearch / Kibana）"
     docker compose up -d --wait
     if ($LASTEXITCODE -ne 0) {
-        throw "docker compose up 失败，请检查 Docker Desktop 是否运行"
+        throw "docker compose up 失败。请确认 Docker Desktop 已运行，并检查镜像仓库访问是否正常（如 Docker Hub 拉取超时/EOF）。"
     }
     Write-Ok "Docker 服务已就绪"
 
@@ -100,6 +111,12 @@ try {
         }
         if ($SkipEmbedding) {
             $initParams.SkipEmbedding = $true
+        }
+        if ($HfEndpoint) {
+            $initParams.HfEndpoint = $HfEndpoint
+        }
+        if ($ElandImage) {
+            $initParams.ElandImage = $ElandImage
         }
         & (Join-Path $ScriptDir "init-es.ps1") @initParams
         if ($LASTEXITCODE -ne 0) {

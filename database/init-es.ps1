@@ -22,6 +22,10 @@
   仅创建索引，跳过 GTE（首次 Eland 导入较慢，可稍后单独部署）
 
 .EXAMPLE
+  .\init-es.ps1 -HfEndpoint "https://huggingface.co"
+  使用指定 Hugging Face endpoint 导入 GTE
+
+.EXAMPLE
   .\init-es.ps1 -ForceRecreateIndex
   删除并重建 campus_activities 索引（换维数 / 换模型后必需）
 #>
@@ -30,6 +34,8 @@ param(
     [string]$EsHost = "127.0.0.1",
     [int]$EsPort = 9200,
     [string]$IndexName = "campus_activities",
+    [string]$HfEndpoint = "",
+    [string]$ElandImage = "docker.elastic.co/eland/eland:8.15.0",
     [switch]$SkipEmbedding,
     [switch]$ForceRecreateIndex,
     [int]$HealthWaitSeconds = 180,
@@ -215,15 +221,14 @@ function Deploy-EmbeddingModel {
         return
     }
 
-    Write-Host "  通过 Eland 8.15 导入（首次约 5-20 分钟；国内默认走 hf-mirror.com）..." -ForegroundColor Gray
+    Write-Host "  通过 Eland 8.15 导入（首次约 5-20 分钟；默认走 huggingface.co）..." -ForegroundColor Gray
     $network = Get-EsContainerNetwork
     if (-not $network) {
         throw "找不到 campus-elasticsearch 的 Docker 网络。请先: docker compose up -d elasticsearch"
     }
 
     # latest eland image speaks ES 9 Accept header and fails against ES 8.15
-    $ElandImage = "docker.elastic.co/eland/eland:8.15.0"
-    $HfEndpoint = if ($env:HF_ENDPOINT) { $env:HF_ENDPOINT } else { "https://hf-mirror.com" }
+    $HfEndpoint = if ($HfEndpoint) { $HfEndpoint } elseif ($env:HF_ENDPOINT) { $env:HF_ENDPOINT } else { "https://huggingface.co" }
 
     $elandArgs = @(
         "run", "--rm",
@@ -242,18 +247,24 @@ function Deploy-EmbeddingModel {
     Write-Host ("  docker " + ($elandArgs -join " ")) -ForegroundColor Gray
     & docker @elandArgs
     if ($LASTEXITCODE -ne 0) {
-        throw @"
+        throw @'
 Eland 导入 GTE 失败 (exit=$LASTEXITCODE)。
+请确认当前机器能访问: $HfEndpoint
+或使用其它可用的 Hugging Face endpoint：
+  .\init-es.ps1 -HfEndpoint "https://huggingface.co"
+或设置环境变量:
+  $env:HF_ENDPOINT = 'https://huggingface.co'
+
 可手动执行（需能访问 Hugging Face 或设置 HF_ENDPOINT 镜像）:
-  docker run --rm --dns 8.8.8.8 --network $network ``
-    -e HF_ENDPOINT=$HfEndpoint ``
-    $ElandImage ``
-    eland_import_hub_model ``
-      --url http://campus-elasticsearch:9200 ``
-      --hub-model-id $HubModelId ``
-      --es-model-id $EmbeddingModelId ``
+  docker run --rm --dns 8.8.8.8 --network $network `
+    -e HF_ENDPOINT=$HfEndpoint `
+    $ElandImage `
+    eland_import_hub_model `
+      --url http://campus-elasticsearch:9200 `
+      --hub-model-id $HubModelId `
+      --es-model-id $EmbeddingModelId `
       --task-type text_embedding --start --clear-previous
-"@
+'@
     }
 
     $deadline = (Get-Date).AddMinutes(25)
