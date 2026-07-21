@@ -1,2 +1,8 @@
 .DS_Store
 campus-activity/backend/target/
+logs/
+*.log
+*.pid
+backend/target/
+campus-activity/node_modules/
+campus-activity/dist/
