@@ -42,6 +42,12 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
     @Query("UPDATE Activity a SET a.viewCount = a.viewCount + 1 WHERE a.id = :id")
     int incrementViewCount(@Param("id") Long id);
 
+    /** 原子自增签到数，避免并发访问丢失计数。 */
+    @Modifying
+    @Query("UPDATE Activity a SET a.checkInCount = a.checkInCount + 1, " +
+           "a.updatedAt = :now WHERE a.id = :id")
+    int incrementCheckInCount(@Param("id") Long id, @Param("now") LocalDateTime now);
+
     @EntityGraph(attributePaths = "organizer")
     List<Activity> findByOrganizerIdOrderByStartTimeDesc(String organizerId);
 

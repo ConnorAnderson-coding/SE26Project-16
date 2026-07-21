@@ -222,10 +222,7 @@ public class CheckInService {
         checkIn.setDistanceMeters(distanceMeters);
         checkIn = checkInRepository.save(checkIn);
 
-        int current = activity.getCheckInCount() != null ? activity.getCheckInCount() : 0;
-        activity.setCheckInCount(current + 1);
-        activity.setUpdatedAt(LocalDateTime.now());
-        activityRepository.save(activity);
+        activityRepository.incrementCheckInCount(activity.getId(), LocalDateTime.now());
 
         return checkIn;
     }
