@@ -62,7 +62,7 @@ def invalid_feature_schema(*, actual: str) -> ClusteringServiceError:
         message="不支持的特征模式版本",
         details={
             "actual": actual,
-            "supported": ["community-features-v1"],
+            "supported": ["community-features-v2"],
         },
     )
 

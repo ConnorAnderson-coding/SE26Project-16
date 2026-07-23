@@ -27,7 +27,7 @@ from .schemas import (
 )
 
 
-SUPPORTED_FEATURE_SCHEMA = "community-features-v1"
+SUPPORTED_FEATURE_SCHEMA = "community-features-v2"
 SUPPORTED_RANDOM_STATE = 42
 PCA_AXIS_ABS_TOLERANCE = 1e-12
 PCA_AXIS_REL_TOLERANCE = 1e-9

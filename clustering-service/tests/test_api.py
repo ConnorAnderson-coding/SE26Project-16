@@ -128,7 +128,7 @@ def payload(
         "algorithm": "KMEANS",
         "clusterCount": cluster_count,
         "randomState": 42,
-        "featureSchemaVersion": "community-features-v1",
+        "featureSchemaVersion": "community-features-v2",
         "samples": valid_samples() if samples is None else samples,
     }
 
@@ -506,7 +506,7 @@ def test_insufficient_distinct_feature_rows_returns_computation_error() -> None:
 
 def test_unsupported_feature_schema_returns_409() -> None:
     request_body = payload()
-    request_body["featureSchemaVersion"] = "community-features-v2"
+    request_body["featureSchemaVersion"] = "community-features-v1"
     response = client.post("/internal/v1/clustering/run", json=request_body)
     assert_error_structure(response, status=409, code="INVALID_FEATURE_SCHEMA")
 
@@ -531,7 +531,7 @@ def test_health_contract_does_not_expose_configuration() -> None:
     assert response.json() == {
         "status": "UP",
         "service": "clustering-service",
-        "supportedFeatureSchemas": ["community-features-v1"],
+        "supportedFeatureSchemas": ["community-features-v2"],
     }
 
 

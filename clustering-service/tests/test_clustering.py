@@ -12,6 +12,7 @@ from app.clustering import (
     run_clustering,
 )
 from app.exceptions import ClusteringServiceError
+from app.preprocessing import preprocess_samples
 from app.schemas import ClusteringRequest, FeatureSample
 
 
@@ -40,7 +41,7 @@ def request_for(signup_counts: list[int], cluster_count: int = 2) -> ClusteringR
             "algorithm": "KMEANS",
             "clusterCount": cluster_count,
             "randomState": 42,
-            "featureSchemaVersion": "community-features-v1",
+            "featureSchemaVersion": "community-features-v2",
             "samples": [
                 make_sample(f"user-{index}", count, [f"interest-{index % 2}"])
                 for index, count in enumerate(signup_counts)
@@ -150,9 +151,27 @@ def test_distance_to_center_uses_standardized_feature_space() -> None:
 
     result = run_clustering(request)
 
-    expected_distance = 1.0 / np.sqrt(17.0)
+    preprocessed = preprocess_samples(request.samples)
+    row_by_user = {
+        sample.userId: preprocessed.matrix[index]
+        for index, sample in enumerate(request.samples)
+    }
+    expected_distances: list[float] = []
+    for member in result.members:
+        cluster_user_ids = [
+            candidate.userId
+            for candidate in result.members
+            if candidate.clusterNo == member.clusterNo
+        ]
+        center = np.mean(
+            [row_by_user[user_id] for user_id in cluster_user_ids], axis=0
+        )
+        expected_distances.append(
+            float(np.linalg.norm(row_by_user[member.userId] - center))
+        )
+
     assert [member.distanceToCenter for member in result.members] == pytest.approx(
-        [expected_distance] * 4
+        expected_distances
     )
 
 

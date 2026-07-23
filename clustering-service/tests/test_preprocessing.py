@@ -99,6 +99,65 @@ def test_single_effective_feature_is_supported() -> None:
     assert varying_columns == 1
 
 
+def test_v2_uses_log_counts_and_profile_group_weights() -> None:
+    samples = [
+        make_sample("u1", signup_count=0),
+        make_sample("u2", signup_count=3),
+        make_sample("u3", signup_count=15),
+    ]
+    samples[0].college = "A"
+    samples[1].college = "B"
+    samples[2].college = "B"
+
+    result = preprocess_samples(samples)
+
+    signup_index = result.feature_names.index("numeric:logSignupCount")
+    expected_signup = standardize_matrix(
+        [[np.log1p(0)], [np.log1p(3)], [np.log1p(15)]]
+    )[:, 0]
+    assert np.allclose(result.matrix[:, signup_index], expected_signup)
+
+    college_index = result.feature_names.index("college:A")
+    expected_college = standardize_matrix([[1.0], [0.0], [0.0]])[:, 0] * 0.35
+    assert np.allclose(result.matrix[:, college_index], expected_college)
+
+
+def test_v2_derives_rates_category_proportions_and_rating_presence() -> None:
+    first = make_sample(
+        "u1", signup_count=4, categories={"academic": 1, "sports": 3}
+    )
+    first.approvedSignupCount = 2
+    first.checkInCount = 1
+    first.averageRating = 4.5
+    first.feedbackCount = 1
+    second = make_sample(
+        "u2", signup_count=4, categories={"academic": 3, "sports": 1}
+    )
+    second.approvedSignupCount = 4
+    second.checkInCount = 8
+
+    result = preprocess_samples([first, second])
+
+    assert result.feature_names[:8] == (
+        "numeric:logSignupCount",
+        "numeric:approvedRate",
+        "numeric:logFavoriteCount",
+        "numeric:logCheckInCount",
+        "numeric:attendanceRate",
+        "numeric:logFeedbackCount",
+        "numeric:averageRating",
+        "numeric:hasAverageRating",
+    )
+    approved_rate = result.matrix[:, result.feature_names.index("numeric:approvedRate")]
+    attendance_rate = result.matrix[:, result.feature_names.index("numeric:attendanceRate")]
+    academic = result.matrix[:, result.feature_names.index("categoryParticipation:academic")]
+    rating_presence = result.matrix[:, result.feature_names.index("numeric:hasAverageRating")]
+    assert np.allclose(approved_rate, [-1.0, 1.0])
+    assert np.allclose(attendance_rate, [-1.0, 1.0])
+    assert np.allclose(academic, [-1.0, 1.0])
+    assert np.allclose(rating_presence, [1.0, -1.0])
+
+
 def test_inconsistent_feature_dimensions_are_rejected() -> None:
     with pytest.raises(ClusteringServiceError) as captured:
         standardize_matrix([[1.0, 2.0], [3.0]])
