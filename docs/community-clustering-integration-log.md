@@ -66,7 +66,7 @@
 | 阶段 | 交付物 | 状态 |
 | --- | --- | --- |
 | 0 | 最新 main 基线、TechPrototype 审查、集成日志 | 完成 |
-| 1 | 独立 Python clustering-service | 待开始 |
+| 1 | 独立 Python clustering-service | 完成 |
 | 2 | MySQL 聚类数据模型与 Spring 持久化骨架 | 待开始 |
 | 3 | Spring 内部 Client、异步状态机、失败与恢复 | 待开始 |
 | 4 | 基于 main 实体和行为表的 FeatureBuilder | 待开始 |
@@ -89,11 +89,22 @@
 - 前端结果：成功；存在 main 原始的单 chunk 超过 500 kB 警告。
 - 依赖风险：main 的 `frontend/package-lock.json` 与 `package.json` 不同步，`npm ci` 失败；阶段 0 使用 `npm install --package-lock=false` 建立本地测试环境，未修改 lockfile。
 
+### 阶段 1
+
+- 文件范围：仅新增独立 `clustering-service`，未修改 Spring、数据库或前端。
+- 契约：阶段 1 保留参考实现的 `community-features-v1`，用于锁定独立算法服务行为；阶段 4 根据 main 真实实体重写输入特征时再显式升级为 `community-features-v2`。
+- 命令：`python -m pytest`。
+- 结果：105 项测试全部通过；覆盖请求校验、错误契约、计数边界、确定性、样本顺序不变性、稳定簇编号、K-Means、PCA 退化、坐标范围和预处理有限值校验。
+- 补充门禁：`python -m pip check` 无破损依赖；`python -m compileall -q app tests` 成功。
+- 已知非阻断警告：测试环境中的 Starlette `TestClient` 报告 httpx 兼容层弃用提示，来源于依赖内部，不影响当前服务契约。
+- 自审结论：Python 服务不访问数据库、Redis 或外部 HTTP，不处理认证，不生成社区展示主键和元数据，且内部文档/OpenAPI 路由按设计关闭。
+
 ## 7. 提交记录
 
 | 阶段 | 提交 SHA |
 | --- | --- |
-| 0 | 本阶段提交（SHA 在下一阶段日志更新） |
+| 0 | `e8341f0864551520978f11d1faa46e2448a81c7f` |
+| 1 | 本阶段提交（SHA 在下一阶段日志更新） |
 
 ## 8. 剩余风险
 
