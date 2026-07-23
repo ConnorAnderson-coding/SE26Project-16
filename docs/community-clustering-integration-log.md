@@ -72,7 +72,7 @@
 | 4 | 基于 main 实体和行为表的 FeatureBuilder | 完成 |
 | 5 | JWT 权限与公开 REST API | 完成 |
 | 6 | 当前 frontend 聚类用户页与管理员页 | 完成 |
-| 7 | 启动脚本、Docker 和文档 | 待开始 |
+| 7 | 启动脚本、Docker 和文档 | 完成 |
 | 8 | 全量复审、MySQL 与端到端验收 | 待开始 |
 
 ## 6. 阶段测试记录
@@ -155,6 +155,16 @@
 - 构建：`npm.cmd run build` 成功；仍仅有 main 原始单 chunk 超过 500 kB 警告。
 - lint：仍为阶段 0 锁定的 `AppContext.test.jsx` 1 个既有错误和既有警告；阶段 6 新增/修改文件没有新增 lint 错误或警告。
 
+### 阶段 7
+
+- Docker：新增基于 `public.ecr.aws/docker/library/python:3.12-slim` 的聚类镜像，依赖层与应用层分离、运行时使用非 root `clustering` 用户，并提供仅访问内部 health 的容器健康检查。
+- Compose：在 main 的 database compose 中增加可选 `clustering` profile；一键部署默认启用，`-SkipClustering` 可完全跳过。端口默认只映射到宿主 8000 供本地 Spring 调用，浏览器仍不直连。
+- 本地启动：新增独立 PowerShell 启动器，自动检查 Python 3.11+、创建隔离 `.venv`、安装运行依赖并启动 Uvicorn；应用启动器优先复用已健康的容器，否则启动本地服务，并向 Spring 注入显式 enabled/base-url。
+- 启动健壮性：后端启动优先使用系统 Maven，在缺失时回退 Wrapper；前端端口参数实际传给 Vite；根脚本将聚类跳过选项同时传给基础设施和应用层。
+- 文档：补齐 main/JWT 版本的 API、数据模型、MVP 边界和运维验收文档；根 README、database README 与 Python README 均已链接并说明内部网络边界。
+- 静态门禁：4 个 PowerShell 脚本在 Windows PowerShell AST 下零语法错误；`docker compose --profile clustering config --quiet` 通过；文档链接和 `git diff --check` 通过。
+- Docker 实测：Docker Hub 首次拉取令牌被远端关闭，按 main 镜像源策略切换 ECR 后镜像完整构建成功；临时容器达到 `healthy`，health 返回 `UP/community-features-v2`，`docker inspect` 确认运行用户为 `clustering`，验收后已停止容器。
+
 ## 7. 提交记录
 
 | 阶段 | 提交 SHA |
@@ -165,7 +175,8 @@
 | 3 | `6072d3315270956b19898fdb2af95aa991240478` |
 | 4 | `a9ed746685deb7c303c98a791153ff971bd67772` |
 | 5 | `c21bc0713626c5b47d6bfcfb129fd905a9429b73` |
-| 6 | 本阶段提交（SHA 在下一阶段日志更新） |
+| 6 | `bd8e68852acd6914d440540f69a85aaab5e7d9ec` |
+| 7 | 本阶段提交（SHA 在下一阶段日志更新） |
 
 ## 8. 剩余风险
 

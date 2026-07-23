@@ -5,3 +5,8 @@ logs/
 backend/target/
 campus-activity/node_modules/
 campus-activity/dist/
+frontend/node_modules/
+frontend/dist/
+clustering-service/.venv/
+clustering-service/.pytest_cache/
+clustering-service/**/__pycache__/

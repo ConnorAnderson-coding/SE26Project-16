@@ -16,7 +16,7 @@
 
 ```powershell
 cd database
-docker compose up -d
+docker compose --profile clustering up -d
 ```
 
 服务信息：
@@ -24,8 +24,13 @@ docker compose up -d
 - Redis: `localhost:6379`（后端 Spring Cache 缓存，key 前缀 `campus:`）
 - Elasticsearch: `localhost:9200`（语义检索 / 活动推荐，索引 `campus_activities`）
 - Kibana: `localhost:5601`（ES 调试与 Dev Tools）
+- Clustering service: `localhost:8000`（仅供 Spring Boot 调用的内部 FastAPI）
 
 首次启动会自动执行 `schema.sql` 和 `seed.sql`。
+
+聚类容器位于可选 `clustering` profile，由 `../clustering-service/Dockerfile` 构建，健康检查为
+`GET /internal/v1/health`。后端在宿主机开发运行时使用
+`COMMUNITY_CLUSTERING_URL=http://127.0.0.1:8000`；不要将该端口作为浏览器公开 API。
 
 ### Elasticsearch（检索已落地 · 推荐待复用）
 

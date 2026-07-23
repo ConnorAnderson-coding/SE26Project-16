@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   一键启动：Docker 基础设施 + ES 初始化 + 后端 + 前端
@@ -31,7 +31,8 @@ param(
     [switch]$ForceRecreateIndex,
     [Alias("SkipElser")]
     [switch]$SkipEmbedding,
-    [switch]$SkipElasticsearch
+    [switch]$SkipElasticsearch,
+    [switch]$SkipClustering
 )
 
 $ErrorActionPreference = "Stop"
@@ -56,6 +57,7 @@ try {
         if ($ForceRecreateIndex) { $deployParams.ForceRecreateIndex = $true }
         if ($SkipEmbedding) { $deployParams.SkipEmbedding = $true }
         if ($SkipElasticsearch) { $deployParams.SkipElasticsearch = $true }
+        if ($SkipClustering) { $deployParams.SkipClustering = $true }
         & $DeployScript @deployParams
         if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
@@ -73,7 +75,9 @@ try {
     if (-not (Test-Path $StartAppsScript)) {
         throw "未找到启动脚本: $StartAppsScript"
     }
-    & $StartAppsScript -ProjectRoot $ProjectRoot
+    $appParams = @{ ProjectRoot = $ProjectRoot }
+    if ($SkipClustering) { $appParams.SkipClustering = $true }
+    & $StartAppsScript @appParams
 }
 catch {
     Write-Err $_.Exception.Message
