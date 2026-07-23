@@ -73,7 +73,7 @@
 | 5 | JWT 权限与公开 REST API | 完成 |
 | 6 | 当前 frontend 聚类用户页与管理员页 | 完成 |
 | 7 | 启动脚本、Docker 和文档 | 完成 |
-| 8 | 全量复审、MySQL 与端到端验收 | 完成 |
+| 8 | 全量复审、MySQL 与端到端验收 | 本地完成；远程复核受阻 |
 
 ## 6. 阶段测试记录
 
@@ -174,6 +174,7 @@
 - 真实链路：以 compose MySQL 8 映射到临时 3307、非 root FastAPI 容器和 JDK 25 Spring Boot（关闭无关 Elasticsearch）执行真实 JWT 端到端。管理员提交 K=2 后异步运行进入 `SUCCESS`，聚合 843 个合资格用户、72 维特征，持久化 1 run、2 communities、843 inputs、843 memberships。
 - API 对账：学生访问管理员端点为 403；latest 返回 2 个社区、843 个匿名点，当前用户标记恰好 1 个，点字段仅 `pointId/x/y/currentUser`，响应不包含抽查的其他用户 ID；me 有归属；管理员成员页只含 `userId/name/college/grade/pointId/x/y/distanceToCenter`，无密码字段。
 - 清理：验收启动的隐藏 Spring 进程、临时 MySQL 容器和聚类容器均已停止；保留镜像与隔离数据卷以便复验，未触碰占用宿主 3306 的既有 MySQL，既有 Redis 继续运行。
+- 最终远程漂移检查：按要求连续执行 `git fetch origin --prune`，两次分别在连接重置和 443 建连超时处失败；第三次 `Test-NetConnection github.com -Port 443` 明确返回 `False`。因此不能把缓存引用当作本轮远程成功核验。当前缓存的 `origin/main` 仍为固定 `096479e5db0be183617116f8bb1ec301ebd34eb0`、`origin/feat/community-clustering` 仍为 `c949a5226d3dda21b200f41cd2e00d6b2bf8f0ec`，但恢复网络后仍须重新 fetch 才能关闭此项。
 
 ## 7. 提交记录
 
