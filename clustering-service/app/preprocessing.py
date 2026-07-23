@@ -14,6 +14,7 @@ from .schemas import FeatureSample
 
 
 FeatureKey = tuple[str, str | None]
+PROFILE_GROUP_WEIGHT = 0.35
 
 
 @dataclass(frozen=True)
@@ -99,19 +100,16 @@ def preprocess_samples(samples: Sequence[FeatureSample]) -> PreprocessedData:
         )
 
     numeric_fields = (
-        "signupCount",
-        "approvedSignupCount",
-        "favoriteCount",
-        "checkInCount",
-        "feedbackCount",
+        "logSignupCount",
+        "approvedRate",
+        "logFavoriteCount",
+        "logCheckInCount",
+        "attendanceRate",
+        "logFeedbackCount",
+        "averageRating",
+        "hasAverageRating",
     )
     columns: list[FeatureKey] = [("numeric", field) for field in numeric_fields]
-    columns.extend(
-        [
-            ("numeric", "averageRating"),
-            ("numeric", "hasAverageRating"),
-        ]
-    )
 
     college_categories = _single_value_categories(samples, "college")
     grade_categories = _single_value_categories(samples, "grade")
@@ -133,16 +131,37 @@ def preprocess_samples(samples: Sequence[FeatureSample]) -> PreprocessedData:
 
     records: list[dict[FeatureKey, float]] = []
     for sample in samples:
+        signup_count = _to_feature_float(sample.signupCount)
+        approved_count = _to_feature_float(sample.approvedSignupCount)
+        check_in_count = _to_feature_float(sample.checkInCount)
+        category_total = sum(
+            _to_feature_float(count)
+            for count in sample.categoryParticipationCounts.values()
+        )
         row: dict[FeatureKey, float] = {
-            ("numeric", field): _to_feature_float(getattr(sample, field))
-            for field in numeric_fields
+            ("numeric", "logSignupCount"): float(np.log1p(signup_count)),
+            ("numeric", "approvedRate"): (
+                approved_count / signup_count if signup_count > 0.0 else 0.0
+            ),
+            ("numeric", "logFavoriteCount"): float(
+                np.log1p(_to_feature_float(sample.favoriteCount))
+            ),
+            ("numeric", "logCheckInCount"): float(np.log1p(check_in_count)),
+            ("numeric", "attendanceRate"): (
+                min(check_in_count / approved_count, 1.0)
+                if approved_count > 0.0
+                else 0.0
+            ),
+            ("numeric", "logFeedbackCount"): float(
+                np.log1p(_to_feature_float(sample.feedbackCount))
+            ),
+            ("numeric", "averageRating"): _to_feature_float(
+                sample.averageRating or 0.0
+            ),
+            ("numeric", "hasAverageRating"): _to_feature_float(
+                sample.averageRating is not None
+            ),
         }
-        row[("numeric", "averageRating")] = _to_feature_float(
-            sample.averageRating or 0.0
-        )
-        row[("numeric", "hasAverageRating")] = _to_feature_float(
-            sample.averageRating is not None
-        )
         row[("college", sample.college)] = 1.0
         row[("grade", sample.grade)] = 1.0
         for interest in set(sample.interests):
@@ -150,7 +169,10 @@ def preprocess_samples(samples: Sequence[FeatureSample]) -> PreprocessedData:
         for available_time in set(sample.availableTime):
             row[("availableTime", available_time)] = 1.0
         for category, count in sample.categoryParticipationCounts.items():
-            row[("categoryParticipation", category)] = _to_feature_float(count)
+            numeric_count = _to_feature_float(count)
+            row[("categoryParticipation", category)] = (
+                numeric_count / category_total if category_total > 0.0 else 0.0
+            )
         records.append(row)
 
     frame = pd.DataFrame.from_records(records)
@@ -164,6 +186,17 @@ def preprocess_samples(samples: Sequence[FeatureSample]) -> PreprocessedData:
         ) from error
 
     standardized = standardize_matrix(raw_matrix, expected_rows=len(samples))
+    weights = np.asarray(
+        [
+            PROFILE_GROUP_WEIGHT if namespace in {"college", "grade"} else 1.0
+            for namespace, _value in columns
+        ],
+        dtype=float,
+    )
+    standardized = ensure_finite_matrix(
+        standardized * weights,
+        expected_rows=len(samples),
+    )
     return PreprocessedData(
         matrix=standardized,
         feature_names=tuple(_display_feature_name(column) for column in columns),

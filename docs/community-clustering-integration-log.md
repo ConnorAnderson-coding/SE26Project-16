@@ -69,7 +69,7 @@
 | 1 | 独立 Python clustering-service | 完成 |
 | 2 | MySQL 聚类数据模型与 Spring 持久化骨架 | 完成 |
 | 3 | Spring 内部 Client、异步状态机、失败与恢复 | 完成 |
-| 4 | 基于 main 实体和行为表的 FeatureBuilder | 待开始 |
+| 4 | 基于 main 实体和行为表的 FeatureBuilder | 完成 |
 | 5 | JWT 权限与公开 REST API | 待开始 |
 | 6 | 当前 frontend 聚类用户页与管理员页 | 待开始 |
 | 7 | 启动脚本、Docker 和文档 | 待开始 |
@@ -121,6 +121,19 @@
 - 全量后端：138 项，135 通过、3 失败、0 错误；失败仍全部为阶段 0 已记录的 `FeedbackIntegrationTest`，没有新增失败。
 - 自审修复：社区预生成 ID 会触发 Spring Data `merge`，因此先 `saveAllAndFlush` 并使用返回的托管实体建立成员外键，避免引用瞬态社区。
 
+### 阶段 4
+
+- 数据来源：直接聚合 main 的 `User`、`Registration`、`CheckIn`、`Favorite`、`Feedback` 和关联 `Activity.category`；不读取 `ActivityView`，也不使用 `Activity` 上的缓存计数。
+- 样本边界：只纳入 `student`、`teacher`，排除 `admin`；使用固定时钟计算最近 180 天窗口；无行为的冷启动用户仍保留，计数与比率为零，缺失画像归入固定 `<missing>` 类别。
+- v2 数值特征：`logSignupCount`、`approvedRate`、`logFavoriteCount`、`logCheckInCount`、`attendanceRate`、`logFeedbackCount`、`averageRating`、`hasAverageRating`。所有计数采用 `log1p`，活动类别采用已批准报名中的参与比例，出席率上限为 1。
+- v2 类别特征：学院、年级、兴趣、可参与时间、活动类别均按运行时排序并冻结到 manifest；学院和年级 One-Hot 在标准化后乘以 `0.35`，避免画像字段主导聚类。最终维度为 8 个数值列加各 manifest 类别基数之和。
+- 快照与请求：创建运行时在同一事务保存全部输入快照及顺序；Worker 从数据库快照重建 Python 请求，不在异步执行时重新读取变化中的业务表。
+- 数据验证夹具：2 名合资格用户（其中 1 名冷启动）以及 1 组应排除的管理员聚合行；验证 180 天截点、稳定用户顺序、去重排序、多表计数、类别排序、冷启动零值和动态维度（夹具为 18 维）。该夹具只验证数据管道，不代表真实聚类质量。
+- Python 门禁：107 项全部通过；新增覆盖 v2 `log1p`、批准率、出席率、类别比例、评分存在位和画像组权重，并将中心距离断言改为在 v2 标准化特征空间独立重算。
+- 后端定向门禁：`CommunityFeatureBuilderTest` 与真实 H2/MySQL-mode JPA 聚合集成测试通过；应用上下文和阶段 3 Client/状态机/Worker 测试通过。
+- 后端全量：140 项，137 通过、3 失败、0 错误；失败仍全部为阶段 0 已记录的 `FeedbackIntegrationTest`，没有新增失败。
+- 自审修复：Spring Boot 4 基线不会自动提供旧包名的 Jackson 2 `ObjectMapper` Bean；新增条件式共享 Bean，使输入快照转换和启用后的内部 Client 均可启动，同时允许未来显式配置覆盖。
+
 ## 7. 提交记录
 
 | 阶段 | 提交 SHA |
@@ -128,7 +141,8 @@
 | 0 | `e8341f0864551520978f11d1faa46e2448a81c7f` |
 | 1 | `a15d504` |
 | 2 | `7a6f569` |
-| 3 | 本阶段提交（SHA 在下一阶段日志更新） |
+| 3 | `6072d3315270956b19898fdb2af95aa991240478` |
+| 4 | 本阶段提交（SHA 在下一阶段日志更新） |
 
 ## 8. 剩余风险
 

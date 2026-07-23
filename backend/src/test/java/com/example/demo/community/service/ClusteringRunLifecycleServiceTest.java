@@ -63,8 +63,8 @@ class ClusteringRunLifecycleServiceTest {
         User first = userRepository.saveAndFlush(user("lifecycle-u1"));
         User second = userRepository.saveAndFlush(user("lifecycle-u2"));
         ClusteringRun run = service.createPending(
-                "admin001", 2, 2, 7, "community-features-v1",
-                Map.of("clusterCount", 2), Map.of("schema", "community-features-v1")
+                "admin001", 2, 2, 7, "community-features-v2",
+                Map.of("clusterCount", 2), Map.of("schema", "community-features-v2")
         );
         inputRepository.saveAllAndFlush(List.of(input(run, first, 0), input(run, second, 1)));
 
@@ -85,8 +85,8 @@ class ClusteringRunLifecycleServiceTest {
         userRepository.saveAndFlush(user("admin001"));
         userRepository.saveAndFlush(user("recovery-user"));
         ClusteringRun run = service.createPending(
-                "admin001", 2, 2, 7, "community-features-v1",
-                Map.of(), Map.of("schema", "community-features-v1")
+                "admin001", 2, 2, 7, "community-features-v2",
+                Map.of(), Map.of("schema", "community-features-v2")
         );
         assertThat(service.claimNextPending()).contains(run.getId());
 

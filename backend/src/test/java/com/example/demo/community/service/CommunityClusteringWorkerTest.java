@@ -73,7 +73,7 @@ class CommunityClusteringWorkerTest {
     private static Request request() {
         return new Request(
                 "run-1", "version-1", ClusteringContracts.ALGORITHM, 2, 42,
-                ClusteringContracts.FEATURE_SCHEMA_V1,
+                ClusteringContracts.FEATURE_SCHEMA_V2,
                 List.of(sample("u1"), sample("u2"))
         );
     }

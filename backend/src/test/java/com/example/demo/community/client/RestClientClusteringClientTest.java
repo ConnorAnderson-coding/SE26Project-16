@@ -108,7 +108,7 @@ class RestClientClusteringClientTest {
         FeatureSample second = sample("u2", 2);
         return new Request(
                 "run-1", "version-1", "KMEANS", 2, 42,
-                "community-features-v1", List.of(first, second)
+                "community-features-v2", List.of(first, second)
         );
     }
 

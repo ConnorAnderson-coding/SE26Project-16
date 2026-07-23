@@ -11,7 +11,7 @@ public final class ClusteringContracts {
 
     public static final String ALGORITHM = "KMEANS";
     public static final int RANDOM_STATE = 42;
-    public static final String FEATURE_SCHEMA_V1 = "community-features-v1";
+    public static final String FEATURE_SCHEMA_V2 = "community-features-v2";
 
     private ClusteringContracts() {
     }
