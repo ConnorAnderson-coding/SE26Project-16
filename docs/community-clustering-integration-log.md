@@ -73,7 +73,7 @@
 | 5 | JWT 权限与公开 REST API | 完成 |
 | 6 | 当前 frontend 聚类用户页与管理员页 | 完成 |
 | 7 | 启动脚本、Docker 和文档 | 完成 |
-| 8 | 全量复审、MySQL 与端到端验收 | 待开始 |
+| 8 | 全量复审、MySQL 与端到端验收 | 完成 |
 
 ## 6. 阶段测试记录
 
@@ -165,6 +165,16 @@
 - 静态门禁：4 个 PowerShell 脚本在 Windows PowerShell AST 下零语法错误；`docker compose --profile clustering config --quiet` 通过；文档链接和 `git diff --check` 通过。
 - Docker 实测：Docker Hub 首次拉取令牌被远端关闭，按 main 镜像源策略切换 ECR 后镜像完整构建成功；临时容器达到 `healthy`，health 返回 `UP/community-features-v2`，`docker inspect` 确认运行用户为 `clustering`，验收后已停止容器。
 
+### 阶段 8
+
+- 架构复审：集成分支仍以 `096479e5db0be183617116f8bb1ec301ebd34eb0` 为 merge-base；只包含 0–7 的分阶段迁移提交。源码扫描未发现 Session/CSRF、`UserAccount`、旧 `com.example.campusactivity` 或生产 H2 `create-drop`；唯一 `create-drop` 位于 main 既有测试 profile。
+- Python 全量：107 项全部通过，`pip check` 无破损依赖，`compileall` 成功；仅保留依赖内部 Starlette/httpx 弃用警告。
+- 后端全量：146 项，143 通过、3 失败、0 错误；失败集合与阶段 0 完全相同，仍仅为 `FeedbackIntegrationTest` 三项，没有聚类新增失败。
+- 前端全量：8 个文件、48 项全部通过，生产构建成功；lint 仍只有阶段 0 锁定的 1 个既有错误和既有警告，新聚类文件零新增问题。
+- 真实链路：以 compose MySQL 8 映射到临时 3307、非 root FastAPI 容器和 JDK 25 Spring Boot（关闭无关 Elasticsearch）执行真实 JWT 端到端。管理员提交 K=2 后异步运行进入 `SUCCESS`，聚合 843 个合资格用户、72 维特征，持久化 1 run、2 communities、843 inputs、843 memberships。
+- API 对账：学生访问管理员端点为 403；latest 返回 2 个社区、843 个匿名点，当前用户标记恰好 1 个，点字段仅 `pointId/x/y/currentUser`，响应不包含抽查的其他用户 ID；me 有归属；管理员成员页只含 `userId/name/college/grade/pointId/x/y/distanceToCenter`，无密码字段。
+- 清理：验收启动的隐藏 Spring 进程、临时 MySQL 容器和聚类容器均已停止；保留镜像与隔离数据卷以便复验，未触碰占用宿主 3306 的既有 MySQL，既有 Redis 继续运行。
+
 ## 7. 提交记录
 
 | 阶段 | 提交 SHA |
@@ -176,7 +186,8 @@
 | 4 | `a9ed746685deb7c303c98a791153ff971bd67772` |
 | 5 | `c21bc0713626c5b47d6bfcfb129fd905a9429b73` |
 | 6 | `bd8e68852acd6914d440540f69a85aaab5e7d9ec` |
-| 7 | 本阶段提交（SHA 在下一阶段日志更新） |
+| 7 | `9ab5569eef9c68bf81d688831b0e1449abae6db9` |
+| 8 | 本阶段验收日志提交（SHA 见 Git 历史） |
 
 ## 8. 剩余风险
 
