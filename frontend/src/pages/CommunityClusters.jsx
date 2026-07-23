@@ -1,92 +1,93 @@
 import { useEffect, useState } from 'react'
-import { Card, Table, Tag, Typography, Tooltip, Space } from 'antd'
+import { Alert, Card, Empty, Space, Spin, Tag, Tooltip, Typography } from 'antd'
 import MainLayout from '../layouts/MainLayout'
 import AuthGuard from '../components/AuthGuard'
-import { getCommunityClusters, getUsers } from '../services/mock/mockApi'
+import { getLatestClustering, getMyCommunity } from '../services/communityClusteringApi'
 
-const { Paragraph, Text } = Typography
+const { Paragraph, Text, Title } = Typography
 
 export default function CommunityClusters() {
-  const [clusters, setClusters] = useState([])
-  const [users, setUsers] = useState([])
+  const [latest, setLatest] = useState(null)
+  const [mine, setMine] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    getCommunityClusters().then(setClusters)
-    getUsers().then(setUsers)
+    Promise.all([getLatestClustering(), getMyCommunity()])
+      .then(([latestResult, myResult]) => {
+        setLatest(latestResult)
+        setMine(myResult)
+      })
+      .catch(err => setError(err.message || '社区聚类结果加载失败'))
+      .finally(() => setLoading(false))
   }, [])
 
-  const tableData = clusters.map(cluster => ({
-    key: cluster.id,
-    name: cluster.name,
-    count: cluster.members.length,
-    topInterests: cluster.topInterests.join('、'),
-    description: cluster.description
-  }))
-
-  const columns = [
-    {
-      title: '社区名称',
-      dataIndex: 'name',
-      render: (name, record) => {
-        const cluster = clusters.find(c => c.id === record.key)
-        return <Tag color={cluster?.color}>{name}</Tag>
-      }
-    },
-    { title: '成员数', dataIndex: 'count' },
-    { title: '代表性兴趣', dataIndex: 'topInterests' },
-    { title: '描述', dataIndex: 'description' }
-  ]
+  const membership = mine?.membership
 
   return (
     <AuthGuard>
       <MainLayout title="社区聚类">
-        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
-          以下为用户社区聚类可视化示例，聚类算法由后端实现后将接入真实数据。
-        </Paragraph>
+        {loading ? (
+          <div className="page-loading"><Spin size="large" tip="正在加载社区结果..." /></div>
+        ) : error ? (
+          <Alert type="info" showIcon message="暂时没有可展示的社区" description={error} />
+        ) : !latest?.communities?.length ? (
+          <Card><Empty description="当前还没有社区聚类结果" /></Card>
+        ) : (
+          <>
+            <Card className="community-hero" style={{ marginBottom: 24 }}>
+              <Text type="secondary">最新版本 {latest.run.version}</Text>
+              <Title level={3} style={{ margin: '8px 0' }}>
+                {membership ? `你属于「${membership.communityName}」` : '你暂未进入本次聚类样本'}
+              </Title>
+              <Paragraph style={{ marginBottom: 0 }}>
+                社区由近 180 天的真实活动参与行为与个人画像综合生成。图中的其他点保持匿名。
+              </Paragraph>
+            </Card>
 
-        <Card title="聚类分布图" style={{ marginBottom: 24 }}>
-          <div className="cluster-chart">
-            {clusters.flatMap(cluster =>
-              cluster.members.map((member, idx) => {
-                const user = users.find(u => u.id === member.userId)
-                return (
-                  <Tooltip
-                    key={`${cluster.id}-${member.userId}-${idx}`}
-                    title={
-                      <div>
-                        <div><Text strong style={{ color: '#fff' }}>{user?.name || member.userId}</Text></div>
-                        <div>{user?.college || '-'}</div>
-                        <div>兴趣：{(user?.interests || []).join('、') || '暂无'}</div>
-                        <div>社区：{cluster.name}</div>
-                      </div>
-                    }
-                  >
-                    <div
-                      className="cluster-dot"
-                      style={{
-                        left: `${member.x}%`,
-                        top: `${member.y}%`,
-                        background: cluster.color
-                      }}
-                    />
-                  </Tooltip>
-                )
-              })
-            )}
-          </div>
+            <Card title="社区分布" style={{ marginBottom: 24 }}>
+              <div className="cluster-chart" aria-label="社区聚类散点图">
+                {latest.communities.flatMap(community =>
+                  community.points.map(point => (
+                    <Tooltip
+                      key={point.pointId}
+                      title={point.currentUser ? `你 · ${community.name}` : community.name}
+                    >
+                      <span
+                        className={`cluster-dot${point.currentUser ? ' cluster-dot-current' : ''}`}
+                        aria-label={point.currentUser ? `你在${community.name}中的位置` : `${community.name}匿名成员`}
+                        style={{ left: `${point.x}%`, top: `${point.y}%`, background: community.color }}
+                      />
+                    </Tooltip>
+                  ))
+                )}
+              </div>
+              <Space wrap style={{ marginTop: 16 }}>
+                {latest.communities.map(community => (
+                  <Tag key={community.communityId} color={community.color}>
+                    {community.name}（{community.memberCount} 人）
+                  </Tag>
+                ))}
+              </Space>
+            </Card>
 
-          <Space wrap style={{ marginTop: 16 }}>
-            {clusters.map(cluster => (
-              <Tag key={cluster.id} color={cluster.color}>
-                {cluster.name}（{cluster.members.length} 人）
-              </Tag>
-            ))}
-          </Space>
-        </Card>
-
-        <Card title="聚类详情">
-          <Table columns={columns} dataSource={tableData} pagination={false} />
-        </Card>
+            <div className="community-grid">
+              {latest.communities.map(community => (
+                <Card
+                  key={community.communityId}
+                  title={<Space><span className="community-swatch" style={{ background: community.color }} />{community.name}</Space>}
+                  className={membership?.communityId === community.communityId ? 'community-card-current' : ''}
+                >
+                  <Paragraph>{community.description || '该社区暂无描述'}</Paragraph>
+                  <Space wrap>
+                    {(community.topInterests || []).map(interest => <Tag key={interest}>{interest}</Tag>)}
+                    {!community.topInterests?.length && <Text type="secondary">暂无代表性兴趣</Text>}
+                  </Space>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
       </MainLayout>
     </AuthGuard>
   )

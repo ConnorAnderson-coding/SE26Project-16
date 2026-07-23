@@ -36,7 +36,8 @@ const organizerItems = [
 ]
 
 const adminItems = [
-  { key: '/admin', icon: <DashboardOutlined />, label: '管理后台' }
+  { key: '/admin', icon: <DashboardOutlined />, label: '管理后台' },
+  { key: '/admin/community-clustering', icon: <ClusterOutlined />, label: '聚类管理' }
 ]
 
 function resolveSelectedKey(pathname) {
