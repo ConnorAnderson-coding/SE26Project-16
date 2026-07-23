@@ -4,6 +4,7 @@ import com.example.demo.entity.ClusteringRun;
 import com.example.demo.entity.ClusteringRunStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -14,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ClusteringRunRepository extends JpaRepository<ClusteringRun, String> {
+
+    Page<ClusteringRun> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
 
     Optional<ClusteringRun> findByVersion(String version);
 

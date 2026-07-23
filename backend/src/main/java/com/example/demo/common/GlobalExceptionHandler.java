@@ -1,6 +1,8 @@
 package com.example.demo.common;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import com.example.demo.community.api.ClusteringApiException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
@@ -13,6 +15,12 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ClusteringApiException.class)
+    public ResponseEntity<ApiResponse<Void>> handleClusteringApi(ClusteringApiException ex) {
+        return ResponseEntity.status(ex.getStatus())
+                .body(ApiResponse.fail(ex.getStatus().value(), ex.getMessage()));
+    }
 
     @ExceptionHandler(BusinessException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
@@ -44,6 +52,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleGeneric(Exception ex) {
-        return ApiResponse.fail(500, "服务器内部错误: " + ex.getMessage());
+        return ApiResponse.fail(500, "服务器内部错误");
     }
 }
