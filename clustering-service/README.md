@@ -50,6 +50,15 @@ python -m uvicorn app.main:app
 python -m pytest
 ```
 
+也可由项目 `database/docker-compose.yml` 构建运行：
+
+```powershell
+cd database
+docker compose up -d --build clustering-service
+```
+
+容器以非 root 用户运行，健康检查只访问 `/internal/v1/health`。
+
 ## 明确不包含
 
 - Spring Boot 或浏览器集成

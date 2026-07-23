@@ -1,7 +1,7 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-  一键部署：Docker 建库 + Redis + Elasticsearch 初始化（含 GTE 模型）
+  一键部署：Docker 建库 + Redis + Elasticsearch + 社区聚类服务（含 GTE 模型）
 
 .DESCRIPTION
   1. docker compose up -d --wait（MySQL 首次启动自动执行 schema.sql + seed.sql）
@@ -27,11 +27,13 @@ param(
     [Alias("SkipElser")]
     [switch]$SkipEmbedding,
     [switch]$SkipElasticsearch,
+    [switch]$SkipClustering,
     [switch]$StartApps,
     [int]$ElasticsearchPort = 9200,
     [int]$MysqlPort = 3307,
     [int]$RedisPort = 6379,
     [int]$KibanaPort = 5601,
+    [int]$ClusteringPort = 8000,
     [string]$HfEndpoint = "",
     [string]$ElandImage = "docker.elastic.co/eland/eland:8.15.0"
 )
@@ -61,7 +63,7 @@ try {
 
     if ($ForceRecreateDb) {
         Write-Step "清空数据卷并重建容器"
-        docker compose down -v
+        docker compose --profile clustering down -v
     }
 
     $env:MYSQL_PORT = $MysqlPort
@@ -69,9 +71,13 @@ try {
     $env:ES_HTTP_PORT = $ElasticsearchPort
     $env:ES_TCP_PORT = 9300
     $env:KIBANA_PORT = $KibanaPort
+    $env:CLUSTERING_PORT = $ClusteringPort
 
-    Write-Step "启动 Docker 服务（MySQL / Redis / Elasticsearch / Kibana）"
-    docker compose up -d --wait
+    $composeArgs = @("compose")
+    if (-not $SkipClustering) { $composeArgs += @("--profile", "clustering") }
+    $composeArgs += @("up", "-d", "--wait")
+    Write-Step "启动 Docker 服务（MySQL / Redis / Elasticsearch / Kibana / 可选聚类服务）"
+    docker @composeArgs
     if ($LASTEXITCODE -ne 0) {
         throw "docker compose up 失败。请确认 Docker Desktop 已运行，并检查镜像仓库访问是否正常（如 Docker Hub 拉取超时/EOF）。"
     }
@@ -133,6 +139,9 @@ try {
     Write-Host "  Redis         : localhost:6379" -ForegroundColor White
     Write-Host "  Elasticsearch : http://localhost:$ElasticsearchPort" -ForegroundColor White
     Write-Host "  Kibana        : http://localhost:5601" -ForegroundColor White
+    if (-not $SkipClustering) {
+        Write-Host "  Clustering    : http://localhost:$ClusteringPort/internal/v1/health" -ForegroundColor White
+    }
 
     $ProjectRoot = Split-Path $ScriptDir -Parent
     if ($StartApps) {

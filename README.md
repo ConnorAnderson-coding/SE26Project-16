@@ -43,7 +43,7 @@
 
 ## 一键启动（推荐）
 
-**前置条件**：已安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)、JDK 17+、Node.js 18+。
+**前置条件**：已安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)、JDK 25、Node.js 20+；仅使用 `-SkipDeploy` 且本机没有运行聚类容器时，还需 Python 3.11+。
 
 在项目根目录执行：
 
@@ -53,9 +53,9 @@
 
 将自动完成：
 
-1. **Docker 基础设施** — MySQL（建库 + seed）、Redis、Elasticsearch、Kibana
+1. **Docker 基础设施** — MySQL（建库 + seed）、Redis、Elasticsearch、Kibana、内部聚类服务
 2. **ES 初始化** — 创建 `campus_activities` 索引、部署 GTE 模型 `campus_gte`（首次约 5–15 分钟）
-3. **后端** — 新窗口启动 Spring Boot（`:8080`），空索引时自动从 MySQL 重建活动索引
+3. **后端** — 新窗口启动 Spring Boot（`:8080`），启用社区聚类内部调用，空索引时自动从 MySQL 重建活动索引
 4. **前端** — 新窗口启动 Vite（`:5173`）
 
 访问：
@@ -64,6 +64,7 @@
 |------|------|
 | 前端 | http://localhost:5173 |
 | 后端 API | http://localhost:8080/api/v1 |
+| 聚类服务健康检查（仅内部运维） | http://localhost:8000/internal/v1/health |
 | Kibana | http://localhost:5601 |
 
 演示账号：`524030910001` / `123456`（学生）
@@ -75,6 +76,7 @@
 .\start.ps1 -InfraOnly           # 仅部署基础设施，不启动应用
 .\start.ps1 -ForceRecreateDb     # 清空数据卷后重新建库并启动
 .\start.ps1 -SkipEmbedding       # 跳过 GTE 模型下载（可稍后重新 deploy）
+.\start.ps1 -SkipClustering      # 不启动/启用聚类服务，其余功能仍可运行
 ```
 
 仅部署基础设施（不启动应用）：
@@ -85,3 +87,10 @@ cd database
 ```
 
 基础设施与排障详见 [`database/README.md`](database/README.md)。
+
+### 社区聚类
+
+- 学生和教师可在 `/community` 查看最新成功版本的匿名散点和自己的社区归属。
+- 管理员可在 `/admin/community-clustering` 提交异步聚类任务、查看运行状态和最小成员资料。
+- 浏览器始终只访问 Spring Boot；FastAPI 端口是内部计算接口，不承担登录与公开授权。
+- 运维、API、数据和验收边界见 [`docs/community-clustering-operations.md`](docs/community-clustering-operations.md)、[`docs/community-clustering-api.md`](docs/community-clustering-api.md) 与 [`docs/community-clustering-data-model.md`](docs/community-clustering-data-model.md)。
