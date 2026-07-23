@@ -71,7 +71,7 @@
 | 3 | Spring 内部 Client、异步状态机、失败与恢复 | 完成 |
 | 4 | 基于 main 实体和行为表的 FeatureBuilder | 完成 |
 | 5 | JWT 权限与公开 REST API | 完成 |
-| 6 | 当前 frontend 聚类用户页与管理员页 | 待开始 |
+| 6 | 当前 frontend 聚类用户页与管理员页 | 完成 |
 | 7 | 启动脚本、Docker 和文档 | 待开始 |
 | 8 | 全量复审、MySQL 与端到端验收 | 待开始 |
 
@@ -145,6 +145,16 @@
 - 定向门禁：`CommunityClusteringIntegrationTest` 6 项全部通过，覆盖 JWT 必需、学生越权拒绝、匿名散点、当前用户归属、管理员最小字段、功能关闭 503 和身份字段注入拒绝。
 - 后端全量：146 项，143 通过、3 失败、0 错误；失败仍全部为阶段 0 已记录的 `FeedbackIntegrationTest`，没有新增失败。
 
+### 阶段 6
+
+- HTTP 接入：新增 `communityClusteringApi`，完全复用 main 的 Axios `/api/v1` 客户端与 Bearer Token 拦截器；浏览器不访问 Python 服务，也不引入旧 feature 的 Cookie/CSRF 客户端。
+- 用户页：替换 main 原有 mock 聚类示例，加载 latest 与 me 真实 API；展示最新版本、匿名散点、当前用户高亮、社区规模与代表性兴趣，并覆盖加载、无结果和错误状态。
+- 隐私边界：用户页不调用 mock 用户列表，不把匿名点关联到姓名、学院、兴趣或用户 ID；普通点 tooltip 仅显示社区名，当前点只显示“你”。
+- 管理员页：新增受 `AuthGuard + AdminGuard` 双重保护的聚类管理路由和菜单入口；支持提交 K 值、查看运行分页、刷新状态、查看最新社区及管理员最小成员字段。
+- 前端门禁：8 个测试文件、48 项测试全部通过；新增 3 项 API 契约测试覆盖固定路径、分页参数、只提交 `clusterCount` 及路径标识编码。
+- 构建：`npm.cmd run build` 成功；仍仅有 main 原始单 chunk 超过 500 kB 警告。
+- lint：仍为阶段 0 锁定的 `AppContext.test.jsx` 1 个既有错误和既有警告；阶段 6 新增/修改文件没有新增 lint 错误或警告。
+
 ## 7. 提交记录
 
 | 阶段 | 提交 SHA |
@@ -154,7 +164,8 @@
 | 2 | `7a6f569` |
 | 3 | `6072d3315270956b19898fdb2af95aa991240478` |
 | 4 | `a9ed746685deb7c303c98a791153ff971bd67772` |
-| 5 | 本阶段提交（SHA 在下一阶段日志更新） |
+| 5 | `c21bc0713626c5b47d6bfcfb129fd905a9429b73` |
+| 6 | 本阶段提交（SHA 在下一阶段日志更新） |
 
 ## 8. 剩余风险
 
