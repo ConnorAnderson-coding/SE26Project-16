@@ -21,6 +21,14 @@ public interface ClusteringRunRepository extends JpaRepository<ClusteringRun, St
 
     boolean existsByStatusIn(Collection<ClusteringRunStatus> statuses);
 
+    @Query("""
+            SELECT run.id
+            FROM ClusteringRun run
+            WHERE run.status = :status
+            ORDER BY run.createdAt ASC, run.id ASC
+            """)
+    List<String> findIdsByStatusOrderByCreatedAtAscIdAsc(@Param("status") ClusteringRunStatus status);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT run

@@ -68,7 +68,7 @@
 | 0 | 最新 main 基线、TechPrototype 审查、集成日志 | 完成 |
 | 1 | 独立 Python clustering-service | 完成 |
 | 2 | MySQL 聚类数据模型与 Spring 持久化骨架 | 完成 |
-| 3 | Spring 内部 Client、异步状态机、失败与恢复 | 待开始 |
+| 3 | Spring 内部 Client、异步状态机、失败与恢复 | 完成 |
 | 4 | 基于 main 实体和行为表的 FeatureBuilder | 待开始 |
 | 5 | JWT 权限与公开 REST API | 待开始 |
 | 6 | 当前 frontend 聚类用户页与管理员页 | 待开始 |
@@ -109,13 +109,26 @@
 - 真实 MySQL 8.0：因 ECR 与 Docker Hub 镜像鉴权 TLS 超时，改用本机 MySQL 8.0 二进制在系统临时目录初始化全新隔离实例（独立端口，不接触现有服务数据）。增量脚本执行成功，4/4 表创建，`information_schema` 识别 30 个约束，完整运行/快照/社区/成员写入成功，活动槽唯一约束和坐标范围约束均实测生效；实例随后正常关闭。
 - 自审调整：将 Hibernate 7 已弃用的 `@Check` 替换为 Jakarta Persistence 标准 `@CheckConstraint`，并统一 `featureDimension > 0` 的 Bean Validation 与数据库约束。
 
+### 阶段 3
+
+- 内部 Client：使用 main 的 Spring `RestClient`/JDK HttpClient，提供独立连接与读取超时；严格要求 JSON UTF-8、HTTP 200、无未知字段、无尾随 token、无非有限数字及无字符串/布尔到数值的隐式转换。
+- 错误边界：4xx 保留受控远端错误码，5xx/网络映射为不可用，畸形响应映射为无效契约；持久化的失败信息使用固定安全文案，不写入远端 details、URL、凭据或堆栈。
+- 状态机：实现 `PENDING -> RUNNING -> SUCCESS/FAILED`，通过悲观锁和数据库活动槽唯一约束防止并发领取；结果社区、成员、指标和终态在同一事务提交。
+- 异步执行：默认关闭；启用时使用单线程有界队列、定时领取、拒绝失败收敛和 shutdown 等待。浏览器仍不直接访问 Python。
+- 启动恢复：将遗留 `RUNNING` 运行收敛为 `FAILED/EXECUTION_INTERRUPTED` 并释放活动槽，保留 `PENDING` 供调度器继续领取。
+- 阶段 4 接缝：`ClusteringRequestFactory` 仅定义接口，本阶段没有伪造 main 行为数据；FeatureBuilder 将在下一阶段实现。
+- 定向门禁：Client、生命周期和 Worker 共 8 项测试全部通过，覆盖严格解码、远端错误、类型拒绝、成功原子持久化、启动恢复和失败收敛。
+- 全量后端：138 项，135 通过、3 失败、0 错误；失败仍全部为阶段 0 已记录的 `FeedbackIntegrationTest`，没有新增失败。
+- 自审修复：社区预生成 ID 会触发 Spring Data `merge`，因此先 `saveAllAndFlush` 并使用返回的托管实体建立成员外键，避免引用瞬态社区。
+
 ## 7. 提交记录
 
 | 阶段 | 提交 SHA |
 | --- | --- |
 | 0 | `e8341f0864551520978f11d1faa46e2448a81c7f` |
 | 1 | `a15d504` |
-| 2 | 本阶段提交（SHA 在下一阶段日志更新） |
+| 2 | `7a6f569` |
+| 3 | 本阶段提交（SHA 在下一阶段日志更新） |
 
 ## 8. 剩余风险
 
