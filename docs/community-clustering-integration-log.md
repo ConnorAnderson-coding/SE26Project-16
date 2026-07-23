@@ -67,7 +67,7 @@
 | --- | --- | --- |
 | 0 | 最新 main 基线、TechPrototype 审查、集成日志 | 完成 |
 | 1 | 独立 Python clustering-service | 完成 |
-| 2 | MySQL 聚类数据模型与 Spring 持久化骨架 | 待开始 |
+| 2 | MySQL 聚类数据模型与 Spring 持久化骨架 | 完成 |
 | 3 | Spring 内部 Client、异步状态机、失败与恢复 | 待开始 |
 | 4 | 基于 main 实体和行为表的 FeatureBuilder | 待开始 |
 | 5 | JWT 权限与公开 REST API | 待开始 |
@@ -99,12 +99,23 @@
 - 已知非阻断警告：测试环境中的 Starlette `TestClient` 报告 httpx 兼容层弃用提示，来源于依赖内部，不影响当前服务契约。
 - 自审结论：Python 服务不访问数据库、Redis 或外部 HTTP，不处理认证，不生成社区展示主键和元数据，且内部文档/OpenAPI 路由按设计关闭。
 
+### 阶段 2
+
+- MySQL：新增 `clustering_run`、`clustering_run_input`、`community_cluster`、`community_membership`，同时更新全量 schema 并提供非破坏性的增量 patch。
+- 数据裁决：输入快照使用带 schema 版本的 JSON payload，不固化旧分支 v1 的字段列；成员和输入直接外键关联 main 的 `User`，没有引入 `UserAccount`。
+- 数据库约束：固定 `KMEANS`/`random_state=42`、全局单活动运行、run 内唯一用户样本和唯一成员归属、稳定 clusterNo、同 run 社区成员关系、坐标 `[0,100]`、非负中心距离及级联删除运行结果。
+- 新增 JPA 门禁：`CommunityClusteringRepositoryTest` 4 项全部通过，覆盖 JSON 快照、完整关联图、单活动运行、单用户唯一归属和非有限坐标拒绝。
+- 全量后端：130 项，127 通过、3 失败、0 错误；失败仍全部为阶段 0 已记录的 `FeedbackIntegrationTest`，没有新增失败。
+- 真实 MySQL 8.0：因 ECR 与 Docker Hub 镜像鉴权 TLS 超时，改用本机 MySQL 8.0 二进制在系统临时目录初始化全新隔离实例（独立端口，不接触现有服务数据）。增量脚本执行成功，4/4 表创建，`information_schema` 识别 30 个约束，完整运行/快照/社区/成员写入成功，活动槽唯一约束和坐标范围约束均实测生效；实例随后正常关闭。
+- 自审调整：将 Hibernate 7 已弃用的 `@Check` 替换为 Jakarta Persistence 标准 `@CheckConstraint`，并统一 `featureDimension > 0` 的 Bean Validation 与数据库约束。
+
 ## 7. 提交记录
 
 | 阶段 | 提交 SHA |
 | --- | --- |
 | 0 | `e8341f0864551520978f11d1faa46e2448a81c7f` |
-| 1 | 本阶段提交（SHA 在下一阶段日志更新） |
+| 1 | `a15d504` |
+| 2 | 本阶段提交（SHA 在下一阶段日志更新） |
 
 ## 8. 剩余风险
 
@@ -112,5 +123,6 @@
 - Maven Wrapper 在当前 Windows 环境无法启动，阶段测试使用系统 Maven 3.9.16 与 JDK 25。
 - main 生产配置仍使用 `spring.jpa.hibernate.ddl-auto=update`，但聚类表必须由 MySQL schema/patch 脚本显式建立并验证。
 - MySQL、Redis 和 Elasticsearch 启动成本较高；聚类首版不引入 Redis 依赖。
+- Docker 镜像源在阶段 2 出现鉴权 TLS 握手超时；MySQL SQL 已通过隔离本机 MySQL 8.0 实例验收，阶段 8 仍需在项目 compose 环境复验。
 - synthetic seed 仅用于集成测试，不能据此证明真实业务聚类质量。
 - 最终阶段必须重新 fetch 并检查 `origin/main` 是否仍为锁定 SHA；如已漂移，只报告差异，不自动合入。
