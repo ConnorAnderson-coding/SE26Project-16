@@ -198,4 +198,4 @@
 - MySQL、Redis 和 Elasticsearch 启动成本较高；聚类首版不引入 Redis 依赖。
 - Docker 镜像源在阶段 2 出现鉴权 TLS 握手超时；MySQL SQL 已通过隔离本机 MySQL 8.0 实例验收，阶段 8 仍需在项目 compose 环境复验。
 - synthetic seed 仅用于集成测试，不能据此证明真实业务聚类质量。
-- 最终阶段必须重新 fetch 并检查 `origin/main` 是否仍为锁定 SHA；如已漂移，只报告差异，不自动合入。
+- 最终阶段必须重新 fetch 并检查 `origin/main` 是否仍为锁定 SHA；如已漂移，只报告差异，不自动合入。                                           
