@@ -8,6 +8,7 @@ import AuthGuard from '../components/AuthGuard'
 import MapLocationPicker from '../components/MapLocationPicker'
 import { useApp } from '../context/AppContext'
 import { ACTIVITY_CATEGORIES } from '../data/mockData'
+import { toLocalDateTimeString } from '../utils/dateTime'
 
 export default function CreateActivity() {
   const navigate = useNavigate()
@@ -22,8 +23,8 @@ export default function CreateActivity() {
         title: values.title,
         category: values.category,
         description: values.description,
-        startTime: values.timeRange[0].toDate().toISOString(),
-        endTime: values.timeRange[1].toDate().toISOString(),
+        startTime: toLocalDateTimeString(values.timeRange[0]),
+        endTime: toLocalDateTimeString(values.timeRange[1]),
         location: values.location,
         maxParticipants: Number(values.maxParticipants),
         latitude: values.latitude ?? null,

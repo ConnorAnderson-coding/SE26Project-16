@@ -11,6 +11,7 @@ import MapLocationPicker from '../components/MapLocationPicker'
 import { useApp } from '../context/AppContext'
 import { getActivityById } from '../services/activityApi'
 import { ACTIVITY_CATEGORIES } from '../data/mockData'
+import { toLocalDateTimeString } from '../utils/dateTime'
 
 export default function EditActivity() {
   const { id } = useParams()
@@ -63,8 +64,8 @@ export default function EditActivity() {
         checkInRadiusMeters: values.checkInRadiusMeters ? Number(values.checkInRadiusMeters) : 200,
         tags: values.tags || [],
         poster: values.poster?.[0]?.url || values.poster?.[0]?.thumbUrl || activity.poster,
-        startTime: values.timeRange[0].toDate().toISOString(),
-        endTime: values.timeRange[1].toDate().toISOString()
+        startTime: toLocalDateTimeString(values.timeRange[0]),
+        endTime: toLocalDateTimeString(values.timeRange[1])
       })
       message.success('活动已更新')
       navigate('/organizer')
