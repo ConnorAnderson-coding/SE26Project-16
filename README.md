@@ -64,6 +64,7 @@
 |------|------|
 | 前端 | http://localhost:5173 |
 | 后端 API | http://localhost:8080/api/v1 |
+| MySQL | localhost:3307 |
 | 聚类服务健康检查（仅内部运维） | http://localhost:8000/internal/v1/health |
 | Kibana | http://localhost:5601 |
 
@@ -77,7 +78,13 @@
 .\start.ps1 -ForceRecreateDb     # 清空数据卷后重新建库并启动
 .\start.ps1 -SkipEmbedding       # 跳过 GTE 模型下载（可稍后重新 deploy）
 .\start.ps1 -SkipClustering      # 不启动/启用聚类服务，其余功能仍可运行
+.\start.ps1 -MysqlPort 3308      # 覆盖 MySQL 宿主机端口，并同步传给 Docker 与后端
 ```
+
+一键启动默认将容器内 MySQL `3306` 发布到宿主机 `3307`，后端的 `DB_URL` 会使用同一个
+`MysqlPort` 值；Redis、Elasticsearch、Kibana、聚类、后端和前端端口也可通过对应的
+`-RedisPort`、`-ElasticsearchPort`、`-KibanaPort`、`-ClusteringPort`、`-BackendPort`
+和 `-FrontendPort` 覆盖。后端固定使用项目 Maven Wrapper，并在启动前校验 JDK 25。
 
 仅部署基础设施（不启动应用）：
 
