@@ -32,7 +32,14 @@ param(
     [Alias("SkipElser")]
     [switch]$SkipEmbedding,
     [switch]$SkipElasticsearch,
-    [switch]$SkipClustering
+    [switch]$SkipClustering,
+    [int]$MysqlPort = 3307,
+    [int]$RedisPort = 6379,
+    [int]$ElasticsearchPort = 9200,
+    [int]$KibanaPort = 5601,
+    [int]$ClusteringPort = 8000,
+    [int]$BackendPort = 8080,
+    [int]$FrontendPort = 5173
 )
 
 $ErrorActionPreference = "Stop"
@@ -52,7 +59,13 @@ try {
         if (-not (Test-Path $DeployScript)) {
             throw "未找到部署脚本: $DeployScript"
         }
-        $deployParams = @{}
+        $deployParams = @{
+            MysqlPort = $MysqlPort
+            RedisPort = $RedisPort
+            ElasticsearchPort = $ElasticsearchPort
+            KibanaPort = $KibanaPort
+            ClusteringPort = $ClusteringPort
+        }
         if ($ForceRecreateDb) { $deployParams.ForceRecreateDb = $true }
         if ($ForceRecreateIndex) { $deployParams.ForceRecreateIndex = $true }
         if ($SkipEmbedding) { $deployParams.SkipEmbedding = $true }
@@ -75,7 +88,17 @@ try {
     if (-not (Test-Path $StartAppsScript)) {
         throw "未找到启动脚本: $StartAppsScript"
     }
-    $appParams = @{ ProjectRoot = $ProjectRoot }
+    $appParams = @{
+        ProjectRoot = $ProjectRoot
+        MysqlPort = $MysqlPort
+        RedisPort = $RedisPort
+        ElasticsearchPort = $ElasticsearchPort
+        KibanaPort = $KibanaPort
+        ClusteringPort = $ClusteringPort
+        BackendPort = $BackendPort
+        FrontendPort = $FrontendPort
+    }
+    if ($SkipElasticsearch) { $appParams.SkipElasticsearch = $true }
     if ($SkipClustering) { $appParams.SkipClustering = $true }
     & $StartAppsScript @appParams
 }

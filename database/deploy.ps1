@@ -34,6 +34,8 @@ param(
     [int]$RedisPort = 6379,
     [int]$KibanaPort = 5601,
     [int]$ClusteringPort = 8000,
+    [int]$BackendPort = 8080,
+    [int]$FrontendPort = 5173,
     [string]$HfEndpoint = "",
     [string]$ElandImage = "docker.elastic.co/eland/eland:8.15.0"
 )
@@ -135,10 +137,10 @@ try {
     }
 
     Write-Host "`n--- 部署完成 ---" -ForegroundColor Magenta
-    Write-Host "  MySQL         : localhost:3306 / campus / campus123 / campus_activity" -ForegroundColor White
-    Write-Host "  Redis         : localhost:6379" -ForegroundColor White
+    Write-Host "  MySQL         : localhost:$MysqlPort / campus / campus123 / campus_activity" -ForegroundColor White
+    Write-Host "  Redis         : localhost:$RedisPort" -ForegroundColor White
     Write-Host "  Elasticsearch : http://localhost:$ElasticsearchPort" -ForegroundColor White
-    Write-Host "  Kibana        : http://localhost:5601" -ForegroundColor White
+    Write-Host "  Kibana        : http://localhost:$KibanaPort" -ForegroundColor White
     if (-not $SkipClustering) {
         Write-Host "  Clustering    : http://localhost:$ClusteringPort/internal/v1/health" -ForegroundColor White
     }
@@ -150,7 +152,19 @@ try {
             throw "未找到启动脚本: $startAppsScript"
         }
         Write-Step "启动前后端"
-        & $startAppsScript -ProjectRoot $ProjectRoot
+        $startAppsParams = @{
+            ProjectRoot = $ProjectRoot
+            MysqlPort = $MysqlPort
+            RedisPort = $RedisPort
+            ElasticsearchPort = $ElasticsearchPort
+            KibanaPort = $KibanaPort
+            ClusteringPort = $ClusteringPort
+            BackendPort = $BackendPort
+            FrontendPort = $FrontendPort
+        }
+        if ($SkipElasticsearch) { $startAppsParams.SkipElasticsearch = $true }
+        if ($SkipClustering) { $startAppsParams.SkipClustering = $true }
+        & $startAppsScript @startAppsParams
     }
     else {
         Write-Host "`n下一步:" -ForegroundColor White

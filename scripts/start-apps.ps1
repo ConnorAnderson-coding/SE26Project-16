@@ -11,7 +11,12 @@ param(
     [string]$ProjectRoot = "",
     [int]$BackendPort = 8080,
     [int]$FrontendPort = 5173,
+    [int]$MysqlPort = 3307,
+    [int]$RedisPort = 6379,
+    [int]$ElasticsearchPort = 9200,
+    [int]$KibanaPort = 5601,
     [int]$ClusteringPort = 8000,
+    [switch]$SkipElasticsearch,
     [switch]$SkipClustering
 )
 
@@ -34,12 +39,60 @@ function Write-Ok($Message) {
     Write-Host "[OK] $Message" -ForegroundColor Green
 }
 
-if (-not (Test-Path $mvnw) -and -not (Get-Command mvn -ErrorAction SilentlyContinue)) {
-    throw "未找到 Maven 或后端 Maven Wrapper"
+function Throw-JdkRequirement($Detail) {
+    throw "$Detail 本项目后端要求 JDK 25，请检查 JAVA_HOME 和 Path。"
+}
+
+if (-not (Test-Path $mvnw)) {
+    throw "未找到后端 Maven Wrapper: $mvnw"
 }
 if (-not (Test-Path $frontendDir)) {
     throw "未找到前端目录: $frontendDir"
 }
+if (-not (Test-Path (Join-Path $frontendDir "package.json"))) {
+    throw "未找到前端 package.json: $frontendDir"
+}
+if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) {
+    throw "未找到 npm.cmd，请安装 Node.js 并检查 Path。"
+}
+
+$javaHome = [Environment]::GetEnvironmentVariable("JAVA_HOME", "Process")
+if ([string]::IsNullOrWhiteSpace($javaHome)) {
+    Throw-JdkRequirement "JAVA_HOME 未设置。"
+}
+$javaHomeExecutable = Join-Path $javaHome "bin\java.exe"
+if (-not (Test-Path $javaHomeExecutable -PathType Leaf)) {
+    Throw-JdkRequirement "JAVA_HOME 无效，未找到 $javaHomeExecutable。"
+}
+if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
+    Throw-JdkRequirement "Path 中未找到 java。"
+}
+
+$savedErrorActionPreference = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+    $javaVersionLines = & java -version 2>&1
+    $javaVersionExitCode = $LASTEXITCODE
+    $mavenVersionLines = & $mvnw -v 2>&1
+    $mavenVersionExitCode = $LASTEXITCODE
+}
+finally {
+    $ErrorActionPreference = $savedErrorActionPreference
+}
+
+$javaVersionText = $javaVersionLines -join [Environment]::NewLine
+if ($javaVersionExitCode -ne 0 -or $javaVersionText -notmatch '(?im)version\s+"25(?:[.\-+_"]|$)') {
+    Throw-JdkRequirement "java -version 未报告 Java 25。"
+}
+
+$mavenVersionText = $mavenVersionLines -join [Environment]::NewLine
+if ($mavenVersionExitCode -ne 0) {
+    Throw-JdkRequirement "Maven Wrapper 版本检查失败。"
+}
+if ($mavenVersionText -notmatch '(?im)Java version:\s*25(?:[.\-+,_\s]|$)') {
+    Throw-JdkRequirement "Maven Wrapper 未使用 Java 25。"
+}
+Write-Ok "JDK 25 与 Maven Wrapper 检查通过"
 
 $clusteringUrl = "http://127.0.0.1:$ClusteringPort"
 $clusteringReady = $false
@@ -56,37 +109,48 @@ if (-not $SkipClustering) {
     }
     else {
         if (-not (Test-Path $clusteringScript)) { throw "未找到聚类服务启动脚本: $clusteringScript" }
+        if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
+            throw "未找到 Python。社区聚类服务需要 Python 3.11 或更高版本。"
+        }
         Write-Step "启动聚类服务 (FastAPI :$ClusteringPort)"
         Start-Process powershell -WorkingDirectory $ProjectRoot -ArgumentList @(
             "-NoExit", "-File", $clusteringScript, "-ProjectRoot", $ProjectRoot, "-Port", $ClusteringPort
         )
+        Write-Ok "聚类服务启动命令已在新窗口发起"
     }
 }
 
-$backendLauncher = if (Get-Command mvn -ErrorAction SilentlyContinue) {
-    "mvn spring-boot:run"
-} else {
-    ".\mvnw.cmd spring-boot:run"
-}
 $clusteringEnabled = if ($SkipClustering) { "false" } else { "true" }
+$elasticsearchEnabled = if ($SkipElasticsearch) { "false" } else { "true" }
+$dbUrl = "jdbc:mysql://localhost:$MysqlPort/campus_activity?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci"
+$corsOrigins = "http://localhost:$FrontendPort,http://127.0.0.1:$FrontendPort"
+$frontendApiUrl = "http://localhost:$BackendPort/api/v1"
 
 Write-Step "启动后端 (Spring Boot :$BackendPort)"
 Start-Process powershell -WorkingDirectory $backendDir -ArgumentList @(
     "-NoExit",
     "-Command",
-    "`$env:SERVER_PORT='$BackendPort'; `$env:COMMUNITY_CLUSTERING_ENABLED='$clusteringEnabled'; `$env:COMMUNITY_CLUSTERING_URL='$clusteringUrl'; Write-Host 'Campus Activity Backend' -ForegroundColor Cyan; $backendLauncher"
+    "`$env:SERVER_PORT='$BackendPort'; `$env:DB_URL='$dbUrl'; `$env:REDIS_HOST='localhost'; `$env:REDIS_PORT='$RedisPort'; `$env:ELASTICSEARCH_URIS='http://localhost:$ElasticsearchPort'; `$env:ES_ENABLED='$elasticsearchEnabled'; `$env:ES_AUTO_REBUILD='$elasticsearchEnabled'; `$env:COMMUNITY_CLUSTERING_ENABLED='$clusteringEnabled'; `$env:COMMUNITY_CLUSTERING_URL='$clusteringUrl'; `$env:CORS_ORIGINS='$corsOrigins'; `$env:JACCOUNT_REDIRECT_URI='http://localhost:$BackendPort/api/v1/auth/jaccount/callback'; `$env:JACCOUNT_FRONTEND_CALLBACK_URI='http://localhost:$FrontendPort/oauth/callback'; `$env:JACCOUNT_FRONTEND_LOGOUT_URI='http://localhost:$FrontendPort/?from=logout'; Write-Host 'Campus Activity Backend' -ForegroundColor Cyan; .\mvnw.cmd spring-boot:run"
 )
+Write-Ok "后端启动命令已在新窗口发起"
 
 Write-Step "启动前端 (Vite :$FrontendPort)"
 Start-Process powershell -WorkingDirectory $frontendDir -ArgumentList @(
     "-NoExit",
     "-Command",
-    "Write-Host 'Campus Activity Frontend' -ForegroundColor Cyan; if (-not (Test-Path node_modules)) { npm install }; npm run dev -- --port $FrontendPort"
+    "`$env:VITE_API_BASE_URL='$frontendApiUrl'; Write-Host 'Campus Activity Frontend' -ForegroundColor Cyan; if (-not (Test-Path node_modules)) { npm.cmd install; if (`$LASTEXITCODE -ne 0) { throw 'npm install 失败' } }; npm.cmd run dev -- --port $FrontendPort"
 )
+Write-Ok "前端启动命令已在新窗口发起"
 
-Write-Ok "已启动应用服务"
+Write-Host "`n--- 应用启动命令已发起，请以各窗口输出为准 ---" -ForegroundColor Magenta
 Write-Host "  前端: http://localhost:$FrontendPort" -ForegroundColor White
 Write-Host "  后端: http://localhost:$BackendPort/api/v1" -ForegroundColor White
+Write-Host "  MySQL: localhost:$MysqlPort" -ForegroundColor White
+Write-Host "  Redis: localhost:$RedisPort" -ForegroundColor White
+if (-not $SkipElasticsearch) {
+    Write-Host "  Elasticsearch: http://localhost:$ElasticsearchPort" -ForegroundColor White
+    Write-Host "  Kibana: http://localhost:$KibanaPort" -ForegroundColor White
+}
 if (-not $SkipClustering) {
     Write-Host "  聚类健康检查: $clusteringUrl/internal/v1/health" -ForegroundColor White
 }
