@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   一键启动：Docker 基础设施 + ES 初始化 + 后端 + 前端
@@ -31,7 +31,15 @@ param(
     [switch]$ForceRecreateIndex,
     [Alias("SkipElser")]
     [switch]$SkipEmbedding,
-    [switch]$SkipElasticsearch
+    [switch]$SkipElasticsearch,
+    [switch]$SkipClustering,
+    [int]$MysqlPort = 3307,
+    [int]$RedisPort = 6379,
+    [int]$ElasticsearchPort = 9200,
+    [int]$KibanaPort = 5601,
+    [int]$ClusteringPort = 8000,
+    [int]$BackendPort = 8080,
+    [int]$FrontendPort = 5173
 )
 
 $ErrorActionPreference = "Stop"
@@ -51,11 +59,18 @@ try {
         if (-not (Test-Path $DeployScript)) {
             throw "未找到部署脚本: $DeployScript"
         }
-        $deployParams = @{}
+        $deployParams = @{
+            MysqlPort = $MysqlPort
+            RedisPort = $RedisPort
+            ElasticsearchPort = $ElasticsearchPort
+            KibanaPort = $KibanaPort
+            ClusteringPort = $ClusteringPort
+        }
         if ($ForceRecreateDb) { $deployParams.ForceRecreateDb = $true }
         if ($ForceRecreateIndex) { $deployParams.ForceRecreateIndex = $true }
         if ($SkipEmbedding) { $deployParams.SkipEmbedding = $true }
         if ($SkipElasticsearch) { $deployParams.SkipElasticsearch = $true }
+        if ($SkipClustering) { $deployParams.SkipClustering = $true }
         & $DeployScript @deployParams
         if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
@@ -73,7 +88,19 @@ try {
     if (-not (Test-Path $StartAppsScript)) {
         throw "未找到启动脚本: $StartAppsScript"
     }
-    & $StartAppsScript -ProjectRoot $ProjectRoot
+    $appParams = @{
+        ProjectRoot = $ProjectRoot
+        MysqlPort = $MysqlPort
+        RedisPort = $RedisPort
+        ElasticsearchPort = $ElasticsearchPort
+        KibanaPort = $KibanaPort
+        ClusteringPort = $ClusteringPort
+        BackendPort = $BackendPort
+        FrontendPort = $FrontendPort
+    }
+    if ($SkipElasticsearch) { $appParams.SkipElasticsearch = $true }
+    if ($SkipClustering) { $appParams.SkipClustering = $true }
+    & $StartAppsScript @appParams
 }
 catch {
     Write-Err $_.Exception.Message

@@ -16,16 +16,25 @@
 
 ```powershell
 cd database
-docker compose up -d
+docker compose --profile clustering up -d
 ```
 
 服务信息：
-- MySQL: `localhost:3306`，数据库 `campus_activity`，用户 `campus` / `campus123`
+- MySQL: `localhost:3307`（容器内仍为 `3306`），数据库 `campus_activity`，用户 `campus` / `campus123`
 - Redis: `localhost:6379`（后端 Spring Cache 缓存，key 前缀 `campus:`）
 - Elasticsearch: `localhost:9200`（语义检索 / 活动推荐，索引 `campus_activities`）
 - Kibana: `localhost:5601`（ES 调试与 Dev Tools）
+- Clustering service: `localhost:8000`（仅供 Spring Boot 调用的内部 FastAPI）
 
 首次启动会自动执行 `schema.sql` 和 `seed.sql`。
+
+`.\deploy.ps1` 和 Compose 的宿主机 MySQL 默认端口均为 `3307`。从仓库根目录运行
+`.\start.ps1 -MysqlPort <端口>` 时，该值会同时用于 Compose 的 `MYSQL_PORT` 和后端
+`DB_URL`，无需预先设置永久环境变量。
+
+聚类容器位于可选 `clustering` profile，由 `../clustering-service/Dockerfile` 构建，健康检查为
+`GET /internal/v1/health`。后端在宿主机开发运行时使用
+`COMMUNITY_CLUSTERING_URL=http://127.0.0.1:8000`；不要将该端口作为浏览器公开 API。
 
 ### Elasticsearch（检索已落地 · 推荐待复用）
 
@@ -177,7 +186,7 @@ cd database
 | `Host` | 强制重导 `127.0.0.1:3306`（`campus` / `campus123`） |
 | `Docker` | 强制重导容器 `campus-mysql` |
 
-> **Windows 常见坑**：本机安装了 MySQL 9.x 占着 3306 时，`docker compose` 里写了 `3306:3306` 也可能**发布失败**（`docker port campus-mysql` 为空）。此时 `reload-demo-data.ps1` 若不加 `-Target Host`，以前只更新了容器内数据，后端仍读本机旧库。  
+> **Windows 常见坑**：项目 Compose 默认使用宿主机 `3307` 映射容器 `3306`，可与占用宿主机 `3306` 的本机 MySQL 共存。只有显式将 `MYSQL_PORT` / `-MysqlPort` 改为 `3306` 时，才需要先处理端口占用。`reload-demo-data.ps1 -Target Host` 仍专指 `127.0.0.1:3306` 的本机库。
 > 另：不要用 `Get-Content | mysql` 导含中文的 SQL（易变成字面 `?`）；本脚本用 `docker cp` / Python UTF-8 stdin。
 
 然后重启后端（`.\start.ps1 -SkipDeploy`），或管理员 POST `/api/v1/search/index/rebuild`。
@@ -186,7 +195,7 @@ cd database
 
 ```powershell
 cd database
-# 若要用 Docker 占用 3306：先停掉本机 MySQL 服务
+# 若显式让 Docker 使用宿主机 3306：先停掉占用该端口的本机 MySQL 服务
 docker compose down -v          # 删除 mysql_data / redis_data / es_data
 docker compose up -d
 .\init-es.ps1
@@ -206,12 +215,19 @@ docker compose up -d
 若不用 `start.ps1`，可按序执行：
 
 ```powershell
-cd database && .\deploy.ps1          # Docker + ES
-cd backend && .\mvnw.cmd spring-boot:run
-cd frontend && npm install && npm run dev
+Push-Location database
+.\deploy.ps1                         # Docker + ES
+Pop-Location
+Push-Location backend
+.\mvnw.cmd spring-boot:run
+Pop-Location
+Push-Location frontend
+if (-not (Test-Path node_modules)) { npm.cmd install }
+npm.cmd run dev
+Pop-Location
 ```
 
-默认连接 `localhost:3306/campus_activity`，Redis `localhost:6379`，ES `localhost:9200`。  
+默认连接 `localhost:3307/campus_activity`，Redis `localhost:6379`，ES `localhost:9200`。
 开发环境 Vite 将 `/api` 代理到 `http://localhost:8080`。
 
 ## 演示账号
