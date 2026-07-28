@@ -150,6 +150,10 @@ services:
       ELASTICSEARCH_URIS: http://elasticsearch:9200
       ES_ENABLED: ${ES_ENABLED:-true}
       ES_AUTO_REBUILD: ${ES_AUTO_REBUILD:-true}
+      # Spring Boot 4.1 + elasticsearch-java 8.15 健康检查 API 不兼容，避免 actuator 拖垮容器 healthy
+      MANAGEMENT_HEALTH_ELASTICSEARCH_ENABLED: ${MANAGEMENT_HEALTH_ELASTICSEARCH_ENABLED:-false}
+      # schema.sql 已建表；避免 Hibernate update 改外键列导致启动噪声
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-none}
       COMMUNITY_CLUSTERING_ENABLED: ${COMMUNITY_CLUSTERING_ENABLED:-true}
       COMMUNITY_CLUSTERING_URL: http://clustering-service:8000
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:80}
@@ -166,11 +170,12 @@ services:
       JAVA_OPTS: ${BACKEND_JAVA_OPTS:--XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      # 用 liveness，避免依赖 ES/Redis 的聚合 health 卡住或报 DOWN
+      test: ["CMD-SHELL", "curl -sf --max-time 3 http://127.0.0.1:8080/actuator/health/liveness | grep -q UP"]
       interval: 15s
       timeout: 5s
-      retries: 20
-      start_period: 120s
+      retries: 30
+      start_period: 300s
     networks: [campus]
 
   nginx:
@@ -183,7 +188,7 @@ services:
     restart: unless-stopped
     depends_on:
       backend:
-        condition: service_healthy
+        condition: service_started
     ports:
       - "${HTTP_PORT:-80}:80"
     networks: [campus]
