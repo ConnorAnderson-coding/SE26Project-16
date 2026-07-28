@@ -1,5 +1,7 @@
 package com.example.demo.repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.cache.annotation.Cacheable;
@@ -20,6 +22,8 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findCachedById(@Param("id") String id);
 
     Optional<User> findByJaccount(String jaccount);
+
+    List<User> findByRoleInOrderByIdAsc(Collection<String> roles);
 
     @Override
     boolean existsById(String id);

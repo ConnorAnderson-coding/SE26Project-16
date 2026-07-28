@@ -1,6 +1,8 @@
 package com.example.demo.repository;
 
 import com.example.demo.entity.Registration;
+import com.example.demo.repository.projection.UserCategoryCount;
+import com.example.demo.repository.projection.UserRegistrationAggregate;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -8,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 public interface RegistrationRepository extends JpaRepository<Registration, Long> {
 
@@ -39,6 +42,26 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
     long countByActivityId(Long activityId);
 
     long countByUserId(String userId);
+
+    @Query("""
+            SELECT r.user.id AS userId,
+                   COUNT(r) AS totalCount,
+                   SUM(CASE WHEN r.status = 'approved' THEN 1 ELSE 0 END) AS approvedCount
+            FROM Registration r
+            WHERE r.createdAt >= :from
+            GROUP BY r.user.id
+            """)
+    List<UserRegistrationAggregate> aggregateByUserSince(@Param("from") LocalDateTime from);
+
+    @Query("""
+            SELECT r.user.id AS userId,
+                   r.activity.category AS category,
+                   COUNT(r) AS totalCount
+            FROM Registration r
+            WHERE r.createdAt >= :from AND r.status = 'approved'
+            GROUP BY r.user.id, r.activity.category
+            """)
+    List<UserCategoryCount> countApprovedCategoriesByUserSince(@Param("from") LocalDateTime from);
 
     @Query("""
             SELECT COUNT(DISTINCT r1.activity.id) FROM Registration r1, Registration r2

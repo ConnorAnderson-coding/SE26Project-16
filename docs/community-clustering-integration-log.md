@@ -1,0 +1,201 @@
+# 社区聚类集成日志
+
+## 1. 锁定基线
+
+- `integrationBaseSha = 096479e5db0be183617116f8bb1ec301ebd34eb0`
+- `featureReferenceSha = c949a5226d3dda21b200f41cd2e00d6b2bf8f0ec`
+- `mergeBaseSha = c949a5226d3dda21b200f41cd2e00d6b2bf8f0ec`
+- 集成分支：`integration/community-clustering-v2`
+- 本次迁移固定以上述 main 提交为架构基线；迁移期间不自动合入后续 main 变更。
+
+## 2. main 实际技术基线
+
+- 后端目录：`backend`；根包：`com.example.demo`。
+- Java：25；Spring Boot：4.1.0；构建工具：Maven 3.9.16（仓库同时提供 Maven Wrapper，但当前 Windows Wrapper 无法正常启动）。
+- 认证：Spring Security stateless JWT，Bearer Token；权限由 `UserPrincipal` 映射为 `ROLE_<ROLE>`。
+- 统一响应：`ApiResponse<T> { code, message, data }`；统一异常入口为 `GlobalExceptionHandler`。
+- 生产数据库：MySQL 8，主脚本为 `database/schema.sql` 和 `database/seed.sql`；测试 profile 使用 H2 MySQL mode。
+- 用户主表：`user`，主键 `VARCHAR(32)`；核心行为表为 `registration`、`favorite`、`check_in`、`feedback`，活动表为 `activity`。
+- 前端：React 19、Ant Design 6、Vite 8、Vitest 4；统一 Axios 客户端为 `frontend/src/services/http.js`，Token 来自 `localStorage` 并通过 `Authorization: Bearer` 发送。
+- 浏览器只通过相对路径 `/api/v1` 调用 Spring Boot。
+
+## 3. TechPrototype 与 feature 文档对照
+
+### 3.1 main 正式文档采用项
+
+`096479e` 仅新增 `TechPrototype` 文档，没有修改数据库、后端、前端、启动脚本或测试代码。新增文档明确了以下约束：
+
+- 社区聚类以 `User` 为样本主表，使用用户画像和 `Registration`、`CheckIn`、`Favorite`、`Feedback` 的真实行为。
+- Spring Boot 负责数据聚合、内部调用、跨集合校验和事务持久化。
+- 独立 Python FastAPI 服务负责标准化、K-Means 和 PCA。
+- K-Means 为互斥硬聚类，固定 `randomState=42`，生成稳定 `clusterNo`、中心距离、inertia、成员数、代表兴趣、样本数和特征维度。
+- PCA 仅用于二维展示；公开客户端通过 Spring REST JSON 接口访问。
+- 浏览器与 Python 服务隔离，Python 服务只通过内网被应用服务器调用。
+
+### 3.2 与 feature 设计一致项
+
+- 一个运行版本内一名用户恰好属于一个社区。
+- 状态为 `PENDING/RUNNING/SUCCESS/FAILED`。
+- 输入快照、单活动运行约束、失败持久化、启动恢复和最近成功版本保留。
+- Python 固定 K-Means、`random_state=42`、标准化、PCA 和 `[0,100]` 坐标。
+- Spring 负责权限、业务数据、编排、校验和持久化；Python 不提供公开权限或数据库写入。
+- 普通用户只获取匿名散点与自身归属，管理员成员接口采用最小字段集。
+
+### 3.3 冲突与裁决
+
+- feature 使用旧的 `campus-activity/backend`、`com.example.campusactivity`、Spring Boot 3.3.5、Java 17、Session/CSRF、`UserAccount` 与 H2 运行基线；这些内容全部不迁移，必须适配 main 的 `backend`、`com.example.demo`、Spring Boot 4.1.0、Java 25、JWT、`User` 和 MySQL。
+- feature 文档把 MySQL 迁移列为后续能力，但本次集成要求直接接入 main 的 MySQL 脚本，因此以本次集成要求和 main 数据库体系为准。
+- UML 设计模型一处文字描述“维护用户-活动二分图、增量更新社区划分”，但同页类图注释及软件架构文档均指向异步 K-Means/PCA；迭代二明确使用 K-Means 硬聚类，因此不实现图社区发现或增量划分。
+- 软件架构文档列出学院、年级 One-Hot；本次采用版本化特征 schema，并降低画像分组权重，避免学院和年级主导聚类，同时保留可解释的画像信号。
+- main 当前确实存在 `ActivityView`，但本次特征仍不使用浏览行为：原迁移约束禁止凭空或未经产品确认引入浏览数据，且 feature 契约未定义其时间窗口与隐私口径。
+- 不迁移 feature 的 Session、CSRF、旧认证、旧 SecurityConfig、第二套 User/UserAccount、H2 生产配置或旧前端 HTTP Client。
+
+## 4. 特征与数据策略（阶段 4 目标）
+
+- schema 版本：`community-features-v2`。
+- 时间窗口：默认最近 180 天；画像字段不受行为窗口截断。
+- 纳入角色：`student`、`teacher`；排除 `admin`。角色本身不直接作为数值特征。
+- 冷启动：具有有效画像但无行为的师生保留为样本，行为特征为零；缺失画像按固定空类别处理，不制造数据。
+- 计数使用 `log1p`；使用 `approvedRate`、`attendanceRate` 和类别参与比例，避免重复放大总量。
+- 兴趣、活动类别、可参与时间使用固定或随运行冻结的 manifest；学院、年级只使用低权重画像组。
+- 不读取 `Activity.signupCount`、`favoriteCount`、`checkInCount` 等缓存计数作为用户特征，以真实行为表聚合为准。
+- 最终特征列表、权重和 manifest 在阶段 4 实现后补充到本日志。
+
+## 5. 阶段计划
+
+| 阶段 | 交付物 | 状态 |
+| --- | --- | --- |
+| 0 | 最新 main 基线、TechPrototype 审查、集成日志 | 完成 |
+| 1 | 独立 Python clustering-service | 完成 |
+| 2 | MySQL 聚类数据模型与 Spring 持久化骨架 | 完成 |
+| 3 | Spring 内部 Client、异步状态机、失败与恢复 | 完成 |
+| 4 | 基于 main 实体和行为表的 FeatureBuilder | 完成 |
+| 5 | JWT 权限与公开 REST API | 完成 |
+| 6 | 当前 frontend 聚类用户页与管理员页 | 完成 |
+| 7 | 启动脚本、Docker 和文档 | 完成 |
+| 8 | 全量复审、MySQL 与端到端验收 | 本地完成；远程复核受阻 |
+
+## 6. 阶段测试记录
+
+### 阶段 0
+
+- 后端命令：`mvn test`（JDK 25，Redis 已启动）。
+- 后端结果：126 项，123 通过、3 失败、0 错误。三个失败均为 main 原始 `FeedbackIntegrationTest` 与 `FeedbackService` 的业务前置条件不一致：测试未创建报名和签到记录却期望反馈提交成功。人工决定继续迁移；后续后端门禁不得增加新的失败。
+- 前端命令：`npm.cmd test`。
+- 前端结果：7 个测试文件、45 项测试全部通过。
+- 前端命令：`npm.cmd run lint`。
+- 前端结果：失败；main 原始 `tests/unit/AppContext.test.jsx` 存在 1 个 `react-hooks/rules-of-hooks` 错误，另有既存警告。后续门禁不得增加新的 lint 错误或警告。
+- 前端命令：`npm.cmd run build`。
+- 前端结果：成功；存在 main 原始的单 chunk 超过 500 kB 警告。
+- 依赖风险：main 的 `frontend/package-lock.json` 与 `package.json` 不同步，`npm ci` 失败；阶段 0 使用 `npm install --package-lock=false` 建立本地测试环境，未修改 lockfile。
+
+### 阶段 1
+
+- 文件范围：仅新增独立 `clustering-service`，未修改 Spring、数据库或前端。
+- 契约：阶段 1 保留参考实现的 `community-features-v1`，用于锁定独立算法服务行为；阶段 4 根据 main 真实实体重写输入特征时再显式升级为 `community-features-v2`。
+- 命令：`python -m pytest`。
+- 结果：105 项测试全部通过；覆盖请求校验、错误契约、计数边界、确定性、样本顺序不变性、稳定簇编号、K-Means、PCA 退化、坐标范围和预处理有限值校验。
+- 补充门禁：`python -m pip check` 无破损依赖；`python -m compileall -q app tests` 成功。
+- 已知非阻断警告：测试环境中的 Starlette `TestClient` 报告 httpx 兼容层弃用提示，来源于依赖内部，不影响当前服务契约。
+- 自审结论：Python 服务不访问数据库、Redis 或外部 HTTP，不处理认证，不生成社区展示主键和元数据，且内部文档/OpenAPI 路由按设计关闭。
+
+### 阶段 2
+
+- MySQL：新增 `clustering_run`、`clustering_run_input`、`community_cluster`、`community_membership`，同时更新全量 schema 并提供非破坏性的增量 patch。
+- 数据裁决：输入快照使用带 schema 版本的 JSON payload，不固化旧分支 v1 的字段列；成员和输入直接外键关联 main 的 `User`，没有引入 `UserAccount`。
+- 数据库约束：固定 `KMEANS`/`random_state=42`、全局单活动运行、run 内唯一用户样本和唯一成员归属、稳定 clusterNo、同 run 社区成员关系、坐标 `[0,100]`、非负中心距离及级联删除运行结果。
+- 新增 JPA 门禁：`CommunityClusteringRepositoryTest` 4 项全部通过，覆盖 JSON 快照、完整关联图、单活动运行、单用户唯一归属和非有限坐标拒绝。
+- 全量后端：130 项，127 通过、3 失败、0 错误；失败仍全部为阶段 0 已记录的 `FeedbackIntegrationTest`，没有新增失败。
+- 真实 MySQL 8.0：因 ECR 与 Docker Hub 镜像鉴权 TLS 超时，改用本机 MySQL 8.0 二进制在系统临时目录初始化全新隔离实例（独立端口，不接触现有服务数据）。增量脚本执行成功，4/4 表创建，`information_schema` 识别 30 个约束，完整运行/快照/社区/成员写入成功，活动槽唯一约束和坐标范围约束均实测生效；实例随后正常关闭。
+- 自审调整：将 Hibernate 7 已弃用的 `@Check` 替换为 Jakarta Persistence 标准 `@CheckConstraint`，并统一 `featureDimension > 0` 的 Bean Validation 与数据库约束。
+
+### 阶段 3
+
+- 内部 Client：使用 main 的 Spring `RestClient`/JDK HttpClient，提供独立连接与读取超时；严格要求 JSON UTF-8、HTTP 200、无未知字段、无尾随 token、无非有限数字及无字符串/布尔到数值的隐式转换。
+- 错误边界：4xx 保留受控远端错误码，5xx/网络映射为不可用，畸形响应映射为无效契约；持久化的失败信息使用固定安全文案，不写入远端 details、URL、凭据或堆栈。
+- 状态机：实现 `PENDING -> RUNNING -> SUCCESS/FAILED`，通过悲观锁和数据库活动槽唯一约束防止并发领取；结果社区、成员、指标和终态在同一事务提交。
+- 异步执行：默认关闭；启用时使用单线程有界队列、定时领取、拒绝失败收敛和 shutdown 等待。浏览器仍不直接访问 Python。
+- 启动恢复：将遗留 `RUNNING` 运行收敛为 `FAILED/EXECUTION_INTERRUPTED` 并释放活动槽，保留 `PENDING` 供调度器继续领取。
+- 阶段 4 接缝：`ClusteringRequestFactory` 仅定义接口，本阶段没有伪造 main 行为数据；FeatureBuilder 将在下一阶段实现。
+- 定向门禁：Client、生命周期和 Worker 共 8 项测试全部通过，覆盖严格解码、远端错误、类型拒绝、成功原子持久化、启动恢复和失败收敛。
+- 全量后端：138 项，135 通过、3 失败、0 错误；失败仍全部为阶段 0 已记录的 `FeedbackIntegrationTest`，没有新增失败。
+- 自审修复：社区预生成 ID 会触发 Spring Data `merge`，因此先 `saveAllAndFlush` 并使用返回的托管实体建立成员外键，避免引用瞬态社区。
+
+### 阶段 4
+
+- 数据来源：直接聚合 main 的 `User`、`Registration`、`CheckIn`、`Favorite`、`Feedback` 和关联 `Activity.category`；不读取 `ActivityView`，也不使用 `Activity` 上的缓存计数。
+- 样本边界：只纳入 `student`、`teacher`，排除 `admin`；使用固定时钟计算最近 180 天窗口；无行为的冷启动用户仍保留，计数与比率为零，缺失画像归入固定 `<missing>` 类别。
+- v2 数值特征：`logSignupCount`、`approvedRate`、`logFavoriteCount`、`logCheckInCount`、`attendanceRate`、`logFeedbackCount`、`averageRating`、`hasAverageRating`。所有计数采用 `log1p`，活动类别采用已批准报名中的参与比例，出席率上限为 1。
+- v2 类别特征：学院、年级、兴趣、可参与时间、活动类别均按运行时排序并冻结到 manifest；学院和年级 One-Hot 在标准化后乘以 `0.35`，避免画像字段主导聚类。最终维度为 8 个数值列加各 manifest 类别基数之和。
+- 快照与请求：创建运行时在同一事务保存全部输入快照及顺序；Worker 从数据库快照重建 Python 请求，不在异步执行时重新读取变化中的业务表。
+- 数据验证夹具：2 名合资格用户（其中 1 名冷启动）以及 1 组应排除的管理员聚合行；验证 180 天截点、稳定用户顺序、去重排序、多表计数、类别排序、冷启动零值和动态维度（夹具为 18 维）。该夹具只验证数据管道，不代表真实聚类质量。
+- Python 门禁：107 项全部通过；新增覆盖 v2 `log1p`、批准率、出席率、类别比例、评分存在位和画像组权重，并将中心距离断言改为在 v2 标准化特征空间独立重算。
+- 后端定向门禁：`CommunityFeatureBuilderTest` 与真实 H2/MySQL-mode JPA 聚合集成测试通过；应用上下文和阶段 3 Client/状态机/Worker 测试通过。
+- 后端全量：140 项，137 通过、3 失败、0 错误；失败仍全部为阶段 0 已记录的 `FeedbackIntegrationTest`，没有新增失败。
+- 自审修复：Spring Boot 4 基线不会自动提供旧包名的 Jackson 2 `ObjectMapper` Bean；新增条件式共享 Bean，使输入快照转换和启用后的内部 Client 均可启动，同时允许未来显式配置覆盖。
+
+### 阶段 5
+
+- 认证基线：完全复用 main 的无状态 JWT、`UserPrincipal` 和 `ROLE_ADMIN` 方法级鉴权；未迁移旧 feature 的 Session、Cookie 或 CSRF 流程，也不接受客户端传入的 `userId`、`createdBy` 或角色。
+- 管理员 API：提供异步提交、运行历史分页、运行详情和社区成员分页。提交只在 Python 能力显式启用时可用，关闭时在读取业务数据或创建 run 前返回 503；成功任务以数据库 `PENDING` 快照为事实来源。
+- 用户 API：提供最新成功版本和当前用户归属。latest 的散点只含不透明 `pointId`、坐标与 `currentUser` 标志，绝不返回其他用户 ID/姓名/学院/年级/中心距离；me 只从 JWT 身份读取当前用户。
+- 管理员最小字段：成员页只返回用户 ID、姓名、学院、年级及聚类点信息，不序列化 `User`、密码哈希、角色、权限、兴趣或输入快照。
+- 输入与错误安全：POST 使用独立严格 Jackson reader，拒绝未知字段、重复键、尾随 token、浮点转整数和标量类型强制转换；聚类 API 错误使用 main 的 `ApiResponse` 外壳和正确 HTTP 状态。全局 500 响应不再拼接原始异常消息，避免 SQL、内部地址或实现细节泄漏。
+- 数据完整性：查询成功版本时复核社区数、样本数、各社区成员计数、坐标/距离有限性和 metrics 范围；异常存储统一返回安全 500，不公开原始 JSON 或持久化错误消息。
+- 定向门禁：`CommunityClusteringIntegrationTest` 6 项全部通过，覆盖 JWT 必需、学生越权拒绝、匿名散点、当前用户归属、管理员最小字段、功能关闭 503 和身份字段注入拒绝。
+- 后端全量：146 项，143 通过、3 失败、0 错误；失败仍全部为阶段 0 已记录的 `FeedbackIntegrationTest`，没有新增失败。
+
+### 阶段 6
+
+- HTTP 接入：新增 `communityClusteringApi`，完全复用 main 的 Axios `/api/v1` 客户端与 Bearer Token 拦截器；浏览器不访问 Python 服务，也不引入旧 feature 的 Cookie/CSRF 客户端。
+- 用户页：替换 main 原有 mock 聚类示例，加载 latest 与 me 真实 API；展示最新版本、匿名散点、当前用户高亮、社区规模与代表性兴趣，并覆盖加载、无结果和错误状态。
+- 隐私边界：用户页不调用 mock 用户列表，不把匿名点关联到姓名、学院、兴趣或用户 ID；普通点 tooltip 仅显示社区名，当前点只显示“你”。
+- 管理员页：新增受 `AuthGuard + AdminGuard` 双重保护的聚类管理路由和菜单入口；支持提交 K 值、查看运行分页、刷新状态、查看最新社区及管理员最小成员字段。
+- 前端门禁：8 个测试文件、48 项测试全部通过；新增 3 项 API 契约测试覆盖固定路径、分页参数、只提交 `clusterCount` 及路径标识编码。
+- 构建：`npm.cmd run build` 成功；仍仅有 main 原始单 chunk 超过 500 kB 警告。
+- lint：仍为阶段 0 锁定的 `AppContext.test.jsx` 1 个既有错误和既有警告；阶段 6 新增/修改文件没有新增 lint 错误或警告。
+
+### 阶段 7
+
+- Docker：新增基于 `public.ecr.aws/docker/library/python:3.12-slim` 的聚类镜像，依赖层与应用层分离、运行时使用非 root `clustering` 用户，并提供仅访问内部 health 的容器健康检查。
+- Compose：在 main 的 database compose 中增加可选 `clustering` profile；一键部署默认启用，`-SkipClustering` 可完全跳过。端口默认只映射到宿主 8000 供本地 Spring 调用，浏览器仍不直连。
+- 本地启动：新增独立 PowerShell 启动器，自动检查 Python 3.11+、创建隔离 `.venv`、安装运行依赖并启动 Uvicorn；应用启动器优先复用已健康的容器，否则启动本地服务，并向 Spring 注入显式 enabled/base-url。
+- 启动健壮性：后端启动优先使用系统 Maven，在缺失时回退 Wrapper；前端端口参数实际传给 Vite；根脚本将聚类跳过选项同时传给基础设施和应用层。
+- 文档：补齐 main/JWT 版本的 API、数据模型、MVP 边界和运维验收文档；根 README、database README 与 Python README 均已链接并说明内部网络边界。
+- 静态门禁：4 个 PowerShell 脚本在 Windows PowerShell AST 下零语法错误；`docker compose --profile clustering config --quiet` 通过；文档链接和 `git diff --check` 通过。
+- Docker 实测：Docker Hub 首次拉取令牌被远端关闭，按 main 镜像源策略切换 ECR 后镜像完整构建成功；临时容器达到 `healthy`，health 返回 `UP/community-features-v2`，`docker inspect` 确认运行用户为 `clustering`，验收后已停止容器。
+
+### 阶段 8
+
+- 架构复审：集成分支仍以 `096479e5db0be183617116f8bb1ec301ebd34eb0` 为 merge-base；只包含 0–7 的分阶段迁移提交。源码扫描未发现 Session/CSRF、`UserAccount`、旧 `com.example.campusactivity` 或生产 H2 `create-drop`；唯一 `create-drop` 位于 main 既有测试 profile。
+- Python 全量：107 项全部通过，`pip check` 无破损依赖，`compileall` 成功；仅保留依赖内部 Starlette/httpx 弃用警告。
+- 后端全量：146 项，143 通过、3 失败、0 错误；失败集合与阶段 0 完全相同，仍仅为 `FeedbackIntegrationTest` 三项，没有聚类新增失败。
+- 前端全量：8 个文件、48 项全部通过，生产构建成功；lint 仍只有阶段 0 锁定的 1 个既有错误和既有警告，新聚类文件零新增问题。
+- 真实链路：以 compose MySQL 8 映射到临时 3307、非 root FastAPI 容器和 JDK 25 Spring Boot（关闭无关 Elasticsearch）执行真实 JWT 端到端。管理员提交 K=2 后异步运行进入 `SUCCESS`，聚合 843 个合资格用户、72 维特征，持久化 1 run、2 communities、843 inputs、843 memberships。
+- API 对账：学生访问管理员端点为 403；latest 返回 2 个社区、843 个匿名点，当前用户标记恰好 1 个，点字段仅 `pointId/x/y/currentUser`，响应不包含抽查的其他用户 ID；me 有归属；管理员成员页只含 `userId/name/college/grade/pointId/x/y/distanceToCenter`，无密码字段。
+- 清理：验收启动的隐藏 Spring 进程、临时 MySQL 容器和聚类容器均已停止；保留镜像与隔离数据卷以便复验，未触碰占用宿主 3306 的既有 MySQL，既有 Redis 继续运行。
+- 最终远程漂移检查：按要求连续执行 `git fetch origin --prune`，两次分别在连接重置和 443 建连超时处失败；第三次 `Test-NetConnection github.com -Port 443` 明确返回 `False`。因此不能把缓存引用当作本轮远程成功核验。当前缓存的 `origin/main` 仍为固定 `096479e5db0be183617116f8bb1ec301ebd34eb0`、`origin/feat/community-clustering` 仍为 `c949a5226d3dda21b200f41cd2e00d6b2bf8f0ec`，但恢复网络后仍须重新 fetch 才能关闭此项。
+
+## 7. 提交记录
+
+| 阶段 | 提交 SHA |
+| --- | --- |
+| 0 | `e8341f0864551520978f11d1faa46e2448a81c7f` |
+| 1 | `a15d504` |
+| 2 | `7a6f569` |
+| 3 | `6072d3315270956b19898fdb2af95aa991240478` |
+| 4 | `a9ed746685deb7c303c98a791153ff971bd67772` |
+| 5 | `c21bc0713626c5b47d6bfcfb129fd905a9429b73` |
+| 6 | `bd8e68852acd6914d440540f69a85aaab5e7d9ec` |
+| 7 | `9ab5569eef9c68bf81d688831b0e1449abae6db9` |
+| 8 | 本阶段验收日志提交（SHA 见 Git 历史） |
+
+## 8. 剩余风险
+
+- main 原始后端测试存在 3 个已知失败，前端 lint 存在 1 个已知错误；必须采用“零新增失败”对比门禁。
+- Maven Wrapper 在当前 Windows 环境无法启动，阶段测试使用系统 Maven 3.9.16 与 JDK 25。
+- main 生产配置仍使用 `spring.jpa.hibernate.ddl-auto=update`，但聚类表必须由 MySQL schema/patch 脚本显式建立并验证。
+- MySQL、Redis 和 Elasticsearch 启动成本较高；聚类首版不引入 Redis 依赖。
+- Docker 镜像源在阶段 2 出现鉴权 TLS 握手超时；MySQL SQL 已通过隔离本机 MySQL 8.0 实例验收，阶段 8 仍需在项目 compose 环境复验。
+- synthetic seed 仅用于集成测试，不能据此证明真实业务聚类质量。
+- 最终阶段必须重新 fetch 并检查 `origin/main` 是否仍为锁定 SHA；如已漂移，只报告差异，不自动合入。                                           
