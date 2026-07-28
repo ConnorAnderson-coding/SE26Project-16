@@ -10,3 +10,4 @@ frontend/dist/
 clustering-service/.venv/
 clustering-service/.pytest_cache/
 clustering-service/**/__pycache__/
+deploy/.env

@@ -1,0 +1,198 @@
+# 全栈生产/云服务器编排（Linux 容器，可在 Windows Docker Desktop 上运行）
+# 对外只暴露 Nginx :80；MySQL/Redis/ES/聚类仅供内网服务发现。
+#
+# 启动：
+#   cd deploy
+#   .\deploy.ps1
+#
+# 或：
+#   docker compose --env-file .env up -d --build
+
+name: campus-activity
+
+services:
+  mysql:
+    image: public.ecr.aws/docker/library/mysql:8.0
+    container_name: campus-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: campus_activity
+      MYSQL_USER: ${MYSQL_USER:-campus}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-campus123}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --skip-character-set-client-handshake
+      --max_allowed_packet=256M
+      --max_connections=300
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ucampus", "-pcampus123"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 90s
+    networks: [campus]
+    # 仅本机可连，便于 init / 排障；公网不暴露
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3307}:3306"
+
+  redis:
+    image: public.ecr.aws/docker/library/redis:7-alpine
+    container_name: campus-redis
+    restart: unless-stopped
+    command: ["redis-server", "--maxclients", "500"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [campus]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+
+  elasticsearch:
+    build:
+      context: ../database/elasticsearch
+    image: campus-elasticsearch:8.15.0-ik
+    container_name: campus-elasticsearch
+    restart: unless-stopped
+    environment:
+      - node.name=campus-es
+      - cluster.name=campus-es-cluster
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - xpack.ml.enabled=true
+      - xpack.license.self_generated.type=trial
+      - bootstrap.memory_lock=false
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms2g -Xmx2g}"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=30s || exit 1"]
+      interval: 15s
+      timeout: 35s
+      retries: 12
+      start_period: 90s
+    networks: [campus]
+    ports:
+      - "127.0.0.1:${ES_HTTP_PORT:-9200}:9200"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+  kibana:
+    profiles: ["kibana"]
+    image: docker.elastic.co/kibana/kibana:8.15.0
+    container_name: campus-kibana
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "127.0.0.1:${KIBANA_PORT:-5601}:5601"
+    networks: [campus]
+
+  clustering-service:
+    build:
+      context: ../clustering-service
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}
+    image: campus-clustering-service:local
+    container_name: campus-clustering-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/internal/v1/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [campus]
+    # 不对公网暴露；本机排障可用
+    ports:
+      - "127.0.0.1:${CLUSTERING_PORT:-8000}:8000"
+
+  backend:
+    build:
+      context: ../backend
+      args:
+        MAVEN_MIRROR_URL: ${MAVEN_MIRROR_URL:-https://maven.aliyun.com/repository/public}
+    image: campus-backend:local
+    container_name: campus-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      clustering-service:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      DB_URL: jdbc:mysql://mysql:3306/campus_activity?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci
+      DB_USERNAME: ${MYSQL_USER:-campus}
+      DB_PASSWORD: ${MYSQL_PASSWORD:-campus123}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      ELASTICSEARCH_URIS: http://elasticsearch:9200
+      ES_ENABLED: ${ES_ENABLED:-true}
+      ES_AUTO_REBUILD: ${ES_AUTO_REBUILD:-true}
+      COMMUNITY_CLUSTERING_ENABLED: ${COMMUNITY_CLUSTERING_ENABLED:-true}
+      COMMUNITY_CLUSTERING_URL: http://clustering-service:8000
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost,http://127.0.0.1,http://localhost:80}
+      JWT_SECRET: ${JWT_SECRET:-campus-activity-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm}
+      JACCOUNT_ENABLED: ${JACCOUNT_ENABLED:-false}
+      JACCOUNT_CLIENT_SECRET: ${JACCOUNT_CLIENT_SECRET:-}
+      JACCOUNT_REDIRECT_URI: ${PUBLIC_BASE_URL:-http://localhost}/api/v1/auth/jaccount/callback
+      JACCOUNT_FRONTEND_CALLBACK_URI: ${PUBLIC_BASE_URL:-http://localhost}/oauth/callback
+      JACCOUNT_FRONTEND_LOGOUT_URI: ${PUBLIC_BASE_URL:-http://localhost}/?from=logout
+      TOMCAT_MAX_THREADS: ${TOMCAT_MAX_THREADS:-200}
+      TOMCAT_ACCEPT_COUNT: ${TOMCAT_ACCEPT_COUNT:-200}
+      HIKARI_MAX_POOL: ${HIKARI_MAX_POOL:-50}
+      HIKARI_MIN_IDLE: ${HIKARI_MIN_IDLE:-10}
+      JAVA_OPTS: ${BACKEND_JAVA_OPTS:--XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    networks: [campus]
+
+  nginx:
+    build:
+      context: ../frontend
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+    image: campus-nginx:local
+    container_name: campus-nginx
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    networks: [campus]
+
+networks:
+  campus:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  es_data:

@@ -85,6 +85,9 @@ services:
     profiles: ["clustering"]
     build:
       context: ../clustering-service
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-pypi.tuna.tsinghua.edu.cn}
     image: campus-clustering-service:local
     container_name: campus-clustering-service
     restart: unless-stopped

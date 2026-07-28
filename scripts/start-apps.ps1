@@ -11,16 +11,13 @@ param(
     [string]$ProjectRoot = "",
     [int]$BackendPort = 8080,
     [int]$FrontendPort = 5173,
-    [int]$MysqlPort = 0
-=======
-    [int]$MysqlPort = 3307,
+    [int]$MysqlPort = 0,
     [int]$RedisPort = 6379,
     [int]$ElasticsearchPort = 9200,
     [int]$KibanaPort = 5601,
     [int]$ClusteringPort = 8000,
     [switch]$SkipElasticsearch,
     [switch]$SkipClustering
->>>>>>> a721ac09d343e83092d11c321cbe49c022853993
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,6 +57,50 @@ function Throw-JdkRequirement($Detail) {
     throw "$Detail 本项目后端要求 JDK 25，请检查 JAVA_HOME 和 Path。"
 }
 
+function Test-Jdk25Home([string]$Candidate) {
+    if ([string]::IsNullOrWhiteSpace($Candidate)) { return $false }
+    $javaExe = Join-Path $Candidate "bin\java.exe"
+    if (-not (Test-Path $javaExe -PathType Leaf)) { return $false }
+    $saved = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $versionText = & $javaExe -version 2>&1 | Out-String
+    }
+    finally {
+        $ErrorActionPreference = $saved
+    }
+    return $versionText -match '(?im)version\s+"25(?:[.\-+_"]|$)'
+}
+
+function Resolve-JavaHome25 {
+    foreach ($scope in @("Process", "User", "Machine")) {
+        $candidate = [Environment]::GetEnvironmentVariable("JAVA_HOME", $scope)
+        if (Test-Jdk25Home $candidate) {
+            return $candidate.TrimEnd('\')
+        }
+    }
+
+    $searchRoots = @(
+        "C:\Program Files\Java",
+        "C:\Program Files\Eclipse Adoptium",
+        "C:\Program Files\Microsoft",
+        "C:\Program Files\Amazon Corretto",
+        "C:\Program Files\Zulu"
+    )
+    foreach ($root in $searchRoots) {
+        if (-not (Test-Path $root)) { continue }
+        $matches = Get-ChildItem $root -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '(?i)jdk-?25' } |
+            Sort-Object Name -Descending
+        foreach ($dir in $matches) {
+            if (Test-Jdk25Home $dir.FullName) {
+                return $dir.FullName
+            }
+        }
+    }
+    return $null
+}
+
 if (-not (Test-Path $mvnw)) {
     throw "未找到后端 Maven Wrapper: $mvnw"
 }
@@ -73,22 +114,22 @@ if (-not (Get-Command npm.cmd -ErrorAction SilentlyContinue)) {
     throw "未找到 npm.cmd，请安装 Node.js 并检查 Path。"
 }
 
-$javaHome = [Environment]::GetEnvironmentVariable("JAVA_HOME", "Process")
-if ([string]::IsNullOrWhiteSpace($javaHome)) {
-    Throw-JdkRequirement "JAVA_HOME 未设置。"
+$javaHome = Resolve-JavaHome25
+if (-not $javaHome) {
+    Throw-JdkRequirement "未找到可用的 JDK 25（JAVA_HOME 未设置或指向非 25 版本）。"
 }
-$javaHomeExecutable = Join-Path $javaHome "bin\java.exe"
-if (-not (Test-Path $javaHomeExecutable -PathType Leaf)) {
-    Throw-JdkRequirement "JAVA_HOME 无效，未找到 $javaHomeExecutable。"
+$env:JAVA_HOME = $javaHome
+$javaHomeBin = Join-Path $javaHome "bin"
+if ($env:Path -notlike "*${javaHomeBin}*") {
+    $env:Path = "$javaHomeBin;$env:Path"
 }
-if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
-    Throw-JdkRequirement "Path 中未找到 java。"
-}
+$javaHomeExecutable = Join-Path $javaHomeBin "java.exe"
+Write-Ok "使用 JAVA_HOME=$javaHome"
 
 $savedErrorActionPreference = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 try {
-    $javaVersionLines = & java -version 2>&1
+    $javaVersionLines = & $javaHomeExecutable -version 2>&1
     $javaVersionExitCode = $LASTEXITCODE
     $mavenVersionLines = & $mvnw -v 2>&1
     $mavenVersionExitCode = $LASTEXITCODE
@@ -147,10 +188,7 @@ Write-Step "启动后端 (Spring Boot :$BackendPort, MySQL :$MysqlPort)"
 Start-Process powershell -WorkingDirectory $backendDir -ArgumentList @(
     "-NoExit",
     "-Command",
-    "`$env:DB_URL='$($env:DB_URL)'; Write-Host 'Campus Activity Backend' -ForegroundColor Cyan; Write-Host `"DB_URL=`$env:DB_URL`" -ForegroundColor Gray; .\mvnw.cmd spring-boot:run"
-=======
-    "`$env:SERVER_PORT='$BackendPort'; `$env:DB_URL='$dbUrl'; `$env:REDIS_HOST='localhost'; `$env:REDIS_PORT='$RedisPort'; `$env:ELASTICSEARCH_URIS='http://localhost:$ElasticsearchPort'; `$env:ES_ENABLED='$elasticsearchEnabled'; `$env:ES_AUTO_REBUILD='$elasticsearchEnabled'; `$env:COMMUNITY_CLUSTERING_ENABLED='$clusteringEnabled'; `$env:COMMUNITY_CLUSTERING_URL='$clusteringUrl'; `$env:CORS_ORIGINS='$corsOrigins'; `$env:JACCOUNT_REDIRECT_URI='http://localhost:$BackendPort/api/v1/auth/jaccount/callback'; `$env:JACCOUNT_FRONTEND_CALLBACK_URI='http://localhost:$FrontendPort/oauth/callback'; `$env:JACCOUNT_FRONTEND_LOGOUT_URI='http://localhost:$FrontendPort/?from=logout'; Write-Host 'Campus Activity Backend' -ForegroundColor Cyan; .\mvnw.cmd spring-boot:run"
->>>>>>> a721ac09d343e83092d11c321cbe49c022853993
+    "`$env:JAVA_HOME='$javaHome'; `$env:Path='$javaHomeBin;' + `$env:Path; `$env:SERVER_PORT='$BackendPort'; `$env:DB_URL='$dbUrl'; `$env:REDIS_HOST='localhost'; `$env:REDIS_PORT='$RedisPort'; `$env:ELASTICSEARCH_URIS='http://localhost:$ElasticsearchPort'; `$env:ES_ENABLED='$elasticsearchEnabled'; `$env:ES_AUTO_REBUILD='$elasticsearchEnabled'; `$env:COMMUNITY_CLUSTERING_ENABLED='$clusteringEnabled'; `$env:COMMUNITY_CLUSTERING_URL='$clusteringUrl'; `$env:CORS_ORIGINS='$corsOrigins'; `$env:JACCOUNT_REDIRECT_URI='http://localhost:$BackendPort/api/v1/auth/jaccount/callback'; `$env:JACCOUNT_FRONTEND_CALLBACK_URI='http://localhost:$FrontendPort/oauth/callback'; `$env:JACCOUNT_FRONTEND_LOGOUT_URI='http://localhost:$FrontendPort/?from=logout'; Write-Host 'Campus Activity Backend' -ForegroundColor Cyan; Write-Host `"JAVA_HOME=`$env:JAVA_HOME`" -ForegroundColor Gray; .\mvnw.cmd spring-boot:run"
 )
 Write-Ok "后端启动命令已在新窗口发起"
 

@@ -36,6 +36,17 @@ docker compose --profile clustering up -d
 `GET /internal/v1/health`。后端在宿主机开发运行时使用
 `COMMUNITY_CLUSTERING_URL=http://127.0.0.1:8000`；不要将该端口作为浏览器公开 API。
 
+构建默认使用清华 PyPI 镜像，避免国内访问 `files.pythonhosted.org` 超时。可覆盖：
+
+```powershell
+$env:PIP_INDEX_URL = "https://mirrors.aliyun.com/pypi/simple"
+$env:PIP_TRUSTED_HOST = "mirrors.aliyun.com"
+docker compose --profile clustering up -d --build
+```
+
+聚类构建失败时，`deploy.ps1` / `start.ps1` 会跳过该容器并继续部署 MySQL / Redis / ES；也可用
+`.\start.ps1 -SkipClustering` 显式跳过。
+
 ### Elasticsearch（检索已落地 · 推荐待复用）
 
 对应 [`技术选型.md`](../doc/技术选型.md) 与 [`检索与推荐算法流程.md`](../检索与推荐算法流程.md)：

@@ -81,7 +81,20 @@ try {
     Write-Step "启动 Docker 服务（MySQL / Redis / Elasticsearch / Kibana / 可选聚类服务）"
     docker @composeArgs
     if ($LASTEXITCODE -ne 0) {
-        throw "docker compose up 失败。请确认 Docker Desktop 已运行，并检查镜像仓库访问是否正常（如 Docker Hub 拉取超时/EOF）。"
+        if (-not $SkipClustering) {
+            Write-Warn "含聚类服务的 docker compose 失败（常见原因：构建时 pip 拉依赖超时）。正在跳过聚类容器，继续部署其余服务…"
+            Write-Warn "也可手动指定镜像源后重试：`$env:PIP_INDEX_URL='https://mirrors.aliyun.com/pypi/simple'; `$env:PIP_TRUSTED_HOST='mirrors.aliyun.com'"
+            $fallbackArgs = @("compose", "up", "-d", "--wait")
+            docker @fallbackArgs
+            if ($LASTEXITCODE -ne 0) {
+                throw "docker compose up 失败。请确认 Docker Desktop 已运行，并检查镜像仓库访问是否正常（如 Docker Hub 拉取超时/EOF）。"
+            }
+            $SkipClustering = $true
+            Write-Warn "已跳过 clustering-service。后续可用本地 Python（start-apps 会自动拉起），或修复后执行：docker compose --profile clustering up -d --build"
+        }
+        else {
+            throw "docker compose up 失败。请确认 Docker Desktop 已运行，并检查镜像仓库访问是否正常（如 Docker Hub 拉取超时/EOF）。"
+        }
     }
     Write-Ok "Docker 服务已就绪"
 
