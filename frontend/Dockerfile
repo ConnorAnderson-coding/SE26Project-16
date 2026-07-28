@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 FROM public.ecr.aws/docker/library/node:22-alpine AS build
 
 WORKDIR /app
