@@ -31,7 +31,9 @@ public class ActivityHotnessService implements ApplicationRunner {
 
     private static final double DECAY_FACTOR_12H = 0.99;
     private static final double DECAY_FACTOR_72H = 0.95;
-    private static final double DECAY_FACTOR_AFTER_72H = 0.90;
+    /** 72 小时衰减系数（之后趋于平稳，不再继续指数衰减） */
+    private static final double DECAY_MULTIPLIER_AT_72H =
+            Math.pow(DECAY_FACTOR_12H, 12) * Math.pow(DECAY_FACTOR_72H, 60);
 
     private static final double MULTIPLIER_NOT_STARTED_GT_48H = 0.8;
     private static final double MULTIPLIER_NOT_STARTED_LE_48H = 1.3;
@@ -45,7 +47,8 @@ public class ActivityHotnessService implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         log.info("初始化活动综合热度分...");
-        calculateAndSaveHotnessScores();
+        int updated = calculateAndSaveHotnessScores();
+        log.info("活动综合热度分初始化完成，共 {} 条", updated);
     }
 
     @Scheduled(cron = "0 0 * * * ?")
@@ -55,11 +58,12 @@ public class ActivityHotnessService implements ApplicationRunner {
     }
 
     @Transactional
-    public void calculateAndSaveHotnessScores() {
+    public int calculateAndSaveHotnessScores() {
         List<Activity> activities = activityRepository.findAll();
         for (Activity activity : activities) {
             persistHotness(activity);
         }
+        return activities.size();
     }
 
     @Transactional
@@ -131,9 +135,8 @@ public class ActivityHotnessService implements ApplicationRunner {
                     * Math.pow(DECAY_FACTOR_72H, hoursSinceCreation - 12);
         }
         else {
-            decayMultiplier = Math.pow(DECAY_FACTOR_12H, 12)
-                    * Math.pow(DECAY_FACTOR_72H, 60)
-                    * Math.pow(DECAY_FACTOR_AFTER_72H, hoursSinceCreation - 72);
+            // 文档约定：72h 后趋于平稳并保留剩余热度，避免 seed/历史活动被压成 ~0
+            decayMultiplier = DECAY_MULTIPLIER_AT_72H;
         }
         return hotness * decayMultiplier;
     }
