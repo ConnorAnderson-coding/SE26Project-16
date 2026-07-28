@@ -129,10 +129,10 @@ try {
     }
 
     Write-Host "`n--- 部署完成 ---" -ForegroundColor Magenta
-    Write-Host "  MySQL         : localhost:3306 / campus / campus123 / campus_activity" -ForegroundColor White
-    Write-Host "  Redis         : localhost:6379" -ForegroundColor White
+    Write-Host "  MySQL         : localhost:$MysqlPort / campus / campus123 / campus_activity" -ForegroundColor White
+    Write-Host "  Redis         : localhost:$RedisPort" -ForegroundColor White
     Write-Host "  Elasticsearch : http://localhost:$ElasticsearchPort" -ForegroundColor White
-    Write-Host "  Kibana        : http://localhost:5601" -ForegroundColor White
+    Write-Host "  Kibana        : http://localhost:$KibanaPort" -ForegroundColor White
 
     $ProjectRoot = Split-Path $ScriptDir -Parent
     if ($StartApps) {
