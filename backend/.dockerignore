@@ -1,0 +1,8 @@
+target/
+.idea/
+*.iml
+.git/
+.gitignore
+src/test/
+*.md
+.mvn/wrapper/maven-wrapper.jar.bak

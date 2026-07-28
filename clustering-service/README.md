@@ -54,7 +54,15 @@ python -m pytest
 
 ```powershell
 cd database
-docker compose up -d --build clustering-service
+docker compose --profile clustering up -d --build
+```
+
+Dockerfile 默认使用清华 PyPI（`PIP_INDEX_URL` / `PIP_TRUSTED_HOST` 可覆盖）。国内若仍超时，可改用阿里云：
+
+```powershell
+$env:PIP_INDEX_URL = "https://mirrors.aliyun.com/pypi/simple"
+$env:PIP_TRUSTED_HOST = "mirrors.aliyun.com"
+docker compose --profile clustering up -d --build
 ```
 
 容器以非 root 用户运行，健康检查只访问 `/internal/v1/health`。
