@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 FROM public.ecr.aws/docker/library/eclipse-temurin:25-jdk AS build
 
 WORKDIR /app

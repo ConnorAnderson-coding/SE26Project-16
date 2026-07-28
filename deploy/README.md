@@ -24,27 +24,56 @@
 - 建议资源：**CPU ≥ 4 核，内存 ≥ 8GB**（Elasticsearch 默认 `-Xms2g -Xmx2g`）；**4 核 + 16GB 云主机足够**
 - 磁盘预留 ≥ 20GB（镜像 + ES 模型 + 数据卷）
 
+## 云服务器部署（Ubuntu 推荐）
+
+本机内存紧张或不支持 Windows 嵌套虚拟化时，使用 **Ubuntu 24.04 + Docker Engine**：
+
+```bash
+# 1) 安装 Docker Engine + compose 插件，并设置：
+#    sudo sysctl -w vm.max_map_count=262144
+
+# 2) 克隆仓库后配置环境变量
+cd deploy
+cp .env.example .env
+nano .env   # 修改 PUBLIC_BASE_URL / CORS_ORIGINS / JWT_SECRET
+
+# 3) 一键启动（构建 + 起容器 + init-es + 重启 backend 灌索引）
+chmod +x ../start.sh ./deploy.sh ../database/init-es.sh
+../start.sh
+# 或: ./deploy.sh
+```
+
+仅初始化 / 重建 ES：
+
+```bash
+cd database
+./init-es.sh
+# 跳过 GTE: ./init-es.sh --skip-embedding
+# 国内 HF 慢: HF_ENDPOINT=https://hf-mirror.com ./init-es.sh
+```
+
+常用参数：
+
+```bash
+./deploy.sh --skip-build          # 不重建镜像
+./deploy.sh --skip-es-init        # 跳过 ES 初始化
+./deploy.sh --skip-embedding      # 只建索引，不下 GTE
+./deploy.sh --force-recreate      # 清空数据卷重建
+./deploy.sh --with-kibana
+```
+
+访问：`http://<公网IP>`；演示账号：`524030910001` / `123456`。
+
+> Windows 本地开发仍用根目录 `.\start.ps1`（Docker 基础设施 + 本机前后端）。  
+> Ubuntu 云主机请用 `./start.sh` / `deploy/deploy.sh`，不要跑 `.ps1`。
+
 ## 云服务器部署（推荐：本机内存不足时）
 
 本机内存紧张时，**不要在本机构建镜像**，把代码同步到云主机后再构建：
 
-1. 云主机安装 Docker Desktop（Linux 容器），防火墙/安全组放行 **TCP 80**
-2. 同步代码（任选其一）：
-   - `git clone` / `git pull` 到云主机
-   - 或压缩项目后上传（排除 `frontend/node_modules`、`backend/target`、`.git` 可选）
-3. 在云主机执行：
-
-```powershell
-cd <repo>\deploy
-copy .env.example .env
-# 把 PUBLIC_BASE_URL / CORS_ORIGINS 改成公网地址，例如 http://x.x.x.x
-notepad .env
-.\deploy.ps1
-```
-
-4. 浏览器访问 `http://<公网IP>`；压测：`.\perf-smoke.ps1 -BaseUrl http://<公网IP>`
-
-首次构建后端 Maven + 前端 npm + 拉 ES 镜像可能需 10–30 分钟；GTE 模型下载另计。若本机已有 `start.ps1` 容器在跑，云上是另一台机器则无冲突。
+1. 云主机安装 Docker Engine（Linux），防火墙/安全组放行 **TCP 80**
+2. 同步代码（`git clone` / `git pull`）
+3. 在云主机执行上面的 `./start.sh` 流程
 
 ## 一键部署
 
