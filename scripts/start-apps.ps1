@@ -10,13 +10,28 @@
 param(
     [string]$ProjectRoot = "",
     [int]$BackendPort = 8080,
-    [int]$FrontendPort = 5173
+    [int]$FrontendPort = 5173,
+    [int]$MysqlPort = 0
 )
 
 $ErrorActionPreference = "Stop"
 
 if (-not $ProjectRoot) {
     $ProjectRoot = Split-Path $PSScriptRoot -Parent
+}
+
+if ($MysqlPort -le 0) {
+    if ($env:MYSQL_PORT) {
+        $MysqlPort = [int]$env:MYSQL_PORT
+    }
+    else {
+        $MysqlPort = 3307
+    }
+}
+
+# 与 deploy.ps1 映射端口对齐；Spring Boot 读 DB_URL，不读 MYSQL_PORT
+if (-not $env:DB_URL) {
+    $env:DB_URL = "jdbc:mysql://localhost:${MysqlPort}/campus_activity?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci"
 }
 
 $backendDir = Join-Path $ProjectRoot "backend"
@@ -38,11 +53,11 @@ if (-not (Test-Path $frontendDir)) {
     throw "未找到前端目录: $frontendDir"
 }
 
-Write-Step "启动后端 (Spring Boot :$BackendPort)"
+Write-Step "启动后端 (Spring Boot :$BackendPort, MySQL :$MysqlPort)"
 Start-Process powershell -WorkingDirectory $backendDir -ArgumentList @(
     "-NoExit",
     "-Command",
-    "Write-Host 'Campus Activity Backend' -ForegroundColor Cyan; .\mvnw.cmd spring-boot:run"
+    "`$env:DB_URL='$($env:DB_URL)'; Write-Host 'Campus Activity Backend' -ForegroundColor Cyan; Write-Host `"DB_URL=`$env:DB_URL`" -ForegroundColor Gray; .\mvnw.cmd spring-boot:run"
 )
 
 Write-Step "启动前端 (Vite :$FrontendPort)"
