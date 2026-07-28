@@ -72,18 +72,26 @@
 
 ### 全栈 Docker 部署（云服务器 / 压测）
 
-将 **Nginx + 前端静态资源 + 后端 + MySQL + Redis + ES + 聚类服务** 全部容器化，适合 Windows 云主机部署与「100 并发、<3s」压测入口：
+将 **Nginx + 前端静态资源 + 后端 + MySQL + Redis + ES + 聚类服务** 全部容器化。
 
-```powershell
+**Ubuntu 云主机（推荐）：**
+
+```bash
 cd deploy
-.\deploy.ps1
+cp .env.example .env   # 修改 PUBLIC_BASE_URL / CORS_ORIGINS
+chmod +x ../start.sh ./deploy.sh ../database/init-es.sh
+../start.sh            # 或 ./deploy.sh
 ```
 
-- 对外入口：`http://localhost`（或服务器公网 IP），API 走同域 `/api/v1`
-- 说明与资源建议见 [`deploy/README.md`](deploy/README.md)
-- 简易冒烟：`.\deploy\perf-smoke.ps1`
+仅 ES 初始化：`database/./init-es.sh`（可选 `HF_ENDPOINT=https://hf-mirror.com`）。
 
-> 开发用 `start.ps1` 与部署用 `deploy/deploy.ps1` 容器名重叠，请勿同时启动两套编排。
+**Windows：** `cd deploy; .\deploy.ps1`
+
+- 对外入口：`http://localhost`（或服务器公网 IP），API 走同域 `/api/v1`
+- 说明见 [`deploy/README.md`](deploy/README.md)
+- 简易冒烟：`.\deploy\perf-smoke.ps1`（Windows）或 `curl` 登录接口
+
+> 开发用 `start.ps1` 与部署用 `deploy/deploy.sh` 容器名重叠，请勿同时启动两套编排。
 
 ### 常用参数
 
