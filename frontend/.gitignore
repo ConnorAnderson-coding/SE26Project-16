@@ -18,6 +18,9 @@ dist-ssr
 .idea
 .DS_Store
 *.suo
+
+# Test coverage reports
+coverage
 *.ntvs*
 *.njsproj
 *.sln
