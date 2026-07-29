@@ -108,7 +108,7 @@ main() {
       err "缺少 .env.example"
       exit 1
     fi
-    cp "${SCRIPT_DIR}/.env.example" "$env_path"
+    cp -n "${SCRIPT_DIR}/.env.example" "$env_path"
     warn "已从 .env.example 生成 ${ENV_FILE}，公网部署前请修改 PUBLIC_BASE_URL / CORS_ORIGINS / JWT_SECRET"
   fi
 
