@@ -5,7 +5,9 @@ import { AppProvider, useApp } from '../../src/context/AppContext'
 vi.mock('../../src/services/authApi', () => ({
   login: vi.fn(),
   register: vi.fn(),
-  logout: vi.fn()
+  logout: vi.fn(),
+  getAuthProvider: vi.fn(),
+  setAuthProvider: vi.fn()
 }))
 
 vi.mock('../../src/services/userApi', () => ({
@@ -50,6 +52,7 @@ import * as registrationApi from '../../src/services/registrationApi'
 import * as favoriteApi from '../../src/services/favoriteApi'
 import * as feedbackApi from '../../src/services/feedbackApi'
 import * as checkInApi from '../../src/services/checkInApi'
+import * as recordApi from '../../src/services/recordApi'
 import { setToken, setStoredUser } from '../../src/services/http'
 
 const mockUser = {
@@ -74,6 +77,7 @@ describe('AppContext 业务逻辑', () => {
     vi.clearAllMocks()
     userApi.getMe.mockRejectedValue(new Error('no token'))
     checkInApi.getMine.mockResolvedValue([])
+    authApi.getAuthProvider.mockReturnValue('local')
   })
 
   describe('login / logout', () => {
@@ -141,6 +145,16 @@ describe('AppContext 业务逻辑', () => {
       expect(registerResult).toEqual({ success: true })
       expect(result.current.currentUser?.id).toBe('524030910099')
     })
+
+    it('returns an API error', async () => {
+      authApi.register.mockRejectedValue(new Error('duplicate'))
+      const { result } = useAppHook()
+      let registerResult
+      await act(async () => {
+        registerResult = await result.current.register({ id: 'duplicate' })
+      })
+      expect(registerResult).toEqual({ success: false, message: 'duplicate' })
+    })
   })
 
   describe('signupActivity', () => {
@@ -169,6 +183,18 @@ describe('AppContext 业务逻辑', () => {
 
       expect(signupResult.success).toBe(true)
     })
+
+    it('returns signup API errors', async () => {
+      authApi.login.mockResolvedValue({ token: 't', user: mockUser })
+      registrationApi.signup.mockRejectedValue(new Error('full'))
+      const { result } = useAppHook()
+      await act(async () => result.current.login('id', 'pw'))
+      let signupResult
+      await act(async () => {
+        signupResult = await result.current.signupActivity('1')
+      })
+      expect(signupResult).toEqual({ success: false, message: 'full' })
+    })
   })
 
   describe('toggleFavorite', () => {
@@ -187,6 +213,20 @@ describe('AppContext 业务逻辑', () => {
       })
 
       expect(favResult).toEqual({ success: true, favorited: true })
+    })
+
+    it('rejects guests and reports API errors', async () => {
+      const guest = useAppHook()
+      await expect(guest.result.current.toggleFavorite('1')).resolves.toMatchObject({ success: false })
+
+      authApi.login.mockResolvedValue({ token: 't', user: mockUser })
+      favoriteApi.toggleFavorite.mockRejectedValue(new Error('favorite failed'))
+      await act(async () => guest.result.current.login('id', 'pw'))
+      let result
+      await act(async () => {
+        result = await guest.result.current.toggleFavorite('1')
+      })
+      expect(result).toEqual({ success: false, message: 'favorite failed' })
     })
   })
 
@@ -207,6 +247,25 @@ describe('AppContext 业务逻辑', () => {
 
       expect(checkInResult).toEqual({ success: true, message: '签到成功' })
       expect(checkInApi.checkInByQr).toHaveBeenCalledWith({ activityId: '1', token: 'token-1' })
+    })
+
+    it('covers location, password, unsupported, guest, and failure paths', async () => {
+      const { result } = useAppHook()
+      await expect(result.current.checkIn('1', 'qrcode')).resolves.toMatchObject({ success: false })
+      authApi.login.mockResolvedValue({ token: 't', user: mockUser })
+      await act(async () => result.current.login('id', 'pw'))
+
+      await act(async () => result.current.checkIn('1', 'location', { latitude: 31, longitude: 121 }))
+      expect(checkInApi.checkInByLocation).toHaveBeenCalled()
+      await act(async () => result.current.checkIn('1', 'password', { code: '123456' }))
+      expect(checkInApi.checkInByPassword).toHaveBeenCalled()
+      await expect(result.current.checkIn('1', 'unknown')).resolves.toMatchObject({ success: false })
+
+      checkInApi.checkInByQr.mockRejectedValueOnce(new Error('expired'))
+      await expect(result.current.checkIn('1', 'qrcode', { token: 'bad' })).resolves.toEqual({
+        success: false,
+        message: 'expired'
+      })
     })
   })
 
@@ -265,6 +324,42 @@ describe('AppContext 业务逻辑', () => {
       })
 
       expect(feedbackResult).toEqual({ success: true, message: '评价提交成功' })
+    })
+
+    it('rejects guests and reports feedback errors', async () => {
+      const { result } = useAppHook()
+      await expect(result.current.submitFeedback({ activityId: '1' })).resolves.toMatchObject({ success: false })
+      authApi.login.mockResolvedValue({ token: 't', user: mockUser })
+      await act(async () => result.current.login('id', 'pw'))
+      feedbackApi.submitFeedback.mockRejectedValueOnce(new Error('feedback failed'))
+      await expect(result.current.submitFeedback({ activityId: '1' })).resolves.toEqual({
+        success: false,
+        message: 'feedback failed'
+      })
+    })
+  })
+
+  describe('remaining commands', () => {
+    it('completes jAccount login and exposes its provider', async () => {
+      userApi.getMe.mockResolvedValue(mockUser)
+      authApi.getAuthProvider.mockReturnValue('jaccount')
+      const { result } = useAppHook()
+      await act(async () => result.current.completeJAccountLogin('remote-token'))
+      expect(result.current.currentUser).toEqual(mockUser)
+      expect(result.current.isJAccountSession()).toBe(true)
+      expect(authApi.setAuthProvider).toHaveBeenCalledWith('jaccount')
+    })
+
+    it('creates, updates, reviews, and publishes records', async () => {
+      activityApi.createActivity.mockResolvedValue({ id: 'created-1' })
+      activityApi.updateActivity.mockResolvedValue({ id: '1' })
+      const { result } = useAppHook()
+      await expect(result.current.createActivity({ title: 'New' })).resolves.toBe('created-1')
+      await expect(result.current.updateActivity('1', { title: 'Updated' })).resolves.toEqual({ id: '1' })
+      await result.current.reviewSignup('signup-1', true)
+      expect(registrationApi.reviewRegistration).toHaveBeenCalledWith('signup-1', true)
+      await result.current.publishRecord('1', { summary: 'Done' })
+      expect(recordApi.publishRecord).toHaveBeenCalledWith('1', { summary: 'Done' })
     })
   })
 })

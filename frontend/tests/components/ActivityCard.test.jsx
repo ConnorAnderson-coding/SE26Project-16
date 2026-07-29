@@ -94,4 +94,34 @@ describe('ActivityCard 组件', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith(`/activity/${sampleActivity.id}`)
   })
+
+  it('点击卡片本身也应跳转至活动详情页', async () => {
+    mockNavigate.mockClear()
+    renderWithRouter(<ActivityCard activity={sampleActivity} />)
+    await userEvent.click(screen.getByText(sampleActivity.title))
+    expect(mockNavigate).toHaveBeenCalledWith(`/activity/${sampleActivity.id}`)
+  })
+
+  it('activity 缺少可选字段时不崩溃', () => {
+    const minimal = { id: 1, title: '最小活动', category: 'academic' }
+    expect(() => renderWithRouter(<ActivityCard activity={minimal} />)).not.toThrow()
+    expect(screen.getByText('最小活动')).toBeInTheDocument()
+  })
+
+  it('有 poster 时显示封面图', () => {
+    const withPoster = { ...sampleActivity, poster: 'https://example.com/poster.jpg' }
+    renderWithRouter(<ActivityCard activity={withPoster} />)
+    const images = screen.getAllByRole('img')
+    const posterImg = images.find(img => img.getAttribute('src') === 'https://example.com/poster.jpg')
+    expect(posterImg).toBeTruthy()
+    expect(posterImg).toHaveAttribute('alt', withPoster.title)
+  })
+
+  it('无 poster 时不显示封面图', () => {
+    const noPoster = { ...sampleActivity, poster: null }
+    renderWithRouter(<ActivityCard activity={noPoster} />)
+    const images = screen.getAllByRole('img')
+    const posterImgs = images.filter(img => img.tagName === 'IMG' && img.closest('.activity-card-cover'))
+    expect(posterImgs.length).toBe(0)
+  })
 })
