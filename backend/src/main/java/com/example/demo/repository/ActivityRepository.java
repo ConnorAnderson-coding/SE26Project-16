@@ -7,9 +7,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import jakarta.persistence.LockModeType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,6 +39,10 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
     @EntityGraph(attributePaths = {"organizer", "record"})
     @Cacheable(value = CacheNames.ACTIVITY_DETAIL, key = "#id")
     Optional<Activity> findWithDetailsById(Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Activity a WHERE a.id = :id")
+    Optional<Activity> findByIdForUpdate(@Param("id") Long id);
 
     /** 原子自增活动浏览量，避免并发访问丢失计数。 */
     @Modifying

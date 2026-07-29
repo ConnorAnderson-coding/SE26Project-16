@@ -91,7 +91,7 @@ public class ActivityService {
                 result.getTotalElements(), result.getTotalPages());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public ActivityResponse getById(Long id) {
         Activity activity = activityRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new BusinessException("活动不存在"));

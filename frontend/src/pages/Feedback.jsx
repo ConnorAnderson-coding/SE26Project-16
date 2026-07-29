@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext'
 import { getMyRegistrations } from '../services/registrationApi'
 import { getActivityById } from '../services/activityApi'
 import { getMyFeedbacks } from '../services/feedbackApi'
+import { getMine as getMyCheckIns } from '../services/checkInApi'
 import { formatDateTime } from '../data/mockData'
 
 const { Text } = Typography
@@ -22,11 +23,13 @@ export default function Feedback() {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [regs, fbs] = await Promise.all([
+      const [regs, fbs, checkIns] = await Promise.all([
         getMyRegistrations(),
-        getMyFeedbacks()
+        getMyFeedbacks(),
+        getMyCheckIns()
       ])
-      const approved = regs.filter(s => s.status === 'approved')
+      const checkedInIds = new Set(checkIns.map(c => c.activityId))
+      const approved = regs.filter(s => s.status === 'approved' && checkedInIds.has(s.activityId))
       const activities = await Promise.all(
         approved.map(s => getActivityById(s.activityId).catch(() => null))
       )
