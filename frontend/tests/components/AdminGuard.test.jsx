@@ -21,7 +21,7 @@ describe('AdminGuard 组件', () => {
     vi.clearAllMocks()
   })
 
-  it('非管理员应重定向到首页', async () => {
+  it('非管理员学生应重定向到首页', async () => {
     const student = {
       id: '524030910001',
       name: '张三',
@@ -80,6 +80,60 @@ describe('AdminGuard 组件', () => {
 
     await waitFor(() => {
       expect(screen.getByText('管理后台内容')).toBeInTheDocument()
+    })
+  })
+
+  it('未登录用户应重定向到首页', async () => {
+    renderWithApp(
+      <Routes>
+        <Route
+          path="/admin"
+          element={
+            <AdminGuard>
+              <ProtectedPage />
+            </AdminGuard>
+          }
+        />
+        <Route path="/home" element={<div>首页</div>} />
+      </Routes>,
+      { route: '/admin' }
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText('管理后台内容')).not.toBeInTheDocument()
+      expect(screen.getByText('首页')).toBeInTheDocument()
+    })
+  })
+
+  it('教师角色应重定向到首页（非管理员）', async () => {
+    const teacher = {
+      id: 'teacher001',
+      name: '李老师',
+      role: 'teacher',
+      college: '软件学院'
+    }
+    setToken('token')
+    setStoredUser(teacher)
+    userApi.getMe.mockResolvedValue(teacher)
+
+    renderWithApp(
+      <Routes>
+        <Route
+          path="/admin"
+          element={
+            <AdminGuard>
+              <ProtectedPage />
+            </AdminGuard>
+          }
+        />
+        <Route path="/home" element={<div>首页</div>} />
+      </Routes>,
+      { route: '/admin' }
+    )
+
+    await waitFor(() => {
+      expect(screen.queryByText('管理后台内容')).not.toBeInTheDocument()
+      expect(screen.getByText('首页')).toBeInTheDocument()
     })
   })
 })

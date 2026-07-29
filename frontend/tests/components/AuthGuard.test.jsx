@@ -18,6 +18,7 @@ function ProtectedPage() {
 describe('AuthGuard 组件', () => {
   beforeEach(() => {
     localStorage.clear()
+    vi.clearAllMocks()
     userApi.getMe.mockRejectedValue(new Error('no token'))
   })
 
@@ -74,6 +75,58 @@ describe('AuthGuard 组件', () => {
 
     await waitFor(() => {
       expect(screen.getByText('受保护页面')).toBeInTheDocument()
+    })
+  })
+
+  it('初始化加载中应显示 Spin 加载动画', async () => {
+    setToken('test-token')
+    userApi.getMe.mockReturnValue(new Promise(() => {}))
+
+    renderWithApp(
+      <Routes>
+        <Route
+          path="/protected"
+          element={
+            <AuthGuard>
+              <ProtectedPage />
+            </AuthGuard>
+          }
+        />
+      </Routes>,
+      { route: '/protected' }
+    )
+
+    expect(screen.getByText('加载中...')).toBeInTheDocument()
+    expect(screen.queryByText('受保护页面')).not.toBeInTheDocument()
+  })
+
+  it('token 过期时 getMe 失败应重定向', async () => {
+    setToken('expired-token')
+    setStoredUser({
+      id: '524030910001',
+      name: '张三',
+      role: 'student',
+      college: '软件学院'
+    })
+    userApi.getMe.mockRejectedValue(new Error('token expired'))
+
+    renderWithApp(
+      <Routes>
+        <Route
+          path="/protected"
+          element={
+            <AuthGuard>
+              <ProtectedPage />
+            </AuthGuard>
+          }
+        />
+        <Route path="/" element={<div>登录页</div>} />
+      </Routes>,
+      { route: '/protected' }
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('登录页')).toBeInTheDocument()
     })
   })
 })
