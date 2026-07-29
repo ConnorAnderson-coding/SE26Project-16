@@ -41,7 +41,7 @@ public class RegistrationService {
     })
     public RegistrationResponse signup(RegistrationRequest request) {
         String userId = SecurityUtils.getCurrentUserId();
-        Activity activity = activityRepository.findById(request.getActivityId())
+        Activity activity = activityRepository.findByIdForUpdate(request.getActivityId())
                 .orElseThrow(() -> new BusinessException("活动不存在"));
         if (!"published".equals(activity.getStatus())) {
             throw new BusinessException("该活动暂不可报名");
@@ -99,6 +99,10 @@ public class RegistrationService {
             throw new BusinessException(403, "无权审核该报名");
         }
         registration.setStatus(approved ? "approved" : "rejected");
+        if (!approved) {
+            activity.setSignupCount(Math.max(0, activity.getSignupCount() - 1));
+            activityRepository.save(activity);
+        }
         registration.setActivity(activity);
         registration.setUser(registration.getUser());
         String registrantId = registration.getUser() != null ? registration.getUser().getId() : null;
