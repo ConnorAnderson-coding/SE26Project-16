@@ -2,8 +2,10 @@ package com.example.demo.cache;
 
 import org.junit.jupiter.api.AfterEach;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,7 @@ import com.example.demo.dto.request.RegistrationRequest;
 import com.example.demo.repository.ActivityRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.ActivityService;
+import com.example.demo.service.ActivityViewService;
 import com.example.demo.service.AuthService;
 import com.example.demo.service.RegistrationService;
 import com.example.demo.support.IntegrationTestSupport;
@@ -29,6 +32,9 @@ class ActivityCacheIntegrationTest extends IntegrationTestSupport {
 
     @Autowired
     private ActivityService activityService;
+
+    @Autowired
+    private ActivityViewService activityViewService;
 
     @Autowired
     private ActivityRepository activityRepo;
@@ -118,5 +124,34 @@ class ActivityCacheIntegrationTest extends IntegrationTestSupport {
         registrationService.signup(request);
 
         assertNull(cache.get(activityId));
+    }
+
+    @Test
+    void firstUniqueViewShouldEvictDetailCache() {
+        Long activityId = scenario.activity().getId();
+        activityRepo.findWithDetailsById(activityId);
+        Cache cache = cacheManager.getCache(CacheNames.ACTIVITY_DETAIL);
+        assertNotNull(cache.get(activityId));
+
+        boolean inserted = activityViewService.recordUniqueView(
+                activityId, scenario.student().getId());
+
+        assertTrue(inserted);
+        assertNull(cache.get(activityId));
+    }
+
+    @Test
+    void duplicateViewShouldKeepDetailCache() {
+        Long activityId = scenario.activity().getId();
+        activityViewService.recordUniqueView(activityId, scenario.student().getId());
+        activityRepo.findWithDetailsById(activityId);
+        Cache cache = cacheManager.getCache(CacheNames.ACTIVITY_DETAIL);
+        assertNotNull(cache.get(activityId));
+
+        boolean inserted = activityViewService.recordUniqueView(
+                activityId, scenario.student().getId());
+
+        assertFalse(inserted);
+        assertNotNull(cache.get(activityId));
     }
 }
