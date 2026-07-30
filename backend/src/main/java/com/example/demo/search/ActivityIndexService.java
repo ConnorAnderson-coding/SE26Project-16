@@ -51,8 +51,11 @@ public class ActivityIndexService {
                     .document(ActivityDocumentJson.toJsonData(document)));
             log.debug("Indexed activity {} -> result={}", document.id(), response.result());
         }
-        catch (IOException ex) {
-            throw new BusinessException("写入 Elasticsearch 索引失败: " + ex.getMessage());
+        catch (Exception ex) {
+            // Never fail activity create/update because search index sync broke
+            // (e.g. client/server media-type mismatch). MySQL remains source of truth.
+            log.error("写入 Elasticsearch 索引失败 activityId={}: {}",
+                    activity.getId(), ex.toString());
         }
     }
 
@@ -66,10 +69,12 @@ public class ActivityIndexService {
             if (ex.status() == 404) {
                 return;
             }
-            throw new BusinessException("删除 Elasticsearch 索引文档失败: " + ex.getMessage());
+            log.error("删除 Elasticsearch 索引文档失败 activityId={}: {}",
+                    activityId, ex.toString());
         }
-        catch (IOException ex) {
-            throw new BusinessException("删除 Elasticsearch 索引文档失败: " + ex.getMessage());
+        catch (Exception ex) {
+            log.error("删除 Elasticsearch 索引文档失败 activityId={}: {}",
+                    activityId, ex.toString());
         }
     }
 
