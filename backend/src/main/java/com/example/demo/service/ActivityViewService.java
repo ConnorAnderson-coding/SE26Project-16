@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -20,7 +19,7 @@ public class ActivityViewService {
     private final ActivityViewRepository activityViewRepository;
     private final ActivityRepository activityRepository;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     @Caching(evict = {
             @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#activityId"),
             @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#activityId")

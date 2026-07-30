@@ -1,11 +1,18 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.request.FeedbackRequest;
+import com.example.demo.entity.CheckIn;
+import com.example.demo.entity.Registration;
+import com.example.demo.repository.CheckInRepository;
+import com.example.demo.repository.RegistrationRepository;
 import com.example.demo.support.IntegrationTestSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+
+import java.time.LocalDateTime;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -14,11 +21,32 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class FeedbackIntegrationTest extends IntegrationTestSupport {
 
+    @Autowired
+    private RegistrationRepository registrationRepository;
+
+    @Autowired
+    private CheckInRepository checkInRepository;
+
     private TestScenario scenario;
 
     @BeforeEach
     public void setUp() {
         scenario = createScenario();
+        transactionTemplate.executeWithoutResult(status -> {
+            Registration registration = new Registration();
+            registration.setActivity(scenario.activity());
+            registration.setUser(scenario.student());
+            registration.setStatus("approved");
+            registration.setCreatedAt(LocalDateTime.now());
+            registrationRepository.save(registration);
+
+            CheckIn checkIn = new CheckIn();
+            checkIn.setActivity(scenario.activity());
+            checkIn.setUser(scenario.student());
+            checkIn.setMethod("qrcode");
+            checkIn.setCheckedAt(LocalDateTime.now());
+            checkInRepository.save(checkIn);
+        });
     }
 
     @Test

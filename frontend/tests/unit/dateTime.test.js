@@ -8,4 +8,9 @@ describe('dateTime helpers', () => {
 
     expect(toLocalDateTimeString(value)).toBe('2026-07-24T10:00:00')
   })
+
+  it('returns null for empty and invalid values', () => {
+    expect(toLocalDateTimeString(null)).toBeNull()
+    expect(toLocalDateTimeString('not-a-date')).toBeNull()
+  })
 })
