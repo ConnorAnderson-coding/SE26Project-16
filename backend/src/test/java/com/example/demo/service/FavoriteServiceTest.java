@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -88,9 +89,8 @@ class FavoriteServiceTest extends ServiceTestSupport {
         FavoriteToggleResponse response = service.toggle(1L);
 
         assertTrue(response.isFavorited());
-        assertEquals(3, activity.getFavoriteCount()); // 原有2 + 1
         verify(favoriteRepository).save(any(Favorite.class));
-        verify(activityRepository).save(activity);
+        verify(activityRepository).incrementFavoriteCount(eq(1L), any(LocalDateTime.class));
         verify(activityHotnessService).recalculate(activity);
     }
 
@@ -107,9 +107,8 @@ class FavoriteServiceTest extends ServiceTestSupport {
         FavoriteToggleResponse response = service.toggle(1L);
 
         assertFalse(response.isFavorited());
-        assertEquals(4, activity.getFavoriteCount()); // 原有5 - 1
         verify(favoriteRepository).deleteById(new FavoriteId("user1", 1L));
-        verify(activityRepository).save(activity);
+        verify(activityRepository).decrementFavoriteCount(eq(1L), any(LocalDateTime.class));
         verify(activityHotnessService).recalculate(activity);
     }
 
@@ -123,7 +122,7 @@ class FavoriteServiceTest extends ServiceTestSupport {
 
         service.toggle(1L);
 
-        assertEquals(0, activity.getFavoriteCount());
+        verify(activityRepository).decrementFavoriteCount(eq(1L), any(LocalDateTime.class));
     }
 
     // ───── toggle() — error paths ─────

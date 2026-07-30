@@ -58,9 +58,7 @@ public class FavoriteService {
         boolean exists = favoriteRepository.existsById(favoriteId);
         if (exists) {
             favoriteRepository.deleteById(favoriteId);
-            activity.setFavoriteCount(Math.max(0, activity.getFavoriteCount() - 1));
-            activity.setUpdatedAt(LocalDateTime.now());
-        activityRepository.save(activity);
+            activityRepository.decrementFavoriteCount(activityId, LocalDateTime.now());
         activityHotnessService.recalculate(activity);
         return FavoriteToggleResponse.builder().favorited(false).build();
         }
@@ -71,9 +69,7 @@ public class FavoriteService {
         favorite.setActivity(activity);
         favorite.setCreatedAt(LocalDateTime.now());
         favoriteRepository.save(favorite);
-        activity.setFavoriteCount(activity.getFavoriteCount() + 1);
-        activity.setUpdatedAt(LocalDateTime.now());
-        activityRepository.save(activity);
+        activityRepository.incrementFavoriteCount(activityId, LocalDateTime.now());
         activityHotnessService.recalculate(activity);
         return FavoriteToggleResponse.builder().favorited(true).build();
     }

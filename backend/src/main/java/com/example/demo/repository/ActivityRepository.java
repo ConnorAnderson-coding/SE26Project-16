@@ -44,16 +44,24 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
     @Query("SELECT a FROM Activity a WHERE a.id = :id")
     Optional<Activity> findByIdForUpdate(@Param("id") Long id);
 
-    /** 原子自增活动浏览量，避免并发访问丢失计数。 */
     @Modifying
     @Query("UPDATE Activity a SET a.viewCount = a.viewCount + 1 WHERE a.id = :id")
     int incrementViewCount(@Param("id") Long id);
 
-    /** 原子自增签到数，避免并发访问丢失计数。 */
     @Modifying
     @Query("UPDATE Activity a SET a.checkInCount = a.checkInCount + 1, " +
            "a.updatedAt = :now WHERE a.id = :id")
     int incrementCheckInCount(@Param("id") Long id, @Param("now") LocalDateTime now);
+
+    @Modifying
+    @Query("UPDATE Activity a SET a.favoriteCount = a.favoriteCount + 1, " +
+           "a.updatedAt = :now WHERE a.id = :id")
+    int incrementFavoriteCount(@Param("id") Long id, @Param("now") LocalDateTime now);
+
+    @Modifying
+    @Query("UPDATE Activity a SET a.favoriteCount = GREATEST(a.favoriteCount - 1, 0), " +
+           "a.updatedAt = :now WHERE a.id = :id")
+    int decrementFavoriteCount(@Param("id") Long id, @Param("now") LocalDateTime now);
 
     @EntityGraph(attributePaths = "organizer")
     List<Activity> findByOrganizerIdOrderByStartTimeDesc(String organizerId);
