@@ -1,5 +1,23 @@
 package com.example.demo.community.service;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.example.demo.community.client.ClusteringContracts.FeatureSample;
 import com.example.demo.entity.User;
 import com.example.demo.repository.CheckInRepository;
@@ -11,24 +29,6 @@ import com.example.demo.repository.projection.UserBehaviorCount;
 import com.example.demo.repository.projection.UserCategoryCount;
 import com.example.demo.repository.projection.UserFeedbackAggregate;
 import com.example.demo.repository.projection.UserRegistrationAggregate;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CommunityFeatureBuilderTest {
@@ -49,7 +49,7 @@ class CommunityFeatureBuilderTest {
     private CommunityFeatureBuilder builder;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         builder = new CommunityFeatureBuilder(
                 userRepository,
                 registrationRepository,

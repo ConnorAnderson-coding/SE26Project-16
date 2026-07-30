@@ -1,5 +1,36 @@
 package com.example.demo.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import com.example.demo.common.BusinessException;
 import com.example.demo.common.PageResult;
 import com.example.demo.dto.request.ActivityRequest;
@@ -12,22 +43,6 @@ import com.example.demo.repository.ActivityRepository;
 import com.example.demo.repository.RegistrationRepository;
 import com.example.demo.search.ActivityIndexService;
 import com.example.demo.search.service.ActivitySearchService;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 class ActivityServiceTest extends ServiceTestSupport {
 
@@ -42,7 +57,7 @@ class ActivityServiceTest extends ServiceTestSupport {
     private ActivityService service;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         activityRepository = mock(ActivityRepository.class);
         userService = mock(UserService.class);
         registrationRepository = mock(RegistrationRepository.class);
@@ -56,7 +71,7 @@ class ActivityServiceTest extends ServiceTestSupport {
     }
 
     @AfterEach
-    void clearSecurity() {
+    public void clearSecurity() {
         SecurityContextHolder.clearContext();
     }
 

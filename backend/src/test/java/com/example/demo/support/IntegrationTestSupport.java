@@ -1,5 +1,21 @@
 package com.example.demo.support;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.transaction.support.TransactionTemplate;
+
 import com.example.demo.dto.request.ActivityRequest;
 import com.example.demo.dto.request.LoginRequest;
 import com.example.demo.entity.Activity;
@@ -7,26 +23,12 @@ import com.example.demo.entity.User;
 import com.example.demo.repository.ActivityRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JwtTokenProvider;
+import com.example.demo.security.UserPrincipal;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.ResultActions;
-import com.example.demo.security.UserPrincipal;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.transaction.support.TransactionTemplate;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+@Import(AsyncTestConfiguration.class)
 public abstract class IntegrationTestSupport {
 
     protected static final String PASSWORD = "123456";

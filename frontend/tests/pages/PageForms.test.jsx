@@ -114,6 +114,7 @@ vi.mock('../../src/services/authApi', () => ({
 import * as activityApi from '../../src/services/activityApi'
 import * as registrationApi from '../../src/services/registrationApi'
 import * as feedbackApi from '../../src/services/feedbackApi'
+import * as checkInApi from '../../src/services/checkInApi'
 import CreateActivity from '../../src/pages/CreateActivity'
 import EditActivity from '../../src/pages/EditActivity'
 import Feedback from '../../src/pages/Feedback'
@@ -166,6 +167,7 @@ beforeEach(() => {
     status: 'approved'
   }])
   feedbackApi.getMyFeedbacks.mockResolvedValue([])
+  checkInApi.getMine.mockResolvedValue([])
   vi.stubGlobal('URL', {
     ...URL,
     createObjectURL: vi.fn(() => 'blob:test-image')

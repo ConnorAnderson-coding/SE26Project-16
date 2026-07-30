@@ -62,7 +62,7 @@ class LlmAnalysisRunnerTest {
                 SuggestionItem.builder().id("4").category("content").priority("medium").content("内容").build()
         ));
 
-        runner.runAsync(3L, metrics());
+        runner.runSync(3L, metrics());
 
         ArgumentCaptor<ActivityAnalysis> captor = ArgumentCaptor.forClass(ActivityAnalysis.class);
         // pending + final
@@ -89,7 +89,7 @@ class LlmAnalysisRunnerTest {
                 SuggestionItem.builder().id("4").category("content").priority("medium").content("规则内容").build()
         ));
 
-        runner.runAsync(3L, metrics());
+        runner.runSync(3L, metrics());
 
         ArgumentCaptor<ActivityAnalysis> captor = ArgumentCaptor.forClass(ActivityAnalysis.class);
         verify(analysisRepository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
@@ -107,7 +107,7 @@ class LlmAnalysisRunnerTest {
         existing.setAnalysisStatus("ready");
         when(analysisRepository.findByActivityId(3L)).thenReturn(Optional.of(existing));
 
-        runner.runAsync(3L, metrics());
+        runner.runSync(3L, metrics());
 
         verify(suggestionGenerator, never()).generateSuggestions(any());
         verify(analysisRepository, never()).save(any());
@@ -123,7 +123,7 @@ class LlmAnalysisRunnerTest {
         when(suggestionGenerator.generateSuggestions(any()))
                 .thenThrow(new LlmClient.LlmCallException("401", false));
 
-        runner.runAsync(3L, metrics());
+        runner.runSync(3L, metrics());
 
         // 升级失败：不覆盖原记录
         verify(analysisRepository, never()).save(any());

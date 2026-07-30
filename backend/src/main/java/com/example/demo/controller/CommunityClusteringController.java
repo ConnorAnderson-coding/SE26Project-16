@@ -1,5 +1,19 @@
 package com.example.demo.controller;
 
+import java.io.IOException;
+import java.net.URI;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.demo.common.ApiResponse;
 import com.example.demo.community.api.ClusteringApiException;
 import com.example.demo.community.api.CommunityClusteringDtos.LatestResult;
@@ -21,19 +35,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.net.URI;
-import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -44,6 +45,7 @@ public class CommunityClusteringController {
     private final ClusteringServiceProperties properties;
     private final ObjectReader runRequestReader;
 
+    @SuppressWarnings("deprecation")
     public CommunityClusteringController(
             CommunityClusteringQueryService queryService,
             ClusteringSubmissionService submissionService,
@@ -69,7 +71,8 @@ public class CommunityClusteringController {
         if (!properties.enabled()) {
             throw new ClusteringApiException(HttpStatus.SERVICE_UNAVAILABLE, "社区聚类服务当前未启用");
         }
-        int clusterCount = request == null || request.clusterCount() == null ? 2 : request.clusterCount();
+        Integer requestedClusterCount = request == null ? null : request.clusterCount();
+        int clusterCount = requestedClusterCount == null ? 2 : requestedClusterCount;
         try {
             ClusteringRun run = submissionService.submit(SecurityUtils.getCurrentUserId(), clusterCount);
             RunAccepted body = new RunAccepted(run.getId(), run.getVersion(), run.getAlgorithm().name(),

@@ -30,6 +30,13 @@ public class LlmAnalysisRunner {
     
     @Async("llmExecutor")
     public void runAsync(Long activityId, ActivityMetrics metrics) {
+        runSync(activityId, metrics);
+    }
+
+    /**
+     * 同步执行分析逻辑（供单元测试直接调用，绕过 AspectJ LTW 对 @Async 的拦截）。
+     */
+    void runSync(Long activityId, ActivityMetrics metrics) {
         log.info("[异步分析] 开始 activityId={}", activityId);
 
         // 检查是否已有 LLM 生成的固化建议

@@ -1,5 +1,15 @@
 package com.example.demo.community.service;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.example.demo.community.api.ClusteringApiException;
 import com.example.demo.community.api.CommunityClusteringDtos.AdminMember;
 import com.example.demo.community.api.CommunityClusteringDtos.CommunitySummary;
@@ -22,16 +32,6 @@ import com.example.demo.entity.CommunityMember;
 import com.example.demo.repository.ClusteringRunRepository;
 import com.example.demo.repository.CommunityMemberRepository;
 import com.example.demo.repository.CommunityRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
 
 @Service
 public class CommunityClusteringQueryService {
@@ -132,7 +132,6 @@ public class CommunityClusteringQueryService {
                 run.getCreatedAt(), run.getStartedAt(), run.getFinishedAt(), run.getCreatedBy());
     }
 
-    @SuppressWarnings("unchecked")
     private Metrics metrics(ClusteringRun run) {
         if (run.getStatus() != ClusteringRunStatus.SUCCESS || run.getMetrics() == null) {
             return null;

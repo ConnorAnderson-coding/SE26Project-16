@@ -35,7 +35,7 @@ class AnalyticsEngineTest {
     private Activity activity;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         activity = new Activity();
         activity.setId(7L);
         activity.setTitle("校园羽毛球友谊赛");

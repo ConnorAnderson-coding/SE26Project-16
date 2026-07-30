@@ -1,22 +1,23 @@
 package com.example.demo.community.client;
 
-import com.example.demo.community.client.ClusteringClientException.Kind;
-import com.example.demo.community.client.ClusteringContracts.FeatureSample;
-import com.example.demo.community.client.ClusteringContracts.Request;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import okhttp3.mockwebserver.MockResponse;
-import okhttp3.mockwebserver.MockWebServer;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.web.client.RestClient;
+
+import com.example.demo.community.client.ClusteringClientException.Kind;
+import com.example.demo.community.client.ClusteringContracts.FeatureSample;
+import com.example.demo.community.client.ClusteringContracts.Request;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
 
 class RestClientClusteringClientTest {
 
@@ -24,7 +25,7 @@ class RestClientClusteringClientTest {
     private RestClientClusteringClient client;
 
     @BeforeEach
-    void setUp() throws IOException {
+    public void setUp() throws IOException {
         server = new MockWebServer();
         server.start();
         client = new RestClientClusteringClient(
@@ -34,7 +35,7 @@ class RestClientClusteringClientTest {
     }
 
     @AfterEach
-    void tearDown() throws IOException {
+    public void tearDown() throws IOException {
         server.shutdown();
     }
 

@@ -1,5 +1,19 @@
 package com.example.demo.service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.AfterEach;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.springframework.security.core.context.SecurityContextHolder;
+
 import com.example.demo.common.BusinessException;
 import com.example.demo.dto.request.ActivityRecordRequest;
 import com.example.demo.entity.Activity;
@@ -7,22 +21,11 @@ import com.example.demo.entity.ActivityRecord;
 import com.example.demo.entity.User;
 import com.example.demo.repository.ActivityRecordRepository;
 import com.example.demo.repository.ActivityRepository;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.security.core.context.SecurityContextHolder;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 class ActivityRecordServiceTest extends ServiceTestSupport {
 
     @AfterEach
-    void clearSecurity() {
+    public void clearSecurity() {
         SecurityContextHolder.clearContext();
     }
 

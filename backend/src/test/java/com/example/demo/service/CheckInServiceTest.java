@@ -39,7 +39,7 @@ class CheckInServiceTest extends ServiceTestSupport {
     private CheckInService service;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
         activityRepository = mock(ActivityRepository.class);
         registrationRepository = mock(RegistrationRepository.class);
         checkInRepository = mock(CheckInRepository.class);
@@ -49,7 +49,7 @@ class CheckInServiceTest extends ServiceTestSupport {
     }
 
     @AfterEach
-    void clearSecurity() {
+    public void clearSecurity() {
         SecurityContextHolder.clearContext();
     }
 
