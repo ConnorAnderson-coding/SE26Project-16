@@ -25,7 +25,7 @@ class ActivityViewServiceTest {
         Activity a = new Activity();
         a.setId(id);
         a.setStatus("published");
-        when(activityRepository.findById(id)).thenReturn(Optional.of(a));
+        when(activityRepository.findByIdForUpdate(id)).thenReturn(Optional.of(a));
     }
 
     @Test
@@ -54,7 +54,7 @@ class ActivityViewServiceTest {
         Activity ended = new Activity();
         ended.setId(3L);
         ended.setStatus("ended");
-        when(activityRepository.findById(3L)).thenReturn(Optional.of(ended));
+        when(activityRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(ended));
 
         service.recordUniqueView(3L, "T001");
 

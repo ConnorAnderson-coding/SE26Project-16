@@ -48,7 +48,10 @@ public class FavoriteService {
     })
     public FavoriteToggleResponse toggle(Long activityId) {
         String userId = SecurityUtils.getCurrentUserId();
-        Activity activity = activityRepository.findById(activityId)
+        // Serialize counter changes for one hot activity. Updating the locked
+        // managed entity also prevents a stale entity from overwriting the
+        // counter during hotness recalculation.
+        Activity activity = activityRepository.findByIdForUpdate(activityId)
                 .orElseThrow(() -> new BusinessException("活动不存在"));
         // 数据冻结：活动已结束后不允许再切换收藏，避免收藏数继续变化。
         if ("ended".equals(activity.getStatus())) {
@@ -58,9 +61,10 @@ public class FavoriteService {
         boolean exists = favoriteRepository.existsById(favoriteId);
         if (exists) {
             favoriteRepository.deleteById(favoriteId);
-            activityRepository.decrementFavoriteCount(activityId, LocalDateTime.now());
-        activityHotnessService.recalculate(activity);
-        return FavoriteToggleResponse.builder().favorited(false).build();
+            activity.setFavoriteCount(Math.max(0, activity.getFavoriteCount() - 1));
+            activity.setUpdatedAt(LocalDateTime.now());
+            activityHotnessService.recalculate(activity);
+            return FavoriteToggleResponse.builder().favorited(false).build();
         }
         User user = userService.getUserEntity(userId);
         Favorite favorite = new Favorite();
@@ -69,7 +73,8 @@ public class FavoriteService {
         favorite.setActivity(activity);
         favorite.setCreatedAt(LocalDateTime.now());
         favoriteRepository.save(favorite);
-        activityRepository.incrementFavoriteCount(activityId, LocalDateTime.now());
+        activity.setFavoriteCount(activity.getFavoriteCount() + 1);
+        activity.setUpdatedAt(LocalDateTime.now());
         activityHotnessService.recalculate(activity);
         return FavoriteToggleResponse.builder().favorited(true).build();
     }

@@ -26,7 +26,11 @@ public class ActivityViewService {
     })
     public void recordUniqueView(Long activityId, String userId) {
         // 数据冻结：活动已结束后不再记录浏览，避免污染分析指标。
-        Activity activity = activityRepository.findById(activityId).orElse(null);
+        // Lock the parent row before inserting the child view record. Otherwise
+        // concurrent inserts hold foreign-key shared locks and then deadlock
+        // while all transactions try to upgrade the same activity row to write
+        // view_count.
+        Activity activity = activityRepository.findByIdForUpdate(activityId).orElse(null);
         if (activity == null || "ended".equals(activity.getStatus())) {
             return;
         }

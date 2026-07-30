@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Optional;
-import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -82,15 +81,16 @@ class FavoriteServiceTest extends ServiceTestSupport {
     void toggleFavoriteCreatesFavorite() {
         User user = login("user1", "student");
         Activity activity = activity(1L, user);
-        when(activityRepository.findById(1L)).thenReturn(Optional.of(activity));
+        int initialFavoriteCount = activity.getFavoriteCount();
+        when(activityRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activity));
         when(favoriteRepository.existsById(new FavoriteId("user1", 1L))).thenReturn(false);
         when(userService.getUserEntity("user1")).thenReturn(user);
 
         FavoriteToggleResponse response = service.toggle(1L);
 
         assertTrue(response.isFavorited());
+        assertEquals(initialFavoriteCount + 1, activity.getFavoriteCount());
         verify(favoriteRepository).save(any(Favorite.class));
-        verify(activityRepository).incrementFavoriteCount(eq(1L), any(LocalDateTime.class));
         verify(activityHotnessService).recalculate(activity);
     }
 
@@ -101,14 +101,14 @@ class FavoriteServiceTest extends ServiceTestSupport {
         User user = login("user1", "student");
         Activity activity = activity(1L, user);
         activity.setFavoriteCount(5);
-        when(activityRepository.findById(1L)).thenReturn(Optional.of(activity));
+        when(activityRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activity));
         when(favoriteRepository.existsById(new FavoriteId("user1", 1L))).thenReturn(true);
 
         FavoriteToggleResponse response = service.toggle(1L);
 
         assertFalse(response.isFavorited());
+        assertEquals(4, activity.getFavoriteCount());
         verify(favoriteRepository).deleteById(new FavoriteId("user1", 1L));
-        verify(activityRepository).decrementFavoriteCount(eq(1L), any(LocalDateTime.class));
         verify(activityHotnessService).recalculate(activity);
     }
 
@@ -117,12 +117,12 @@ class FavoriteServiceTest extends ServiceTestSupport {
         User user = login("user1", "student");
         Activity activity = activity(1L, user);
         activity.setFavoriteCount(0); // 已经是0
-        when(activityRepository.findById(1L)).thenReturn(Optional.of(activity));
+        when(activityRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activity));
         when(favoriteRepository.existsById(new FavoriteId("user1", 1L))).thenReturn(true);
 
         service.toggle(1L);
 
-        verify(activityRepository).decrementFavoriteCount(eq(1L), any(LocalDateTime.class));
+        assertEquals(0, activity.getFavoriteCount());
     }
 
     // ───── toggle() — error paths ─────
@@ -130,7 +130,7 @@ class FavoriteServiceTest extends ServiceTestSupport {
     @Test
     void toggleFavoriteThrowsWhenActivityNotFound() {
         login("user1", "student");
-        when(activityRepository.findById(99L)).thenReturn(Optional.empty());
+        when(activityRepository.findByIdForUpdate(99L)).thenReturn(Optional.empty());
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.toggle(99L));
@@ -142,7 +142,7 @@ class FavoriteServiceTest extends ServiceTestSupport {
         login("user1", "student");
         Activity activity = activity(1L, user("org", "organizer"));
         activity.setStatus("ended");
-        when(activityRepository.findById(1L)).thenReturn(Optional.of(activity));
+        when(activityRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(activity));
 
         BusinessException ex = assertThrows(BusinessException.class,
                 () -> service.toggle(1L));
