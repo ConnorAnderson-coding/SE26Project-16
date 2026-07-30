@@ -99,8 +99,15 @@ public class ActivityHotnessService implements ApplicationRunner {
         double hotnessScore = calculateHotness(activity);
         activity.setHotnessScore(hotnessScore);
         activityRepository.save(activity);
+        cacheScore(activity.getId(), hotnessScore);
+    }
+
+    public void cacheScore(Long activityId, double hotnessScore) {
+        if (activityId == null) {
+            return;
+        }
         stringRedisTemplate.opsForZSet().add(
-                ACTIVITY_HOTNESS_ZSET_KEY, String.valueOf(activity.getId()), hotnessScore);
+                ACTIVITY_HOTNESS_ZSET_KEY, String.valueOf(activityId), hotnessScore);
     }
 
     private double calculateBaseHotness(Activity activity) {

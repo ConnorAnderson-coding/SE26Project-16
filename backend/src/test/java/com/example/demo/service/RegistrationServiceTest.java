@@ -40,7 +40,8 @@ class RegistrationServiceTest extends ServiceTestSupport {
         UserService users = mock(UserService.class);
         ObjectProvider<UserPreferenceVectorService> provider = provider();
         RegistrationService service = new RegistrationService(
-                registrations, activities, users, provider, mock(ActivityHotnessService.class));
+                registrations, activities, users, provider, mock(ActivityHotnessService.class),
+                mock(RegistrationCacheRefreshService.class));
         User student = login("student", "student");
         Activity activity = activity(1L, user("owner", "teacher"));
         activity.setSignupCount(1);
@@ -52,7 +53,7 @@ class RegistrationServiceTest extends ServiceTestSupport {
 
         assertEquals("pending", service.signup(request).getStatus());
         assertEquals(2, activity.getSignupCount());
-        verify(registrations).save(any(Registration.class));
+        verify(registrations).saveAndFlush(any(Registration.class));
         verify(activities).save(activity);
 
         Registration registration = registration(activity, student, "approved");
@@ -69,7 +70,8 @@ class RegistrationServiceTest extends ServiceTestSupport {
         RegistrationRepository registrations = mock(RegistrationRepository.class);
         ActivityRepository activities = mock(ActivityRepository.class);
         RegistrationService service = new RegistrationService(
-                registrations, activities, mock(UserService.class), provider(), mock(ActivityHotnessService.class));
+                registrations, activities, mock(UserService.class), provider(), mock(ActivityHotnessService.class),
+                mock(RegistrationCacheRefreshService.class));
         login("student", "student");
         RegistrationRequest request = new RegistrationRequest();
         request.setActivityId(1L);
@@ -94,7 +96,8 @@ class RegistrationServiceTest extends ServiceTestSupport {
     void reviewsApprovedAndRejectedRegistrations() {
         RegistrationRepository registrations = mock(RegistrationRepository.class);
         RegistrationService service = new RegistrationService(
-                registrations, mock(ActivityRepository.class), mock(UserService.class), provider(), mock(ActivityHotnessService.class));
+                registrations, mock(ActivityRepository.class), mock(UserService.class), provider(),
+                mock(ActivityHotnessService.class), mock(RegistrationCacheRefreshService.class));
         User owner = login("owner", "teacher");
         User student = user("student", "student");
         Activity activity = activity(1L, owner);

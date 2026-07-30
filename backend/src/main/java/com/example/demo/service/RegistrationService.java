@@ -16,7 +16,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -32,6 +35,7 @@ public class RegistrationService {
     private final UserService userService;
     private final ObjectProvider<UserPreferenceVectorService> userPreferenceVectorService;
     private final ActivityHotnessService activityHotnessService;
+    private final RegistrationCacheRefreshService registrationCacheRefreshService;
 
     @Transactional
     @Caching(evict = {
@@ -41,35 +45,60 @@ public class RegistrationService {
     })
     public RegistrationResponse signup(RegistrationRequest request) {
         String userId = SecurityUtils.getCurrentUserId();
+        // User data is independent of the activity capacity. Resolve it before
+        // taking the hot activity row lock so concurrent signups do not
+        // serialize this lookup.
+        User user = userService.getUserEntity(userId);
+        if (registrationRepository.existsByActivityIdAndUserId(request.getActivityId(), userId)) {
+            throw new BusinessException("您已报名该活动");
+        }
+
         Activity activity = activityRepository.findByIdForUpdate(request.getActivityId())
                 .orElseThrow(() -> new BusinessException("活动不存在"));
         if (!"published".equals(activity.getStatus())) {
             throw new BusinessException("该活动暂不可报名");
         }
-        if (registrationRepository.existsByActivityIdAndUserId(activity.getId(), userId)) {
-            throw new BusinessException("您已报名该活动");
-        }
         if (activity.getSignupCount() >= activity.getMaxParticipants()) {
             throw new BusinessException("报名人数已满");
         }
 
-        User user = userService.getUserEntity(userId);
         Registration registration = new Registration();
         registration.setActivity(activity);
         registration.setUser(user);
         registration.setStatus("pending");
         registration.setCreatedAt(LocalDateTime.now());
-        registrationRepository.save(registration);
+        try {
+            registrationRepository.saveAndFlush(registration);
+        }
+        catch (DataIntegrityViolationException ex) {
+            // The pre-check handles the normal duplicate path. The database
+            // unique key closes the race between simultaneous duplicate clicks.
+            throw new BusinessException("您已报名该活动");
+        }
 
         activity.setSignupCount(activity.getSignupCount() + 1);
         activity.setUpdatedAt(LocalDateTime.now());
+        double hotnessScore = activityHotnessService.calculateHotness(activity);
+        activity.setHotnessScore(hotnessScore);
         activityRepository.save(activity);
-        activityHotnessService.recalculate(activity);
 
         registration.setActivity(activity);
         registration.setUser(user);
-        userPreferenceVectorService.ifAvailable(svc -> svc.invalidate(userId));
+        refreshCachesAfterCommit(activity.getId(), hotnessScore, userId);
         return DtoMapper.toRegistrationResponse(registration);
+    }
+
+    private void refreshCachesAfterCommit(Long activityId, double hotnessScore, String userId) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            registrationCacheRefreshService.refresh(activityId, hotnessScore, userId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                registrationCacheRefreshService.refresh(activityId, hotnessScore, userId);
+            }
+        });
     }
 
     @Transactional(readOnly = true)
