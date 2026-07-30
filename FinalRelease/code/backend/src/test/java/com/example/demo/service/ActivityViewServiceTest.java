@@ -8,6 +8,8 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -33,8 +35,9 @@ class ActivityViewServiceTest {
         stubActiveActivity(3L);
         when(viewRepository.insertIfAbsent(any(), any(), any(LocalDateTime.class))).thenReturn(1);
 
-        service.recordUniqueView(3L, "T001");
+        boolean inserted = service.recordUniqueView(3L, "T001");
 
+        assertTrue(inserted);
         verify(activityRepository).incrementViewCount(3L);
     }
 
@@ -43,8 +46,9 @@ class ActivityViewServiceTest {
         stubActiveActivity(3L);
         when(viewRepository.insertIfAbsent(any(), any(), any(LocalDateTime.class))).thenReturn(0);
 
-        service.recordUniqueView(3L, "T001");
+        boolean inserted = service.recordUniqueView(3L, "T001");
 
+        assertFalse(inserted);
         verify(activityRepository, never()).incrementViewCount(any());
     }
 
@@ -56,8 +60,20 @@ class ActivityViewServiceTest {
         ended.setStatus("ended");
         when(activityRepository.findByIdForUpdate(3L)).thenReturn(Optional.of(ended));
 
-        service.recordUniqueView(3L, "T001");
+        boolean inserted = service.recordUniqueView(3L, "T001");
 
+        assertFalse(inserted);
+        verify(viewRepository, never()).insertIfAbsent(any(), any(), any(LocalDateTime.class));
+        verify(activityRepository, never()).incrementViewCount(any());
+    }
+
+    @Test
+    void doesNotRecordViewWhenActivityDoesNotExist() {
+        when(activityRepository.findByIdForUpdate(404L)).thenReturn(Optional.empty());
+
+        boolean inserted = service.recordUniqueView(404L, "T001");
+
+        assertFalse(inserted);
         verify(viewRepository, never()).insertIfAbsent(any(), any(), any(LocalDateTime.class));
         verify(activityRepository, never()).incrementViewCount(any());
     }

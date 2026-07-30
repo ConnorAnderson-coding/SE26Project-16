@@ -21,10 +21,10 @@ public class ActivityViewService {
 
     @Transactional
     @Caching(evict = {
-            @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#activityId"),
-            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#activityId")
+            @CacheEvict(value = CacheNames.ACTIVITY_DETAIL, key = "#activityId", condition = "#result"),
+            @CacheEvict(value = CacheNames.ANALYTICS_ACTIVITY, key = "#activityId", condition = "#result")
     })
-    public void recordUniqueView(Long activityId, String userId) {
+    public boolean recordUniqueView(Long activityId, String userId) {
         // 数据冻结：活动已结束后不再记录浏览，避免污染分析指标。
         // Lock the parent row before inserting the child view record. Otherwise
         // concurrent inserts hold foreign-key shared locks and then deadlock
@@ -32,12 +32,14 @@ public class ActivityViewService {
         // view_count.
         Activity activity = activityRepository.findByIdForUpdate(activityId).orElse(null);
         if (activity == null || "ended".equals(activity.getStatus())) {
-            return;
+            return false;
         }
         int inserted = activityViewRepository.insertIfAbsent(
                 activityId, userId, LocalDateTime.now());
         if (inserted > 0) {
             activityRepository.incrementViewCount(activityId);
+            return true;
         }
+        return false;
     }
 }
