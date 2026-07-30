@@ -20,7 +20,8 @@ class ActivityViewServiceTest {
 
     private final ActivityViewRepository viewRepository = mock(ActivityViewRepository.class);
     private final ActivityRepository activityRepository = mock(ActivityRepository.class);
-    private final ActivityViewService service = new ActivityViewService(viewRepository, activityRepository);
+    private final ActivityViewService service =
+            new ActivityViewService(viewRepository, activityRepository, null);
 
     /** 构造一个"进行中"的活动，供 recordUniqueView 的状态守卫放行。 */
     private void stubActiveActivity(Long id) {

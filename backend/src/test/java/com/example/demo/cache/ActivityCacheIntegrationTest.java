@@ -127,7 +127,7 @@ class ActivityCacheIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void firstUniqueViewShouldEvictDetailCache() {
+    void firstUniqueViewShouldKeepDetailCache() {
         Long activityId = scenario.activity().getId();
         activityRepo.findWithDetailsById(activityId);
         Cache cache = cacheManager.getCache(CacheNames.ACTIVITY_DETAIL);
@@ -137,7 +137,8 @@ class ActivityCacheIntegrationTest extends IntegrationTestSupport {
                 activityId, scenario.student().getId());
 
         assertTrue(inserted);
-        assertNull(cache.get(activityId));
+        // Soft view_count lag is preferred over thrashing detail under stampedes.
+        assertNotNull(cache.get(activityId));
     }
 
     @Test

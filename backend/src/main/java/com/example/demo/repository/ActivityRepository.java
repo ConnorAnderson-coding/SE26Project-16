@@ -37,7 +37,8 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
             Pageable pageable);
 
     @EntityGraph(attributePaths = {"organizer", "record"})
-    @Cacheable(value = CacheNames.ACTIVITY_DETAIL, key = "#id")
+    // sync=true: single-flight cold loads — avoids Redis stampede on detail miss.
+    @Cacheable(value = CacheNames.ACTIVITY_DETAIL, key = "#id", sync = true)
     Optional<Activity> findWithDetailsById(Long id);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

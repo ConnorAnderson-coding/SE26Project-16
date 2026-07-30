@@ -91,18 +91,23 @@ public class ActivityService {
                 result.getTotalElements(), result.getTotalPages());
     }
 
-    @Transactional
+    /**
+     * Detail read stays off the unique-view write path: no surrounding write txn
+     * and view accounting runs asynchronously so FOR UPDATE stalls do not inflate
+     * GET /activities/{id} latency under cold-start stampedes.
+     */
     public ActivityResponse getById(Long id) {
         Activity activity = activityRepository.findWithDetailsById(id)
                 .orElseThrow(() -> new BusinessException("活动不存在"));
+        ActivityResponse response = DtoMapper.toActivityResponse(activity);
 
         try {
             String userId = SecurityUtils.getCurrentUserId();
-            activityViewService.recordUniqueView(id, userId);
+            activityViewService.recordUniqueViewAsync(id, userId);
         } catch (BusinessException ignored) {
             // 未登录等场景，静默跳过
         }
-        return DtoMapper.toActivityResponse(activity);
+        return response;
     }
 
     @Transactional(readOnly = true)

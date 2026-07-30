@@ -79,13 +79,16 @@ public class RedisConfig {
 
         Map<String, RedisCacheConfiguration> perCache = new HashMap<>();
         perCache.put(CacheNames.USER_PROFILE, defaults.entryTtl(Duration.ofHours(1)));
-        perCache.put(CacheNames.ACTIVITY_DETAIL, defaults.entryTtl(Duration.ofMinutes(15)));
-        perCache.put(CacheNames.ACTIVITY_HOT_LIST, defaults.entryTtl(Duration.ofMinutes(10)));
+        // Detail is read-heavy; writers (update/signup/favorite/record) evict explicitly.
+        // Unique-view accounting no longer evicts this cache (avoids first-browse stampedes).
+        perCache.put(CacheNames.ACTIVITY_DETAIL, defaults.entryTtl(Duration.ofMinutes(20)));
+        perCache.put(CacheNames.ACTIVITY_HOT_LIST, defaults.entryTtl(Duration.ofMinutes(5)));
         perCache.put(CacheNames.FEEDBACK_BY_ACTIVITY, defaults.entryTtl(Duration.ofMinutes(20)));
         perCache.put(CacheNames.ACTIVITY_RECORD, defaults.entryTtl(Duration.ofHours(2)));
-        // 分析结果短时缓存；报名、签到、收藏、浏览等写操作会主动失效对应活动缓存。
-        perCache.put(CacheNames.ANALYTICS_ACTIVITY, defaults.entryTtl(Duration.ofMinutes(30)));
+        // Invalidated on signup/check-in/favorite/new unique view.
+        perCache.put(CacheNames.ANALYTICS_ACTIVITY, defaults.entryTtl(Duration.ofMinutes(15)));
 
+        // transactionAware: apply puts/evicts only after DB commit.
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaults)
                 .withInitialCacheConfigurations(perCache)

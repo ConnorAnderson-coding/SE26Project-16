@@ -119,7 +119,7 @@ class ActivityServiceTest extends ServiceTestSupport {
         login("student", "student");
 
         assertEquals(2L, service.getById(2L).getId());
-        verify(activityViewService).recordUniqueView(2L, "student");
+        verify(activityViewService).recordUniqueViewAsync(2L, "student");
 
         SecurityContextHolder.clearContext();
         assertEquals(2L, service.getById(2L).getId());
