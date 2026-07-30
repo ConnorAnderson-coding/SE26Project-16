@@ -35,7 +35,6 @@ import com.example.demo.dto.response.CheckInStatsResponse;
 import com.example.demo.entity.Activity;
 import com.example.demo.entity.CheckIn;
 import com.example.demo.entity.Registration;
-import com.example.demo.entity.User;
 import com.example.demo.repository.ActivityRepository;
 import com.example.demo.repository.CheckInRepository;
 import com.example.demo.repository.RegistrationRepository;
@@ -58,7 +57,6 @@ public class CheckInService {
     private final ActivityRepository activityRepository;
     private final RegistrationRepository registrationRepository;
     private final CheckInRepository checkInRepository;
-    private final UserService userService;
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final SecureRandom secureRandom = new SecureRandom();
     private final Map<String, TimedValue> localStore = new ConcurrentHashMap<>();
@@ -206,6 +204,12 @@ public class CheckInService {
     }
 
     private CheckIn createCheckIn(Activity activity, String method, Double latitude, Double longitude, Double distanceMeters) {
+        // Acquire the parent row write lock before checking or inserting child
+        // records. All check-in methods therefore use the same lock order and
+        // avoid foreign-key shared-lock upgrades under high concurrency.
+        activity = activityRepository.findByIdForUpdate(activity.getId())
+                .orElseThrow(() -> new BusinessException("活动不存在"));
+
         String userId = SecurityUtils.getCurrentUserId();
         Registration registration = registrationRepository.findByActivityIdAndUserId(activity.getId(), userId)
                 .orElseThrow(() -> new BusinessException("未报名该活动，不能签到"));
@@ -217,10 +221,12 @@ public class CheckInService {
         }
         assertCheckInWindow(activity);
 
-        User user = userService.getUserEntity(userId);
         CheckIn checkIn = new CheckIn();
         checkIn.setActivity(activity);
-        checkIn.setUser(user);
+        // Reuse the user reference already managed by this transaction. Loading a
+        // cached JPA entity here can reintroduce a detached Hibernate proxy and
+        // also adds unnecessary work while the activity row lock is held.
+        checkIn.setUser(registration.getUser());
         checkIn.setMethod(method);
         checkIn.setCheckedAt(LocalDateTime.now());
         checkIn.setLatitude(latitude);

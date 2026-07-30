@@ -35,7 +35,6 @@ class CheckInServiceTest extends ServiceTestSupport {
     private ActivityRepository activityRepository;
     private RegistrationRepository registrationRepository;
     private CheckInRepository checkInRepository;
-    private UserService userService;
     private ObjectProvider<StringRedisTemplate> redisProvider;
     private CheckInService service;
 
@@ -44,10 +43,9 @@ class CheckInServiceTest extends ServiceTestSupport {
         activityRepository = mock(ActivityRepository.class);
         registrationRepository = mock(RegistrationRepository.class);
         checkInRepository = mock(CheckInRepository.class);
-        userService = mock(UserService.class);
         redisProvider = mock(ObjectProvider.class);
         service = new CheckInService(activityRepository, registrationRepository, checkInRepository,
-                userService, redisProvider);
+                redisProvider);
     }
 
     @AfterEach
@@ -156,6 +154,7 @@ class CheckInServiceTest extends ServiceTestSupport {
         User organizer = user("org", "organizer");
         Activity activity = activity(6, organizer);
         when(activityRepository.findById(6L)).thenReturn(Optional.of(activity));
+        when(activityRepository.findByIdForUpdate(6L)).thenReturn(Optional.of(activity));
         login("student", "student");
         LocationCheckInRequest request = locationRequest(6L, 30.0, 120.0);
         activity.setLatitude(30.0);
@@ -247,11 +246,10 @@ class CheckInServiceTest extends ServiceTestSupport {
     }
 
     private void prepareApprovedCheckIn(Activity activity, String userId) {
+        when(activityRepository.findByIdForUpdate(activity.getId())).thenReturn(Optional.of(activity));
         Registration registration = registration(activity, userId, "approved");
         when(registrationRepository.findByActivityIdAndUserId(activity.getId(), userId))
                 .thenReturn(Optional.of(registration));
-        User student = user(userId, "student");
-        when(userService.getUserEntity(userId)).thenReturn(student);
         when(checkInRepository.save(any())).thenAnswer(invocation -> {
             CheckIn value = invocation.getArgument(0);
             value.setId(100L);
