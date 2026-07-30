@@ -41,7 +41,7 @@
 
 ---
 
-## 一键启动（推荐）
+## 一键启动（推荐 · 本地开发）
 
 **前置条件**：已安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)、JDK 25、Node.js 20+；仅使用 `-SkipDeploy` 且本机没有运行聚类容器时，还需 Python 3.11+。
 
@@ -69,6 +69,29 @@
 | Kibana | http://localhost:5601 |
 
 演示账号：`524030910001` / `123456`（学生）
+
+### 全栈 Docker 部署（云服务器 / 压测）
+
+将 **Nginx + 前端静态资源 + 后端 + MySQL + Redis + ES + 聚类服务** 全部容器化。
+
+**Ubuntu 云主机（推荐）：**
+
+```bash
+cd deploy
+cp .env.example .env   # 修改 PUBLIC_BASE_URL / CORS_ORIGINS
+chmod +x ../start.sh ./deploy.sh ../database/init-es.sh
+../start.sh            # 或 ./deploy.sh
+```
+
+仅 ES 初始化：`database/./init-es.sh`（可选 `HF_ENDPOINT=https://hf-mirror.com`）。
+
+**Windows：** `cd deploy; .\deploy.ps1`
+
+- 对外入口：`http://localhost`（或服务器公网 IP），API 走同域 `/api/v1`
+- 说明见 [`deploy/README.md`](deploy/README.md)
+- 简易冒烟：`.\deploy\perf-smoke.ps1`（Windows）或 `curl` 登录接口
+
+> 开发用 `start.ps1` 与部署用 `deploy/deploy.sh` 容器名重叠，请勿同时启动两套编排。
 
 ### 常用参数
 

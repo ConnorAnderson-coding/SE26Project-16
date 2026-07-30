@@ -8,7 +8,8 @@
 |------|------|
 | [`../start.ps1`](../start.ps1) | **一键启动**（基础设施 + 前后端） |
 | [`deploy.ps1`](deploy.ps1) | 仅部署 Docker + ES 初始化 |
-| [`init-es.ps1`](init-es.ps1) | 创建 ES 索引、部署 GTE、注册 pipeline |
+| [`init-es.ps1`](init-es.ps1) | 创建 ES 索引、部署 GTE、注册 pipeline（Windows） |
+| [`init-es.sh`](init-es.sh) | 同上（Ubuntu / Linux） |
 | [`reload-demo-data.ps1`](reload-demo-data.ps1) | 修改 seed 后重导 MySQL 并清 Redis |
 | [`verify-phase0.ps1`](verify-phase0.ps1) | Phase 0 基础设施验收（开发/CI 用） |
 
@@ -36,6 +37,17 @@ docker compose --profile clustering up -d
 `GET /internal/v1/health`。后端在宿主机开发运行时使用
 `COMMUNITY_CLUSTERING_URL=http://127.0.0.1:8000`；不要将该端口作为浏览器公开 API。
 
+构建默认使用清华 PyPI 镜像，避免国内访问 `files.pythonhosted.org` 超时。可覆盖：
+
+```powershell
+$env:PIP_INDEX_URL = "https://mirrors.aliyun.com/pypi/simple"
+$env:PIP_TRUSTED_HOST = "mirrors.aliyun.com"
+docker compose --profile clustering up -d --build
+```
+
+聚类构建失败时，`deploy.ps1` / `start.ps1` 会跳过该容器并继续部署 MySQL / Redis / ES；也可用
+`.\start.ps1 -SkipClustering` 显式跳过。
+
 ### Elasticsearch（检索已落地 · 推荐待复用）
 
 对应 [`技术选型.md`](../doc/技术选型.md) 与 [`检索与推荐算法流程.md`](../检索与推荐算法流程.md)：
@@ -56,10 +68,8 @@ docker compose up -d --build elasticsearch
 
 > **从 E5 切换到 GTE**：维度 384→512，必须 `.\init-es.ps1 -ForceRecreateIndex`，再 `POST /api/v1/search/index/rebuild`。阈值已按 gte-small-zh 重测为 0.90。  
 > **国内网络**：默认 `HF_ENDPOINT=https://huggingface.co`；`eland:latest` 与 ES 8.15 不兼容，须用 `docker.elastic.co/eland/eland:8.15.0`。
-> 若 `huggingface.co` 不可用，可改用其它可访问的镜像源：
-> `.
-init-es.ps1 -HfEndpoint "https://<your-endpoint>"`
-
+> 若 `huggingface.co` 不可用，可改用其它可访问的镜像源，例如：
+> `.\init-es.ps1 -HfEndpoint "https://hf-mirror.com"` 或 `HF_ENDPOINT=https://hf-mirror.com ./init-es.sh`
 
 ```powershell
 cd database
@@ -69,12 +79,30 @@ cd database
 # .\init-es.ps1 -HfEndpoint "https://huggingface.co"
 ```
 
+Ubuntu / Linux：
+
+```bash
+cd database
+chmod +x ./init-es.sh
+./init-es.sh
+# ./init-es.sh --skip-embedding
+# HF_ENDPOINT=https://hf-mirror.com ./init-es.sh
+# ./init-es.sh --force-recreate-index
+```
+
 或使用一键部署（含上述步骤）：
 
 ```powershell
 cd database
 .\deploy.ps1
 # 清空重来：.\deploy.ps1 -ForceRecreateDb
+```
+
+Ubuntu 全栈一键部署：
+
+```bash
+chmod +x start.sh deploy/deploy.sh database/init-es.sh
+./start.sh
 ```
 
 验证：
