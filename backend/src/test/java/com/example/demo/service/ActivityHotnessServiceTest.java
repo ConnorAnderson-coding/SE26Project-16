@@ -70,7 +70,7 @@ class ActivityHotnessServiceTest extends ServiceTestSupport {
         service.recalculateById(1L);
         service.run(null);
         service.scheduleHotnessCalculation();
-        verify(repository, atLeast(5)).save(activity);
+        verify(repository, atLeast(5)).updateHotnessScore(eq(1L), anyDouble(), any());
         verify(zset, atLeastOnce()).add(eq("activity:hotness"), eq("1"), anyDouble());
 
         service.recalculate(null);

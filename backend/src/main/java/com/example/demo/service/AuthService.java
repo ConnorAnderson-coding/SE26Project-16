@@ -11,6 +11,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JAccountAuthClient;
 import com.example.demo.security.JAccountUserInfo;
 import com.example.demo.security.JwtTokenProvider;
+import com.example.demo.security.UserPrincipal;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,10 +46,10 @@ public class AuthService {
     private final ObjectProvider<StringRedisTemplate> stringRedisTemplateProvider;
 
     public AuthResponse login(LoginRequest request) {
-        authenticationManager.authenticate(
+        Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getUserId(), request.getPassword()));
-        User user = userRepository.findById(request.getUserId())
-                .orElseThrow(() -> new BusinessException("用户不存在"));
+        // Reuse the User already loaded by UserDetailsService — avoid a second DB round-trip.
+        User user = ((UserPrincipal) authentication.getPrincipal()).getUser();
         String token = jwtTokenProvider.generateToken(user.getId());
         return AuthResponse.builder()
                 .token(token)

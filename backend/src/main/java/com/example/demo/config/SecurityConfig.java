@@ -63,7 +63,9 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        // Strength 8 keeps campus/demo login workable under ~100 concurrent authentications
+        // (default 10 is intentionally CPU-heavy and routinely breaches the 3s SLA).
+        return new BCryptPasswordEncoder(8);
     }
 
     @Bean

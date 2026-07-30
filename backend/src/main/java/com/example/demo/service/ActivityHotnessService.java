@@ -96,9 +96,12 @@ public class ActivityHotnessService implements ApplicationRunner {
     }
 
     private void persistHotness(Activity activity) {
+        if (activity.getId() == null) {
+            return;
+        }
         double hotnessScore = calculateHotness(activity);
         activity.setHotnessScore(hotnessScore);
-        activityRepository.save(activity);
+        activityRepository.updateHotnessScore(activity.getId(), hotnessScore, LocalDateTime.now());
         cacheScore(activity.getId(), hotnessScore);
     }
 

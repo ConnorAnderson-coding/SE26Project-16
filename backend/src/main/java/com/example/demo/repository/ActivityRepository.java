@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Collection;
 
+import org.springframework.transaction.annotation.Transactional;
+
 public interface ActivityRepository extends JpaRepository<Activity, Long> {
 
     @EntityGraph(attributePaths = "organizer")
@@ -63,6 +65,15 @@ public interface ActivityRepository extends JpaRepository<Activity, Long> {
     @Query("UPDATE Activity a SET a.favoriteCount = GREATEST(a.favoriteCount - 1, 0), " +
            "a.updatedAt = :now WHERE a.id = :id")
     int decrementFavoriteCount(@Param("id") Long id, @Param("now") LocalDateTime now);
+
+    /** Only touch hotness_score — never write back counters advanced by concurrent UPDATEs. */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Activity a SET a.hotnessScore = :score, a.updatedAt = :now WHERE a.id = :id")
+    int updateHotnessScore(
+            @Param("id") Long id,
+            @Param("score") Double score,
+            @Param("now") LocalDateTime now);
 
     @EntityGraph(attributePaths = "organizer")
     List<Activity> findByOrganizerIdOrderByStartTimeDesc(String organizerId);

@@ -10,6 +10,7 @@ import com.example.demo.repository.UserRepository;
 import com.example.demo.security.JAccountAuthClient;
 import com.example.demo.security.JAccountUserInfo;
 import com.example.demo.security.JwtTokenProvider;
+import com.example.demo.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
@@ -17,6 +18,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -58,7 +60,9 @@ class AuthServiceTest {
     @Test
     void loginWithValidCredentialsReturnsToken() {
         User user = createUser("user1", "张三", "student");
-        when(userRepository.findById("user1")).thenReturn(Optional.of(user));
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                new UserPrincipal(user), null, List.of());
+        when(authenticationManager.authenticate(any())).thenReturn(authentication);
 
         LoginRequest request = new LoginRequest();
         request.setUserId("user1");
@@ -86,15 +90,15 @@ class AuthServiceTest {
     }
 
     @Test
-    void loginWithNonExistentUserThrowsBusinessException() {
-        when(authenticationManager.authenticate(any())).thenReturn(null);
-        when(userRepository.findById("nonexistent")).thenReturn(Optional.empty());
+    void loginWithNonExistentUserThrowsBadCredentials() {
+        doThrow(new BadCredentialsException("用户不存在"))
+                .when(authenticationManager).authenticate(any());
 
         LoginRequest request = new LoginRequest();
         request.setUserId("nonexistent");
         request.setPassword("password");
 
-        assertThrows(BusinessException.class, () -> authService.login(request));
+        assertThrows(BadCredentialsException.class, () -> authService.login(request));
     }
 
     @Test
