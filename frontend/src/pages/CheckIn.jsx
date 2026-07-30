@@ -22,14 +22,13 @@ const CHECKIN_METHODS = {
   password: '动态口令签到'
 }
 
-function parseQrContent(value) {
-  const text = value.trim()
-  if (!text) return null
-  if (!text.startsWith('CHECKIN:')) {
-    return { token: text }
-  }
-  const [, activityId, token] = text.split(':')
-  return activityId && token ? { activityId, token } : null
+function buildQrCheckInUrl(session) {
+  if (!session?.activityId || !session?.token) return null
+  const baseUrl = import.meta.env.VITE_FRONTEND_BASE_URL || window.location.origin
+  const url = new URL('/checkin/qrcode', baseUrl)
+  url.searchParams.set('activityId', String(session.activityId))
+  url.searchParams.set('token', session.token)
+  return url.toString()
 }
 
 export default function CheckIn() {
@@ -44,7 +43,6 @@ export default function CheckIn() {
   const [activity, setActivity] = useState(null)
   const [qrSession, setQrSession] = useState(null)
   const [passwordSession, setPasswordSession] = useState(null)
-  const [qrInput, setQrInput] = useState('')
   const [password, setPassword] = useState('')
   const [activityStats, setActivityStats] = useState(null)
   const [sessionLoading, setSessionLoading] = useState(false)
@@ -125,17 +123,6 @@ export default function CheckIn() {
       .map(a => ({ ...a, role: 'organizer' }))
   ], [approvedActivities, organizerActivities])
 
-  const submitQrCheckIn = async () => {
-    const parsed = parseQrContent(qrInput)
-    if (!parsed?.token) {
-      message.warning('二维码内容无效')
-      return
-    }
-    const activityId = parsed.activityId || selectedId
-    const result = await doCheckIn(activityId, 'qrcode', { token: parsed.token })
-    result.success ? message.success(result.message) : message.warning(result.message)
-  }
-
   const submitPasswordCheckIn = async () => {
     const result = await doCheckIn(selectedId, 'password', { code: password })
     result.success ? message.success(result.message) : message.warning(result.message)
@@ -160,6 +147,7 @@ export default function CheckIn() {
   }
 
   const records = isOrganizer ? (activityStats?.records || []) : checkIns.filter(c => String(c.activityId) === String(selectedId))
+  const qrCheckInUrl = buildQrCheckInUrl(qrSession)
 
   const columns = [
     {
@@ -229,25 +217,20 @@ export default function CheckIn() {
                       {isOrganizer ? (
                         <Space direction="vertical" align="center" style={{ width: '100%' }}>
                           <Title level={5}>活动签到二维码</Title>
-                          {qrSession?.qrContent ? (
-                            <QRCode value={qrSession.qrContent} size={220} />
+                          {qrCheckInUrl ? (
+                            <QRCode value={qrCheckInUrl} size={220} />
                           ) : (
                             <Spin />
                           )}
+                          <Paragraph type="secondary">参与者扫码后将自动验证签到</Paragraph>
                           <Button icon={<ReloadOutlined />} loading={sessionLoading} onClick={refreshSessions}>刷新</Button>
                         </Space>
                       ) : (
                         <Space direction="vertical" style={{ width: '100%' }}>
-                          <Input.TextArea
-                            rows={3}
-                            placeholder="粘贴扫码得到的 CHECKIN 内容或 token"
-                            value={qrInput}
-                            onChange={e => setQrInput(e.target.value)}
-                          />
                           {hasCheckedIn ? (
                             <Alert message="您已完成签到" type="success" showIcon icon={<CheckCircleOutlined />} />
                           ) : (
-                            <Button type="primary" block size="large" onClick={submitQrCheckIn}>二维码签到</Button>
+                            <Alert message="请扫描组织者展示的二维码，系统会自动完成签到" type="info" showIcon />
                           )}
                         </Space>
                       )}

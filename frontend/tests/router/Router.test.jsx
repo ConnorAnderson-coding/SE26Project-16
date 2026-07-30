@@ -14,6 +14,7 @@ vi.mock('../../src/pages/SignupManagement', () => ({ default: () => <div>signup 
 vi.mock('../../src/pages/MyFavorites', () => ({ default: () => <div>favorites page</div> }))
 vi.mock('../../src/pages/EditActivity', () => ({ default: () => <div>edit page</div> }))
 vi.mock('../../src/pages/CheckIn', () => ({ default: () => <div>checkin page</div> }))
+vi.mock('../../src/pages/QRCodeCheckInCallback', () => ({ default: () => <div>qr checkin page</div> }))
 vi.mock('../../src/pages/Feedback', () => ({ default: () => <div>feedback page</div> }))
 vi.mock('../../src/pages/OrganizerAnalytics', () => ({ default: () => <div>analytics page</div> }))
 vi.mock('../../src/pages/CommunityClusters', () => ({ default: () => <div>community page</div> }))
@@ -32,6 +33,7 @@ describe('application router', () => {
     ['/', 'login page'],
     ['/home', 'home page'],
     ['/activity/12', 'activity detail page'],
+    ['/checkin/qrcode', 'qr checkin page'],
     ['/admin/community-clustering', 'admin clustering page']
   ])('renders %s', (path, label) => {
     window.history.replaceState({}, '', path)

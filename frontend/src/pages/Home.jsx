@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Row, Col, Card, Typography, Tag, Statistic, Space, Empty, Spin, Result, Button } from 'antd'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Row, Col, Card, Typography, Tag, Statistic, Space, Empty, Spin, Result, Button, message } from 'antd'
 import {
   CalendarOutlined,
   HeartOutlined,
@@ -16,6 +17,8 @@ const { Title, Paragraph } = Typography
 
 export default function Home() {
   const { currentUser, getRecommendedActivities } = useApp()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [recommended, setRecommended] = useState([])
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -36,6 +39,17 @@ export default function Home() {
   useEffect(() => {
     loadData()
   }, [])
+
+  useEffect(() => {
+    const toast = location.state?.toast
+    if (!toast) return
+    if (toast.type === 'success') {
+      message.success(toast.content)
+    } else if (toast.type === 'warning') {
+      message.warning(toast.content)
+    }
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.pathname, location.state, navigate])
 
   return (
     <AuthGuard>

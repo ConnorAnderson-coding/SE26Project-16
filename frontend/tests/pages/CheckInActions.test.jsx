@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { renderWithRouter } from '../helpers/renderWithApp'
 
 const mocks = vi.hoisted(() => ({
-  doCheckIn: vi.fn()
+  doCheckIn: vi.fn(),
+  navigate: vi.fn()
 }))
 
 vi.mock('antd', async () => {
@@ -18,7 +19,8 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
     ...actual,
-    useSearchParams: () => [new URLSearchParams('activityId=activity-1'), vi.fn()]
+    useNavigate: () => mocks.navigate,
+    useSearchParams: () => [new URLSearchParams('activityId=activity-1&token=token-1'), vi.fn()]
   }
 })
 vi.mock('../../src/layouts/MainLayout', () => ({
@@ -50,6 +52,7 @@ vi.mock('../../src/services/checkInApi', () => ({
 import * as registrationApi from '../../src/services/registrationApi'
 import * as activityApi from '../../src/services/activityApi'
 import CheckIn from '../../src/pages/CheckIn'
+import QRCodeCheckInCallback from '../../src/pages/QRCodeCheckInCallback'
 
 const activity = {
   id: 'activity-1',
@@ -72,7 +75,7 @@ beforeEach(() => {
 })
 
 describe('CheckIn participant actions', () => {
-  it('submits QR, password, and location check-ins', async () => {
+  it('uses scan callback for QR and still submits password and location check-ins', async () => {
     const getCurrentPosition = vi.fn(success => success({
       coords: { latitude: 31.2, longitude: 121.4 }
     }))
@@ -82,14 +85,8 @@ describe('CheckIn participant actions', () => {
     })
     renderWithRouter(<CheckIn />, { route: '/checkin?activityId=activity-1' })
 
-    const qr = await screen.findByPlaceholderText(/CHECKIN/)
-    fireEvent.change(qr, { target: { value: 'CHECKIN:activity-1:token-1' } })
-    await userEvent.click(screen.getByRole('button', { name: /二维码签到/ }))
-    await waitFor(() => expect(mocks.doCheckIn).toHaveBeenCalledWith(
-      'activity-1',
-      'qrcode',
-      { token: 'token-1' }
-    ))
+    expect(await screen.findByText(/扫描组织者展示的二维码/)).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/CHECKIN/)).not.toBeInTheDocument()
 
     const password = screen.getByPlaceholderText(/6位动态口令/)
     fireEvent.change(password, { target: { value: '12x3456' } })
@@ -103,12 +100,31 @@ describe('CheckIn participant actions', () => {
     }))
   })
 
-  it('rejects malformed QR content and unsupported geolocation', async () => {
+  it('auto-submits scanned QR content and redirects home on success', async () => {
+    renderWithRouter(<QRCodeCheckInCallback />, {
+      route: '/checkin/qrcode?activityId=activity-1&token=token-1'
+    })
+
+    await waitFor(() => expect(mocks.doCheckIn).toHaveBeenCalledWith(
+      'activity-1',
+      'qrcode',
+      { token: 'token-1' }
+    ))
+    expect(mocks.navigate).toHaveBeenCalledWith('/home', {
+      replace: true,
+      state: {
+        toast: {
+          type: 'success',
+          content: '签到成功'
+        }
+      }
+    })
+  })
+
+  it('rejects unsupported geolocation', async () => {
     vi.stubGlobal('navigator', { ...navigator, geolocation: undefined })
     renderWithRouter(<CheckIn />, { route: '/checkin?activityId=activity-1' })
-    const qr = await screen.findByPlaceholderText(/CHECKIN/)
-    fireEvent.change(qr, { target: { value: 'CHECKIN:broken' } })
-    await userEvent.click(screen.getByRole('button', { name: /二维码签到/ }))
+    await screen.findByText(/扫描组织者展示的二维码/)
     expect(mocks.doCheckIn).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: /获取当前位置并签到/ }))
     expect(mocks.doCheckIn).not.toHaveBeenCalled()

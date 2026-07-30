@@ -14,6 +14,7 @@ import SignupManagement from '../pages/SignupManagement'
 import MyFavorites from '../pages/MyFavorites'
 import EditActivity from '../pages/EditActivity'
 import CheckIn from '../pages/CheckIn'
+import QRCodeCheckInCallback from '../pages/QRCodeCheckInCallback'
 import Feedback from '../pages/Feedback'
 import OrganizerAnalytics from '../pages/OrganizerAnalytics'
 import CommunityClusters from '../pages/CommunityClusters'
@@ -37,6 +38,7 @@ export default function Router() {
         <Route path="/favorites" element={<MyFavorites />} />
         <Route path="/edit/:id" element={<EditActivity />} />
         <Route path="/checkin" element={<CheckIn />} />
+        <Route path="/checkin/qrcode" element={<QRCodeCheckInCallback />} />
         <Route path="/feedback" element={<Feedback />} />
         <Route path="/organizer-analytics" element={<OrganizerAnalytics />} />
         <Route path="/community" element={<CommunityClusters />} />
