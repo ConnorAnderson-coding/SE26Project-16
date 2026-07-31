@@ -33,9 +33,7 @@ export default function Feedback() {
       const activities = await Promise.all(
         approved.map(s => getActivityById(s.activityId).catch(() => null))
       )
-      const eligible = activities.filter(
-        a => a && (a.status === 'ended' || new Date(a.endTime) < new Date())
-      )
+      const eligible = activities.filter(Boolean)
       setParticipatable(eligible)
       setMyFeedbacks(fbs)
     } finally {
